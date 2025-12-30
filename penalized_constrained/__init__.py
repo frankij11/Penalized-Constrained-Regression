@@ -42,6 +42,7 @@ from .diagnostics import (
 )
 from .utils import (
     generate_correlated_learning_data,
+    generate_test_data,
     calculate_lot_midpoint,
     learning_rate_to_slope,
     slope_to_learning_rate,
@@ -71,6 +72,7 @@ __all__ = [
     
     # Utilities
     'generate_correlated_learning_data',
+    'generate_test_data',
     'calculate_lot_midpoint',
     'learning_rate_to_slope',
     'slope_to_learning_rate',

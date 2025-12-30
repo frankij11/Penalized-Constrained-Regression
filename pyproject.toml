@@ -9,11 +9,11 @@ description = "Penalized regression with coefficient constraints for cost estima
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Kevin Joy", email = "kjoy@herrenassociates.com"},
+    {name = "Kevin Joy", email = "kevin.joy@jlha.com"},
     {name = "Max Watstein"}
 ]
 maintainers = [
-    {name = "Kevin Joy", email = "kjoy@herrenassociates.com"}
+    {name = "Kevin Joy", email = "kevin.joy@jlha.com"}
 ]
 keywords = [
     "regression",

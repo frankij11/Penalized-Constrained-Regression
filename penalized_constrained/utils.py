@@ -8,6 +8,7 @@ Provides:
 """
 
 import numpy as np
+import pandas as pd
 from scipy.optimize import minimize
 
 
@@ -188,24 +189,28 @@ def generate_correlated_learning_data(
         b_for_midpoint=b,
         random_state=random_state
     )
-    
-    # Calculate midpoints
+
+    # Calculate midpoints and track first/last units
     lot_midpoints = np.zeros(n_lots)
+    first_units = np.zeros(n_lots, dtype=int)
+    last_units = np.zeros(n_lots, dtype=int)
     cumulative = 0
     for i in range(n_lots):
         first_unit = cumulative + 1
         last_unit = first_unit + lot_quantities[i] - 1
+        first_units[i] = first_unit
+        last_units[i] = last_unit
         lot_midpoints[i] = calculate_lot_midpoint(first_unit, last_unit, b)
         cumulative = last_unit
-    
+
     # Calculate actual correlation
     log_midpoints = np.log(lot_midpoints)
     log_quantities = np.log(lot_quantities)
     actual_correlation = np.corrcoef(log_midpoints, log_quantities)[0, 1]
-    
+
     # Generate true costs (no error)
     true_costs = T1 * (lot_midpoints ** b) * (lot_quantities ** c)
-    
+
     # Add multiplicative lognormal error
     if cv_error > 0:
         sigma = np.sqrt(np.log(1 + cv_error ** 2))
@@ -213,12 +218,31 @@ def generate_correlated_learning_data(
         observed_costs = true_costs * errors
     else:
         observed_costs = true_costs.copy()
-    
+
     # Prepare output
     X_original = np.column_stack([lot_midpoints, lot_quantities])
     X_log = np.column_stack([log_midpoints, log_quantities])
     y_log = np.log(observed_costs)
-    
+
+    # Create DataFrame with all lot-level data
+    lot_data = pd.DataFrame({
+        'lot_number': np.arange(1, n_lots + 1),
+        'first_unit': first_units,
+        'last_unit': last_units,
+        'lot_quantity': lot_quantities,
+        'lot_midpoint': lot_midpoints,
+        'log_midpoint': log_midpoints,
+        'log_quantity': log_quantities,
+        'true_cost': true_costs,
+        'observed_cost': observed_costs,
+        'log_observed_cost': y_log,
+        'T1': T1,
+        'b': b,
+        'c': c,
+        'cv_error': cv_error,
+        'target_correlation': target_correlation
+    })
+
     return {
         'X': X_log,
         'y': y_log,
@@ -226,8 +250,11 @@ def generate_correlated_learning_data(
         'y_original': observed_costs,
         'lot_quantities': lot_quantities,
         'lot_midpoints': lot_midpoints,
+        'first_units': first_units,
+        'last_units': last_units,
         'actual_correlation': actual_correlation,
         'true_costs': true_costs,
+        'lot_data': lot_data,
         'params': {
             'T1': T1,
             'b': b,
@@ -238,7 +265,123 @@ def generate_correlated_learning_data(
     }
 
 
-def _optimize_lot_quantities(n_lots, target_correlation, base_quantity, 
+def generate_test_data(
+    first_unit_start,
+    n_lots,
+    base_quantity,
+    T1,
+    b,
+    c,
+    cv_error=0.0,
+    random_state=None
+):
+    """
+    Generate test data for out-of-sample evaluation.
+
+    Creates lots starting from a specified unit number with fixed quantity,
+    no correlation optimization (steady-state production assumption).
+
+    Parameters
+    ----------
+    first_unit_start : int
+        First unit number for the test lots (typically last_unit + 1 from training).
+    n_lots : int
+        Number of test lots to generate.
+    base_quantity : int
+        Fixed lot quantity for all test lots.
+    T1 : float
+        Theoretical first unit cost.
+    b : float
+        Learning curve slope.
+    c : float
+        Rate effect slope.
+    cv_error : float, default=0.0
+        Coefficient of variation for error. Use 0 for deterministic true values.
+    random_state : int or None, default=None
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    data : dict
+        Dictionary containing:
+        - 'X': Feature matrix [log(midpoint), log(quantity)]
+        - 'y': Log of costs (true if cv_error=0, observed otherwise)
+        - 'X_original': Original space [midpoint, quantity]
+        - 'y_original': Unit space costs
+        - 'true_costs': True costs without error
+        - 'lot_data': DataFrame with lot-level details
+    """
+    if random_state is not None:
+        np.random.seed(random_state)
+
+    # Fixed quantity for all lots (steady-state production)
+    lot_quantities = np.full(n_lots, base_quantity, dtype=int)
+
+    # Calculate midpoints and track first/last units
+    lot_midpoints = np.zeros(n_lots)
+    first_units = np.zeros(n_lots, dtype=int)
+    last_units = np.zeros(n_lots, dtype=int)
+    cumulative = first_unit_start - 1
+    for i in range(n_lots):
+        first_unit = cumulative + 1
+        last_unit = first_unit + lot_quantities[i] - 1
+        first_units[i] = first_unit
+        last_units[i] = last_unit
+        lot_midpoints[i] = calculate_lot_midpoint(first_unit, last_unit, b)
+        cumulative = last_unit
+
+    # Log transforms
+    log_midpoints = np.log(lot_midpoints)
+    log_quantities = np.log(lot_quantities)
+
+    # Generate true costs (no error)
+    true_costs = T1 * (lot_midpoints ** b) * (lot_quantities ** c)
+
+    # Add multiplicative lognormal error if specified
+    if cv_error > 0:
+        sigma = np.sqrt(np.log(1 + cv_error ** 2))
+        errors = np.exp(np.random.normal(0, sigma, n_lots))
+        observed_costs = true_costs * errors
+    else:
+        observed_costs = true_costs.copy()
+
+    # Prepare output
+    X_original = np.column_stack([lot_midpoints, lot_quantities])
+    X_log = np.column_stack([log_midpoints, log_quantities])
+    y_log = np.log(observed_costs)
+
+    # Create DataFrame with all lot-level data
+    lot_data = pd.DataFrame({
+        'lot_number': np.arange(1, n_lots + 1),
+        'first_unit': first_units,
+        'last_unit': last_units,
+        'lot_quantity': lot_quantities,
+        'lot_midpoint': lot_midpoints,
+        'log_midpoint': log_midpoints,
+        'log_quantity': log_quantities,
+        'true_cost': true_costs,
+        'observed_cost': observed_costs,
+        'log_observed_cost': y_log,
+        'T1': T1,
+        'b': b,
+        'c': c
+    })
+
+    return {
+        'X': X_log,
+        'y': y_log,
+        'X_original': X_original,
+        'y_original': observed_costs,
+        'lot_quantities': lot_quantities,
+        'lot_midpoints': lot_midpoints,
+        'first_units': first_units,
+        'last_units': last_units,
+        'true_costs': true_costs,
+        'lot_data': lot_data
+    }
+
+
+def _optimize_lot_quantities(n_lots, target_correlation, base_quantity,
                               growth_rate, b_for_midpoint, random_state=None,
                               min_quantity=1, max_quantity=None):
     """
