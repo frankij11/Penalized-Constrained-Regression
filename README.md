@@ -1,0 +1,216 @@
+# Penalized-Constrained Regression
+
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![sklearn compatible](https://img.shields.io/badge/sklearn-compatible-brightgreen.svg)](https://scikit-learn.org/)
+
+**Combining regularization and domain constraints for cost estimation with small, correlated datasets.**
+
+## Overview
+
+`penalized-constrained` provides sklearn-compatible estimators that combine:
+
+- **Penalized Regularization** (L1/L2/ElasticNet) to handle multicollinearity
+- **Coefficient Constraints** (bounds) to enforce domain knowledge
+- **SSPE Loss Function** (Sum of Squared Percentage Errors) for MUPE-consistent estimation
+
+This is particularly useful for:
+- Learning curve analysis with rate effects
+- Cost estimation with small samples (5-30 data points)
+- Any regression where coefficients should be bounded based on prior knowledge
+
+## Installation
+
+```bash
+pip install penalized-constrained
+```
+
+Or install from source:
+
+```bash
+git clone https://github.com/herrenassociates/penalized-constrained.git
+cd penalized-constrained
+pip install -e .
+```
+
+## Quick Start
+
+```python
+import numpy as np
+import penalized_constrained as pcreg
+
+# Generate sample data
+np.random.seed(42)
+X = np.random.randn(100, 2)
+y = X @ np.array([-0.15, -0.07]) + 4.5 + 0.1 * np.random.randn(100)
+
+# Fit with cross-validated hyperparameter selection
+model = pcreg.PenalizedConstrainedCV(
+    bounds=[(-1, 0), (-1, 0)],  # Both coefficients must be ≤ 0
+    loss='sspe',                 # MUPE-consistent loss function
+    cv=5
+)
+model.fit(X, y)
+
+# Results
+print(f"Best alpha: {model.alpha_:.4f}")
+print(f"Best l1_ratio: {model.l1_ratio_:.2f}")
+print(f"Coefficients: {model.coef_}")
+print(f"Active constraints: {model.active_constraints_}")
+```
+
+## Learning Curve Example
+
+```python
+import penalized_constrained as pcreg
+
+# Generate realistic learning curve data
+data = pcreg.generate_correlated_learning_data(
+    n_lots=20,
+    T1=100,
+    target_correlation=0.7,  # Correlation between predictors
+    cv_error=0.1,            # 10% CV error
+    random_state=42
+)
+
+X, y = data['X'], data['y']  # Log-transformed
+true_params = data['params']
+
+# Fit with named coefficients
+model = pcreg.PenalizedConstrainedCV(
+    feature_names=['LC', 'RC'],
+    bounds={'LC': (-1, 0), 'RC': (-0.5, 0)},
+    alphas=np.logspace(-2, 1, 10),
+    l1_ratios=[0.0, 0.5, 1.0],
+    loss='sspe'
+)
+model.fit(X, y)
+
+# Compare to true values
+print(f"True LC slope: {true_params['b']:.4f}")
+print(f"Estimated LC: {model.named_coef_['LC']:.4f}")
+print(f"True RC slope: {true_params['c']:.4f}")
+print(f"Estimated RC: {model.named_coef_['RC']:.4f}")
+```
+
+## Custom Prediction Function
+
+For non-linear models like `Y = T1 * X1^b * X2^c`:
+
+```python
+def lc_func(X, params):
+    """Learning curve prediction: T1 * unit^b * qty^c"""
+    T1, b, c = params
+    return T1 * (X[:, 0] ** b) * (X[:, 1] ** c)
+
+model = pcreg.PenalizedConstrainedRegression(
+    prediction_fn=lc_func,
+    feature_names=['T1', 'LC', 'RC'],
+    bounds={'T1': (0, None), 'LC': (-1, 0), 'RC': (-1, 0)},
+    fit_intercept=False,
+    alpha=0.1
+)
+model.fit(X_original, y_original)  # Original space, not log-transformed
+```
+
+## Diagnostics
+
+```python
+from penalized_constrained import ModelDiagnostics
+
+# Compute GDF-adjusted statistics
+diag = ModelDiagnostics(model, X, y, gdf_method='hu')
+diag.summary()
+
+# Output:
+# GDF: 17.0
+# R²: 0.85
+# Adjusted R² (GDF): 0.83
+# SPE: 8.5%
+# Active constraints: 2
+```
+
+## Key Features
+
+### Loss Functions
+
+| Loss | Formula | Use Case |
+|------|---------|----------|
+| `'sspe'` | Σ[(y-ŷ)/y]² | Cost estimation (default, MUPE-consistent) |
+| `'sse'` | Σ(y-ŷ)² | Standard OLS |
+| `'mse'` | mean(y-ŷ)² | Normalized MSE |
+| callable | Custom | Any user-defined loss |
+
+### Bounds Specification
+
+```python
+# Single tuple: same bounds for all coefficients
+bounds = (-1, 0)
+
+# List: individual bounds per coefficient
+bounds = [(-1, 0), (-0.5, 0.1), (None, 10)]
+
+# Dict: named bounds (requires feature_names)
+bounds = {'LC': (-1, 0), 'RC': (-0.5, 0)}
+```
+
+### Generalized Degrees of Freedom
+
+Two methods available for constraint-adjusted statistics:
+
+- **Hu's method**: `gdf_method='hu'` - All specified constraints count
+- **Gaines' method**: `gdf_method='gaines'` - Only binding constraints count
+
+## API Reference
+
+### PenalizedConstrainedRegression
+
+Main estimator class.
+
+```python
+PenalizedConstrainedRegression(
+    alpha=0.0,           # Penalty strength
+    l1_ratio=0.0,        # L1/L2 mix: 0=Ridge, 1=Lasso
+    bounds=None,         # Coefficient bounds
+    feature_names=None,  # Names for coefficients
+    fit_intercept=True,  # Fit intercept
+    loss='sspe',         # Loss function
+    prediction_fn=None,  # Custom prediction function
+    scale=False,         # Standardize X internally
+    method='SLSQP',      # Optimizer
+    max_iter=1000,       # Max iterations
+    tol=1e-6,            # Tolerance
+    verbose=0            # Verbosity
+)
+```
+
+### PenalizedConstrainedCV
+
+Cross-validated version with automatic hyperparameter tuning.
+
+```python
+PenalizedConstrainedCV(
+    alphas=None,         # Grid of alpha values
+    l1_ratios=None,      # Grid of l1_ratio values
+    bounds=None,         # Coefficient bounds
+    cv=5,                # Cross-validation folds
+    scoring='neg_mean_squared_error',
+    n_jobs=-1,           # Parallel jobs
+    ...                  # Same as base class
+)
+```
+
+## References
+
+- Joy, K. & Watstein, M. (2026). "Small Data, Big Problems: Can Constraints and Penalties Save Regression?" ICEAA Professional Development & Training Workshop.
+- James, G.M., Paulson, C., & Rusmevichientong, P. (2020). "Penalized and Constrained Optimization." JASA.
+- Gaines, B.R., Kim, J., & Zhou, H. (2018). "Algorithms for Fitting the Constrained Lasso." JCGS.
+- Hu, S. (2010). "Generalized Degrees of Freedom for Constrained CERs." Tecolote Research.
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Contributing
+
+Contributions welcome! Please open an issue or submit a pull request.
