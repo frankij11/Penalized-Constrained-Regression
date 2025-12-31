@@ -586,6 +586,160 @@ class PCReg_CV_Wrong(PCRegBase):
     selection_method = 'cv'
 
 
+class PCRegMSEBase(PCRegBase):
+    """
+    PCReg with MSE loss instead of SSPE.
+
+    Fits in UNIT SPACE with Y = T1 * X1^b * X2^c but minimizes MSE instead of SSPE.
+    """
+    loss_type: str = 'mse'  # 'mse' or 'sse'
+
+    def _build_regressor_params(self) -> Dict[str, Any]:
+        """Build PCReg parameters with MSE loss."""
+        params = super()._build_regressor_params()
+        params['loss'] = self.loss_type
+        return params
+
+
+class PCReg_MSE(PCRegMSEBase):
+    """PCReg with MSE loss on Y (unit space), constraints only, no penalty."""
+    bounds_key = 'correct'
+    use_cv = False
+    loss_type = 'mse'
+
+
+class PCReg_MSE_CV(PCRegMSEBase):
+    """PCReg with MSE loss on Y (unit space), CV-tuned penalty."""
+    bounds_key = 'correct'
+    use_cv = True
+    selection_method = 'cv'
+    loss_type = 'mse'
+
+
+class PCRegLogSpaceBase(SimulationModel):
+    """
+    PCReg in LOG SPACE - like OLS but with constraints on b and c.
+
+    Transforms: log(Y) = log(T1) + b*log(X1) + c*log(X2)
+    This is a linear model in log space with constraints.
+    """
+    x_transforms = [('log', FunctionTransformer(np.log))]
+    y_transform = staticmethod(np.log)
+    y_inverse = staticmethod(np.exp)
+
+    bounds_key: Optional[str] = 'correct'
+    use_cv: bool = False
+
+    def _get_bounds(self) -> List[Tuple[float, float]]:
+        """Get bounds for b and c (log-space coefficients)."""
+        if self.bounds_key == 'correct':
+            return self.scenario_config.get('correct_bounds', [(-0.5, 0), (-0.5, 0)])
+        elif self.bounds_key == 'tight':
+            return self.scenario_config['tight_bounds']
+        elif self.bounds_key == 'wrong':
+            return self.scenario_config['wrong_bounds']
+        else:
+            return [(-0.5, 0), (-0.5, 0)]
+
+    def _build_regressor_params(self) -> Dict[str, Any]:
+        """Build PCReg parameters for log-space fitting."""
+        bounds = self._get_bounds()
+
+        params = {
+            'bounds': bounds,  # bounds on b and c
+            'feature_names': ['b', 'c'],
+            'fit_intercept': True,  # log(T1) is the intercept
+            'intercept_bounds': (0, None),  # T1 > 0 means log(T1) can be anything, but typically positive
+            'loss': 'mse',  # MSE on log(Y)
+        }
+
+        if self.use_cv:
+            params.update({
+                'alphas': self.scenario_config.get('alpha_grid', np.logspace(-4, 0, 10)),
+                'l1_ratios': self.scenario_config.get('l1_ratio_grid', [0.0, 0.5, 1.0]),
+                'cv': self.scenario_config.get('cv_folds', 3),
+                'selection': 'cv',
+                'n_jobs': 1,
+                'verbose': 0,
+            })
+        else:
+            params['alpha'] = 0.0
+
+        return params
+
+    def fit(self, X, y):
+        """Fit in log space."""
+        # Transform X
+        if self.x_transforms:
+            steps = [(name, clone(t)) for name, t in self.x_transforms]
+            self.x_pipeline_ = Pipeline(steps)
+            X_t = self.x_pipeline_.fit_transform(X)
+        else:
+            self.x_pipeline_ = None
+            X_t = X
+
+        # Transform y
+        y_t = self.y_transform(y) if self.y_transform else y
+
+        # Build and fit regressor
+        params = self._build_regressor_params()
+        if self.use_cv:
+            self.regressor_ = pcreg.PenalizedConstrainedCV(**params)
+        else:
+            self.regressor_ = pcreg.PenalizedConstrainedRegression(**params)
+
+        self.regressor_.fit(X_t, y_t)
+        return self
+
+    def predict(self, X):
+        """Predict in unit space (transform back from log)."""
+        if self.x_pipeline_ is not None:
+            X_t = self.x_pipeline_.transform(X)
+        else:
+            X_t = X
+
+        y_pred_log = self.regressor_.predict(X_t)
+
+        if self.y_inverse is not None:
+            return self.y_inverse(y_pred_log)
+        return y_pred_log
+
+    def get_coefficients(self) -> Dict[str, float]:
+        """Extract b, c, and T1 from log-space model."""
+        coef = self.regressor_.coef_
+        intercept = self.regressor_.intercept_
+        return {
+            'b': coef[0],
+            'c': coef[1] if len(coef) > 1 else 0.0,
+            'intercept': intercept,
+            'T1_est': np.exp(intercept) if intercept != 0 else np.nan,
+        }
+
+    def get_regularization_params(self) -> Dict[str, Any]:
+        params = {}
+        if hasattr(self.regressor_, 'alpha_'):
+            params['alpha'] = self.regressor_.alpha_
+        if hasattr(self.regressor_, 'l1_ratio_'):
+            params['l1_ratio'] = self.regressor_.l1_ratio_
+        if hasattr(self.regressor_, 'converged_'):
+            params['converged'] = self.regressor_.converged_
+        else:
+            params['converged'] = True
+        return params
+
+
+class PCReg_LogMSE(PCRegLogSpaceBase):
+    """PCReg with MSE on log(Y) - like OLS but with constraints on b and c."""
+    bounds_key = 'correct'
+    use_cv = False
+
+
+class PCReg_LogMSE_CV(PCRegLogSpaceBase):
+    """PCReg with MSE on log(Y) and CV-tuned penalty."""
+    bounds_key = 'correct'
+    use_cv = True
+
+
 # ============================================================================
 # MODEL REGISTRY
 # ============================================================================
@@ -597,12 +751,17 @@ MODEL_CLASSES: Dict[str, type] = {
     'BayesianRidge': BayesianRidgeModel,
     # 'PLS': PLS,  # Commented out - not needed for analysis
     # 'PCA_OLS': PCA_OLS,  # Commented out - not needed for analysis
-    'PCReg_ConstrainOnly': PCReg_ConstrainOnly,
-    'PCReg_CV': PCReg_CV,
+    'PCReg_ConstrainOnly': PCReg_ConstrainOnly,  # SSPE loss, unit space, constraints only
+    'PCReg_CV': PCReg_CV,  # SSPE loss, unit space, CV-tuned penalty
     # 'PCReg_AICc': PCReg_AICc,  # Removed - poor performance with small samples
     'PCReg_GCV': PCReg_GCV,
     'PCReg_CV_Tight': PCReg_CV_Tight,
     'PCReg_CV_Wrong': PCReg_CV_Wrong,
+    # New loss function variants
+    'PCReg_MSE': PCReg_MSE,  # MSE loss, unit space, constraints only
+    'PCReg_MSE_CV': PCReg_MSE_CV,  # MSE loss, unit space, CV-tuned penalty
+    'PCReg_LogMSE': PCReg_LogMSE,  # MSE loss, log space (like constrained OLS)
+    'PCReg_LogMSE_CV': PCReg_LogMSE_CV,  # MSE loss, log space, CV-tuned penalty
 }
 
 
