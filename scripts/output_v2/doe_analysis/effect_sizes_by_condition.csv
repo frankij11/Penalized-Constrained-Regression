@@ -1,0 +1,16 @@
+factor,level,model1,model2,hedges_g,ci_low,ci_high,interpretation,n1,n2
+n_lots,5.0,PCReg_CV,OLS,-0.03394616783338828,-0.08,0.03,negligible (favors_second),2025,2025
+n_lots,10.0,PCReg_CV,OLS,0.05564655798368164,-0.0,0.11,negligible (favors_first),2025,2025
+n_lots,30.0,PCReg_CV,OLS,0.0888895612219989,0.03,0.15,negligible (favors_first),2025,2025
+target_correlation,0.0,PCReg_CV,OLS,-0.011940360911983784,-0.05,0.06,negligible (favors_second),2025,2025
+target_correlation,0.5,PCReg_CV,OLS,0.018763150192195203,-0.04,0.08,negligible (favors_first),2025,2025
+target_correlation,0.9,PCReg_CV,OLS,-0.026852909234848787,-0.08,0.04,negligible (favors_second),2025,2025
+cv_error,0.01,PCReg_CV,OLS,-0.021419467333881444,-0.11,0.04,negligible (favors_second),2025,2025
+cv_error,0.1,PCReg_CV,OLS,0.047374091652349924,-0.02,0.1,negligible (favors_first),2025,2025
+cv_error,0.2,PCReg_CV,OLS,-0.023019552602623866,-0.07,0.04,negligible (favors_second),2025,2025
+learning_rate,0.85,PCReg_CV,OLS,0.0508648175550198,-0.01,0.1,negligible (favors_first),2025,2025
+learning_rate,0.9,PCReg_CV,OLS,0.00957536492055931,-0.05,0.08,negligible (favors_first),2025,2025
+learning_rate,0.95,PCReg_CV,OLS,-0.05458185242075456,-0.09,0.0,negligible (favors_second),2025,2025
+rate_effect,0.8,PCReg_CV,OLS,0.02132781244855668,-0.04,0.08,negligible (favors_first),2025,2025
+rate_effect,0.85,PCReg_CV,OLS,-0.020081188392311565,-0.06,0.06,negligible (favors_second),2025,2025
+rate_effect,0.9,PCReg_CV,OLS,-0.018130379979715394,-0.07,0.05,negligible (favors_second),2025,2025
