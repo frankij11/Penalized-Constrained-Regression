@@ -23,8 +23,6 @@ import warnings
 from itertools import product
 from typing import Dict, List, Any, Tuple
 import json
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import multiprocessing
 
 warnings.filterwarnings('ignore')
 
@@ -34,6 +32,10 @@ from sklearn.linear_model import LinearRegression, RidgeCV, LassoCV, BayesianRid
 
 # Model name constants for faster membership checks
 PCREG_MODELS = frozenset(['PCRegConstrain_Only', 'PCRegCV', 'PCRegCV_Tight', 'PCRegCV_Wrong'])
+
+# Scenario key columns for identifying unique scenarios
+SCENARIO_KEY_COLS = ('n_lots', 'target_correlation', 'cv_error', 'learning_rate', 'rate_effect', 'replication')
+
 from sklearn.decomposition import PCA
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.pipeline import Pipeline
@@ -49,7 +51,7 @@ CONFIG = {
     'cv_errors': [0.01, 0.1, 0.2],
     'learning_rates': [0.85, 0.90, 0.95],  # Converts to b slope
     'rate_effects': [0.80, 0.85, 0.90],     # Converts to c slope
-    'n_replications': 5,
+    'n_replications': 11,
 
     # Fixed parameters
     'T1': 100,
@@ -61,7 +63,7 @@ CONFIG = {
     'l1_ratio_grid': [0.0, 0.5, 1.0],
 
     # Penalized-constrained model options
-    'fit_in_unit_space': True,  # If True, use lc_func for prediction in unit space
+    'fit_in_unit_space': False,  # If True, use lc_func for prediction in unit space
 
     # Constraint error magnitudes to test per PAC paper (James et al. 2020)
     # a=1.0 corresponds to 50% average error in constraints
@@ -74,8 +76,9 @@ CONFIG = {
     'test_n_lots': 5,  # Number of lots for out-of-sample testing
     'test_quantity_multiplier': 2,  # Test lot quantity = max(train_quantity) * multiplier
 
-    # Parallel processing
-    'n_jobs': 1,  # Number of parallel workers (-1 = all CPUs, 1 = sequential)
+    # Batch processing for incremental saves
+    'batch_size': 100,  # Number of scenarios per batch before saving
+    'resume': False,  # If True, skip scenarios that have already been computed
 
     # Output
     'output_dir': Path(__file__).parent / "output",
@@ -206,8 +209,12 @@ def get_models(learning_rate: float, rate_effect: float, cv_folds: int = 3,
             alpha=0.0,
             loss='sspe',
             prediction_fn=lc_prediction_fn,
-            fit_intercept=False
+            fit_intercept=False,
+            init=[CONFIG['T1'], true_b, true_c]  # Initialize near true values for better convergence
         )
+
+        # Good starting point for optimizer convergence
+        init_params = [CONFIG['T1'], true_b, true_c]
 
         penalized_constrained_cv = pcreg.PenalizedConstrainedCV(
             bounds=unit_bounds,
@@ -217,6 +224,7 @@ def get_models(learning_rate: float, rate_effect: float, cv_folds: int = 3,
             loss='sspe',
             prediction_fn=lc_prediction_fn,
             fit_intercept=False,
+            init=init_params,
             cv=cv_folds,
             verbose=0
         )
@@ -229,6 +237,7 @@ def get_models(learning_rate: float, rate_effect: float, cv_folds: int = 3,
             loss='sspe',
             prediction_fn=lc_prediction_fn,
             fit_intercept=False,
+            init=init_params,
             cv=cv_folds,
             verbose=0
         )
@@ -241,6 +250,7 @@ def get_models(learning_rate: float, rate_effect: float, cv_folds: int = 3,
             loss='sspe',
             prediction_fn=lc_prediction_fn,
             fit_intercept=False,
+            init=init_params,
             cv=cv_folds,
             verbose=0
         )
@@ -409,18 +419,18 @@ def fit_single_model(model_name: str, model, X: np.ndarray, y: np.ndarray,
 
             # Extract coefficients based on model type
             if model_name in PCREG_MODELS and fit_in_unit_space:
-                # Unit-space models have [T1, b, c] as coef_
+                # Unit-space models have [T1, b, c] as coef_ where b,c are slopes directly
                 result['T1_est'] = model.coef_[0]
-                result['LC_est'] = model.coef_[1]
-                result['RC_est'] = model.coef_[2]
+                result['LC_est'] = 2**model.coef_[1]  # This IS the slope (e.g., -0.152)
+                result['RC_est'] = 2**model.coef_[2]  # This IS the slope (e.g., -0.234)
+                result['b'] = model.coef_[1]  # Slope, not learning rate
+                result['c'] = model.coef_[2]  # Slope, not rate effect
                 result['intercept'] = 0.0
-                result['b'] = 2**result['LC_est']
-                result['c'] = 2**result['RC_est']
             else:
-                result['LC_est'] = np.log(model.coef_[0]) / np.log(2)  # Convert coef to learning slope
-                result['RC_est'] = np.log(model.coef_[1]) / np.log(2) if len(model.coef_) > 1 else 0.0
-                result['b'] = result['LC_est']
-                result['c'] = result['RC_est']
+                result['LC_est'] = 2**model.coef_[1]  # This IS the slope (e.g., -0.152)
+                result['RC_est'] = 2**model.coef_[2]  # This IS the slope (e.g., -0.234)
+                result['b'] = model.coef_[1]  # Slope, not learning rate
+                result['c'] = model.coef_[2]  # Slope, not rate effect
 
 
                 if hasattr(model, 'intercept_'):
@@ -601,11 +611,18 @@ def run_single_scenario(
         random_state=seed
     )
 
-    X, y = data['X'], data['y']
+    X_log, y_log = data['X'], data['y']
+    X_original, y_original = data['X_original'], data['y_original']
     actual_corr = data['actual_correlation']
 
     # Get fit_in_unit_space setting
     fit_in_unit_space = config.get('fit_in_unit_space', False)
+
+    # Select appropriate X and y based on fitting space
+    # PCReg with unit-space fitting needs original (non-log) data
+    # All other models use log-transformed data
+    X_train = X_log
+    y_train = y_log
 
     # Generate test data for out-of-sample evaluation
     test_n_lots = config.get('test_n_lots', 5)
@@ -649,8 +666,15 @@ def run_single_scenario(
     save_predictions = config.get('save_predictions', False)
 
     for model_name, model in models.items():
+        # Select training data based on model type
+        # PCReg models with unit-space fitting need original (non-log) data
+        if fit_in_unit_space and model_name in PCREG_MODELS:
+            X_fit, y_fit = X_original, y_original
+        else:
+            X_fit, y_fit = X_train, y_train
+
         result, fitted_model = fit_single_model(
-            model_name, model, X, y, b_true, c_true, T1_true,
+            model_name, model, X_fit, y_fit, b_true, c_true, T1_true,
             fit_in_unit_space=fit_in_unit_space
         )
 
@@ -756,9 +780,119 @@ def _run_scenario_wrapper(args: Tuple) -> Tuple[List[Dict], List[Dict]]:
     return run_single_scenario(n_lots, corr, cv_error, lr, re, rep, config)
 
 
+def make_scenario_key(n_lots: int, correlation: float, cv_error: float,
+                      learning_rate: float, rate_effect: float, replication: int) -> tuple:
+    """
+    Create a unique key tuple for a scenario.
+
+    Returns a tuple that can be used for set membership testing.
+    """
+    return (n_lots, correlation, cv_error, learning_rate, rate_effect, replication)
+
+
+def load_completed_scenarios(output_dir: Path) -> set:
+    """
+    Load scenario keys that have already been computed from existing results.
+
+    Parameters
+    ----------
+    output_dir : Path
+        Directory containing simulation results.
+
+    Returns
+    -------
+    completed : set
+        Set of scenario key tuples that have already been computed.
+    """
+    results_file = output_dir / 'simulation_results.parquet'
+
+    if not results_file.exists():
+        return set()
+
+    try:
+        df = pd.read_parquet(results_file)
+        if df.empty:
+            return set()
+
+        # Extract unique scenarios (each scenario has multiple models)
+        # Use the first model's row for each scenario
+        scenario_cols = list(SCENARIO_KEY_COLS)
+
+        # Check all required columns exist
+        missing_cols = [c for c in scenario_cols if c not in df.columns]
+        if missing_cols:
+            print(f"Warning: Missing columns in existing results: {missing_cols}")
+            return set()
+
+        completed = set()
+        for _, row in df[scenario_cols].drop_duplicates().iterrows():
+            key = make_scenario_key(
+                n_lots=row['n_lots'],
+                correlation=row['target_correlation'],
+                cv_error=row['cv_error'],
+                learning_rate=row['learning_rate'],
+                rate_effect=row['rate_effect'],
+                replication=row['replication']
+            )
+            completed.add(key)
+
+        return completed
+
+    except Exception as e:
+        print(f"Warning: Could not load existing results: {e}")
+        return set()
+
+
+def save_batch_results(
+    results: List[Dict],
+    predictions: List[Dict],
+    output_dir: Path,
+    batch_num: int,
+    append: bool = True
+):
+    """
+    Save a batch of results incrementally.
+
+    Parameters
+    ----------
+    results : list of dict
+        Model fit results for this batch.
+    predictions : list of dict
+        Lot-level predictions for this batch.
+    output_dir : Path
+        Output directory.
+    batch_num : int
+        Batch number for logging.
+    append : bool
+        If True, append to existing file; otherwise overwrite.
+    """
+    results_file = output_dir / 'simulation_results.parquet'
+    predictions_file = output_dir / 'predictions_flat.parquet'
+
+    results_df = pd.DataFrame(results)
+    predictions_df = pd.DataFrame(predictions) if predictions else pd.DataFrame()
+
+    if append and results_file.exists():
+        # Load existing and concatenate
+        existing_df = pd.read_parquet(results_file)
+        results_df = pd.concat([existing_df, results_df], ignore_index=True)
+
+    # Save results
+    results_df.to_parquet(results_file, engine='pyarrow', index=False)
+
+    # Save predictions if we have them
+    if not predictions_df.empty:
+        if append and predictions_file.exists():
+            existing_pred = pd.read_parquet(predictions_file)
+            predictions_df = pd.concat([existing_pred, predictions_df], ignore_index=True)
+        predictions_df.to_parquet(predictions_file, engine='pyarrow', index=False)
+
+    print(f"  Batch {batch_num} saved: {len(results)} model fits")
+
+
 def run_full_simulation(config: dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Run the complete factorial simulation with optional parallel processing.
+    Run the complete factorial simulation with batch processing and resume capability.
 
     Parameters
     ----------
@@ -766,6 +900,8 @@ def run_full_simulation(config: dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
         Configuration dictionary containing:
         - n_jobs: Number of parallel workers (-1 = all CPUs, 1 = sequential)
         - save_predictions: Whether to collect lot-level predictions
+        - batch_size: Number of scenarios to process before saving (default 100)
+        - resume: If True, skip scenarios that have already been computed
         - All other simulation parameters
 
     Returns
@@ -775,8 +911,11 @@ def run_full_simulation(config: dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
     predictions_df : pd.DataFrame
         Lot-level predictions for parquet output (empty if save_predictions=False).
     """
+    output_dir = config['output_dir']
+    output_dir.mkdir(exist_ok=True)
+
     # Calculate total scenarios
-    n_scenarios = (
+    n_scenarios_total = (
         len(config['sample_sizes']) *
         len(config['correlations']) *
         len(config['cv_errors']) *
@@ -791,21 +930,9 @@ def run_full_simulation(config: dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
         cv_folds=config['cv_folds']
     ))
 
-    # Determine number of workers
-    n_jobs = config.get('n_jobs', -1)
-    if n_jobs == -1:
-        n_jobs = multiprocessing.cpu_count()
-    elif n_jobs <= 0:
-        n_jobs = 1
-
     save_predictions = config.get('save_predictions', False)
-
-    print(f"Total scenarios: {n_scenarios}")
-    print(f"Models per scenario: {n_models}")
-    print(f"Total model fits: {n_scenarios * n_models}")
-    print(f"Parallel workers: {n_jobs}")
-    print(f"Save predictions: {save_predictions}")
-    print()
+    batch_size = config.get('batch_size', 100)
+    resume = config.get('resume', True)
 
     # Build list of all scenario arguments
     factor_combinations = list(product(
@@ -817,65 +944,89 @@ def run_full_simulation(config: dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
         range(config['n_replications'])
     ))
 
-    # Package arguments for parallel execution
-    scenario_args = [
-        (n_lots, corr, cv, lr, re, rep, config)
-        for n_lots, corr, cv, lr, re, rep in factor_combinations
-    ]
+    # Check for completed scenarios if resuming
+    completed_scenarios = set()
+    if resume:
+        completed_scenarios = load_completed_scenarios(output_dir)
+        if completed_scenarios:
+            print(f"Resuming: Found {len(completed_scenarios)} completed scenarios")
+
+    # Filter out completed scenarios
+    scenarios_to_run = []
+    for n_lots, corr, cv, lr, re, rep in factor_combinations:
+        key = make_scenario_key(n_lots, corr, cv, lr, re, rep)
+        if key not in completed_scenarios:
+            scenarios_to_run.append((n_lots, corr, cv, lr, re, rep, config))
+
+    n_scenarios = len(scenarios_to_run)
+    n_skipped = n_scenarios_total - n_scenarios
+
+    print(f"Total scenarios: {n_scenarios_total}")
+    print(f"Already completed: {n_skipped}")
+    print(f"Scenarios to run: {n_scenarios}")
+    print(f"Models per scenario: {n_models}")
+    print(f"Total model fits remaining: {n_scenarios * n_models}")
+    print(f"Batch size: {batch_size}")
+    print(f"Save predictions: {save_predictions}")
+    print()
+
+    if n_scenarios == 0:
+        print("All scenarios already completed!")
+        # Load and return existing results
+        results_file = output_dir / 'simulation_results.parquet'
+        predictions_file = output_dir / 'predictions_flat.parquet'
+        results_df = pd.read_parquet(results_file) if results_file.exists() else pd.DataFrame()
+        predictions_df = pd.read_parquet(predictions_file) if predictions_file.exists() else pd.DataFrame()
+        return results_df, predictions_df
 
     start_time = time.time()
-    all_results = []
-    all_predictions = []
+    batch_results = []
+    batch_predictions = []
+    batch_num = 0
+    scenarios_processed = 0
 
-    if n_jobs == 1:
-        # Sequential execution
-        for i, args in enumerate(scenario_args):
-            if (i + 1) % 100 == 0:
-                elapsed = time.time() - start_time
-                rate = (i + 1) / elapsed
-                remaining = (n_scenarios - i - 1) / rate
-                print(f"Progress: {i + 1}/{n_scenarios} ({100*(i + 1)/n_scenarios:.1f}%) "
-                      f"- ETA: {remaining/60:.1f} min")
+    # Process scenarios in batches
+    for i, args in enumerate(scenarios_to_run):
+        # Run scenario
+        results, predictions = _run_scenario_wrapper(args)
+        batch_results.extend(results)
+        if save_predictions:
+            batch_predictions.extend(predictions)
+        scenarios_processed += 1
 
-            results, predictions = _run_scenario_wrapper(args)
-            all_results.extend(results)
-            if save_predictions:
-                all_predictions.extend(predictions)
-    else:
-        # Parallel execution using ProcessPoolExecutor
-        completed = 0
-        with ProcessPoolExecutor(max_workers=n_jobs) as executor:
-            # Submit all tasks
-            futures = {executor.submit(_run_scenario_wrapper, args): args
-                       for args in scenario_args}
+        # Save batch when full or at end
+        if len(batch_results) >= batch_size * n_models or i == len(scenarios_to_run) - 1:
+            batch_num += 1
+            save_batch_results(
+                results=batch_results,
+                predictions=batch_predictions,
+                output_dir=output_dir,
+                batch_num=batch_num,
+                append=True
+            )
+            batch_results = []
+            batch_predictions = []
 
-            # Collect results as they complete
-            for future in as_completed(futures):
-                completed += 1
-                try:
-                    results, predictions = future.result()
-                    all_results.extend(results)
-                    if save_predictions:
-                        all_predictions.extend(predictions)
-                except Exception as e:
-                    args = futures[future]
-                    print(f"Scenario failed: {args[:6]}, error: {e}")
+        # Progress update
+        if (i + 1) % 10 == 0 or i == len(scenarios_to_run) - 1:
+            elapsed = time.time() - start_time
+            rate = (i + 1) / elapsed if elapsed > 0 else 0
+            remaining = (n_scenarios - i - 1) / rate if rate > 0 else 0
+            total_done = n_skipped + i + 1
+            print(f"Progress: {total_done}/{n_scenarios_total} ({100*total_done/n_scenarios_total:.1f}%) "
+                  f"- ETA: {remaining/60:.1f} min"
+                  f" - Elapsed: {elapsed/60:.1f} min")
 
-                # Progress update every 100 scenarios
-                if completed % 100 == 0:
-                    elapsed = time.time() - start_time
-                    rate = completed / elapsed
-                    remaining = (n_scenarios - completed) / rate
-                    print(f"Progress: {completed}/{n_scenarios} ({100*completed/n_scenarios:.1f}%) "
-                          f"- ETA: {remaining/60:.1f} min")
-
-    # Convert to DataFrames
-    results_df = pd.DataFrame(all_results)
-    predictions_df = pd.DataFrame(all_predictions) if all_predictions else pd.DataFrame()
+    # Load final results
+    results_file = output_dir / 'simulation_results.parquet'
+    predictions_file = output_dir / 'predictions_flat.parquet'
+    results_df = pd.read_parquet(results_file) if results_file.exists() else pd.DataFrame()
+    predictions_df = pd.read_parquet(predictions_file) if predictions_file.exists() else pd.DataFrame()
 
     elapsed_total = time.time() - start_time
-    print(f"\nTotal time: {elapsed_total/60:.1f} minutes")
-    print(f"Average per scenario: {elapsed_total/n_scenarios:.3f} seconds")
+    print(f"\nTotal time for this run: {elapsed_total/60:.1f} minutes")
+    if n_scenarios > 0:
+        print(f"Average per scenario: {elapsed_total/n_scenarios:.3f} seconds")
 
     return results_df, predictions_df
 
@@ -1202,8 +1353,8 @@ if __name__ == "__main__":
 
     # Save predictions to partitioned parquet if enabled
     if CONFIG['save_predictions'] and not predictions_df.empty:
-        predictions_path = output_dir / 'predictions'
-        predictions_path.mkdir(exist_ok=True)
+        #predictions_path = output_dir / 'predictions'
+        #predictions_path.mkdir(exist_ok=True)
 
         # Save as partitioned parquet by n_lots and model_name for efficient querying
         #predictions_df.to_parquet(
