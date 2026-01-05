@@ -11,6 +11,8 @@ Reference: "Small Data, Big Problems: Can Constraints and Penalties Save Regress
 
 import numpy as np
 import warnings
+from datetime import datetime
+import time
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.linear_model import LinearRegression
@@ -388,24 +390,33 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
     def fit(self, X, y):
         """
         Fit the penalized-constrained regression model.
-        
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
             Training data.
-            
+
         y : array-like of shape (n_samples,)
             Target values.
-            
+
         Returns
         -------
         self : object
             Fitted estimator.
         """
+        # Record fit start time
+        self.fit_datetime_ = datetime.now()
+        fit_start_time = time.perf_counter()
+
+        # Extract feature names from DataFrame before validation converts to numpy
+        _df_columns = None
+        if hasattr(X, 'columns'):
+            _df_columns = list(X.columns)
+
         # Validate input
         X, y = check_X_y(X, y, accept_sparse=False, y_numeric=True)
         self.n_features_in_ = X.shape[1]
-        
+
         # Determine number of parameters
         if self.prediction_fn is not None:
             # For custom functions, use feature_names to determine n_params
@@ -416,12 +427,16 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             n_params = len(self.feature_names)
         else:
             n_params = self.n_features_in_
-        
-        # Store feature names
+
+        # Store feature names - auto-generate if not provided
         if self.feature_names is not None:
             self.feature_names_in_ = np.array(self.feature_names)
+        elif _df_columns is not None:
+            # X was a pandas DataFrame - use column names
+            self.feature_names_in_ = np.array(_df_columns)
         else:
-            self.feature_names_in_ = None
+            # Generate default names: X1_coef, X2_coef, etc.
+            self.feature_names_in_ = np.array([f"X{i+1}_coef" for i in range(n_params)])
         
         # Scale if requested
         if self.scale:
@@ -492,15 +507,15 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         elif self.prediction_fn is None:
             self.coef_ = coef_work
         
-        # Create named coefficients dict
-        if self.feature_names_in_ is not None:
-            self.named_coef_ = dict(zip(self.feature_names_in_, self.coef_))
-        else:
-            self.named_coef_ = None
+        # Create named coefficients dict (always available now)
+        self.named_coef_ = dict(zip(self.feature_names_in_, self.coef_))
         
         # Compute active constraints
         self._compute_active_constraints()
-        
+
+        # Record fit duration
+        self.fit_duration_seconds_ = time.perf_counter() - fit_start_time
+
         return self
     
     def _compute_active_constraints(self, tol=1e-6):

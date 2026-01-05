@@ -59,29 +59,17 @@ PRIMARY_METRIC = 'test_sspe'  # Primary outcome variable
 METRIC_LABEL = 'Test SSPE (Sum of Squared Percentage Errors)'
 
 # Models to focus on for DOE analysis
+# Set to None to auto-discover from results, or specify a list to filter
 # PCReg_CV_Tight uses true parameter values (oracle) - shown separately
-MODELS_OF_INTEREST = [
-    'OLS',
-    'OLS_LearnOnly',
-    'PCReg_ConstrainOnly',
-    'PCReg_CV',
-    'PCReg_GCV',
-    'PCReg_CV_Tight',
-    'PCReg_CV_Wrong'
-]
+MODELS_OF_INTEREST = None  # Auto-discover from results
 
 # Practical models (excludes oracle/cheating models)
-PRACTICAL_MODELS = [
-    'OLS',
-    'OLS_LearnOnly',
-    'PCReg_ConstrainOnly',
-    'PCReg_CV',
-    'PCReg_GCV',
-    'PCReg_CV_Wrong'
-]
+# Set to None to auto-discover (will exclude ORACLE_MODELS)
+PRACTICAL_MODELS = None  # Auto-discover from results
 
-# Oracle model (uses true parameter values - for reference only)
-ORACLE_MODEL = 'PCReg_CV_Tight'
+# Oracle models (use true parameter values - for reference only)
+# These will be excluded from practical analysis
+ORACLE_MODELS = ['PCReg_CV_Tight']
 
 # Design factors from simulation study
 DESIGN_FACTORS = [
@@ -108,7 +96,8 @@ OUTPUT_DIR = RESULTS_DIR / "doe_analysis"
 # ==============================================================================
 # DATA LOADING AND PREPARATION
 # ==============================================================================
-def load_and_prepare_data(results_dir: Path) -> pd.DataFrame:
+def load_and_prepare_data(results_dir: Path,
+                          models_filter: Optional[List[str]] = None) -> pd.DataFrame:
     """
     Load simulation results and prepare for DOE analysis.
 
@@ -116,6 +105,8 @@ def load_and_prepare_data(results_dir: Path) -> pd.DataFrame:
     ----------
     results_dir : Path
         Directory containing simulation_results.parquet
+    models_filter : list of str, optional
+        List of model names to include. If None, includes all models.
 
     Returns
     -------
@@ -128,8 +119,9 @@ def load_and_prepare_data(results_dir: Path) -> pd.DataFrame:
     # Filter to converged models only
     df = df[df['converged'] == True].copy()
 
-    # Filter to models of interest
-    df = df[df['model_name'].isin(MODELS_OF_INTEREST)].copy()
+    # Filter to models of interest (if specified)
+    if models_filter is not None:
+        df = df[df['model_name'].isin(models_filter)].copy()
 
     # Create unique scenario identifier for repeated measures analysis
     # Each scenario is defined by design factors + replication
@@ -138,10 +130,33 @@ def load_and_prepare_data(results_dir: Path) -> pd.DataFrame:
     ).ngroup()
 
     print(f"Loaded {len(df):,} observations")
-    print(f"Models: {df['model_name'].unique().tolist()}")
+    print(f"Models: {sorted(df['model_name'].unique().tolist())}")
     print(f"Unique scenarios: {df['scenario_id'].nunique():,}")
 
     return df
+
+
+def discover_models(results_dir: Path) -> Tuple[List[str], List[str]]:
+    """
+    Discover all models in results and categorize as practical vs oracle.
+
+    Parameters
+    ----------
+    results_dir : Path
+        Directory containing simulation_results.parquet
+
+    Returns
+    -------
+    all_models : list
+        All model names found in results
+    practical_models : list
+        Models excluding oracle models
+    """
+    df = pd.read_parquet(results_dir / 'simulation_results.parquet')
+    all_models = sorted(df['model_name'].unique().tolist())
+    practical_models = [m for m in all_models if m not in ORACLE_MODELS]
+
+    return all_models, practical_models
 
 
 # ==============================================================================
@@ -377,7 +392,10 @@ def compute_conditional_win_rates(df: pd.DataFrame,
 
     results = []
 
-    for model in MODELS_OF_INTEREST:
+    # Use models actually in the data
+    models_in_data = [col for col in df_wide.columns if col not in DESIGN_FACTORS + ['replication']]
+
+    for model in models_in_data:
         if model == baseline:
             continue
 
@@ -749,9 +767,9 @@ def generate_summary_table(df: pd.DataFrame) -> pd.DataFrame:
             win_counts[winner] = win_counts.get(winner, 0) + 1
             total_scenarios += 1
 
-    # Summary stats
+    # Summary stats - use models actually in the data
     summary_data = []
-    for model in MODELS_OF_INTEREST:
+    for model in sorted(df['model_name'].unique()):
         model_data = df[df['model_name'] == model][PRIMARY_METRIC].dropna()
 
         if len(model_data) > 0:
@@ -872,23 +890,35 @@ def run_full_doe_analysis():
     print(f"Significance Level (alpha): {ALPHA}")
     print("=" * 80)
 
+    # Auto-discover models from results
+    all_models, practical_models = discover_models(RESULTS_DIR)
+
+    # Use configured lists if specified, otherwise use discovered
+    models_of_interest = MODELS_OF_INTEREST if MODELS_OF_INTEREST else all_models
+    practical_model_list = PRACTICAL_MODELS if PRACTICAL_MODELS else practical_models
+
+    print(f"\nDiscovered {len(all_models)} models in results:")
+    for m in all_models:
+        oracle_tag = " (oracle)" if m in ORACLE_MODELS else ""
+        print(f"  - {m}{oracle_tag}")
+
     # Load data (all models including oracle)
-    df_all = load_and_prepare_data(RESULTS_DIR)
+    df_all = load_and_prepare_data(RESULTS_DIR, models_filter=models_of_interest)
 
     # Check if we have enough data
     if len(df_all) == 0:
         print("ERROR: No data found. Run simulation study first.")
         return
 
-    # Create practical-only dataset (excludes PCReg_CV_Tight oracle model)
-    df_practical = df_all[df_all['model_name'].isin(PRACTICAL_MODELS)].copy()
+    # Create practical-only dataset (excludes oracle models)
+    df_practical = df_all[df_all['model_name'].isin(practical_model_list)].copy()
 
     print("\n" + "=" * 80)
     print("PART 1: PRACTICAL MODELS ONLY (Excludes Oracle)")
-    print(f"Models: {PRACTICAL_MODELS}")
+    print(f"Models ({len(practical_model_list)}): {practical_model_list}")
     print("=" * 80)
-    print("\nNote: PCReg_CV_Tight is excluded because it uses true parameter values")
-    print("      (oracle/cheating) which are not available in practice.")
+    print(f"\nNote: Oracle models {ORACLE_MODELS} are excluded because they use true")
+    print("      parameter values which are not available in practice.")
 
     # 1. Repeated Measures ANOVA - PRACTICAL MODELS
     print("\n" + "-" * 80)

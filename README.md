@@ -12,7 +12,8 @@
 
 - **Penalized Regularization** (L1/L2/ElasticNet) to handle multicollinearity
 - **Coefficient Constraints** (bounds) to enforce domain knowledge
-- **SSPE Loss Function** (Sum of Squared Percentage Errors) for MUPE-consistent estimation
+- **Customizable Prediction Function** defaults to standard linear prediction: X @ coef + intercept, but allows custom prediction function with signature: prediction_fn(X, params) -> y_pred
+- **Customizable Loss Function** Sum of Squared Percentage Errors (SSPE), Sum Squared Error (SSE) and Mean Squared Error (MSE) or callable custom loss function with signature loss(y_true, y_pred)
 
 This is particularly useful for:
 - Learning curve analysis with rate effects
@@ -47,7 +48,7 @@ y = X @ np.array([-0.15, -0.07]) + 4.5 + 0.1 * np.random.randn(100)
 # Fit with cross-validated hyperparameter selection
 model = pcreg.PenalizedConstrainedCV(
     bounds=[(-1, 0), (-1, 0)],  # Both coefficients must be ≤ 0
-    loss='sspe',                 # MUPE-consistent loss function
+    loss='sspe',                 # Sum of Squared Percentage Error
     cv=5
 )
 model.fit(X, y)

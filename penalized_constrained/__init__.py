@@ -38,7 +38,16 @@ from .diagnostics import (
     compute_gdf_hu,
     compute_gdf_gaines,
     bootstrap_confidence_intervals,
-    hessian_standard_errors
+    hessian_standard_errors,
+    # Summary report classes
+    SummaryReport,
+    CoefficientInfo,
+    FitStatistics,
+    ModelSpecification,
+    DataSummary,
+    ConstraintSummary,
+    ResidualAnalysis,
+    generate_summary_report,
 )
 from .utils import (
     generate_correlated_learning_data,
@@ -60,16 +69,26 @@ __all__ = [
     # Core classes
     'PenalizedConstrainedRegression',
     'PCRegression',
-    'PenalizedConstrainedCV', 
+    'PenalizedConstrainedCV',
     'PCCV',
-    
+
     # Diagnostics
     'ModelDiagnostics',
     'compute_gdf_hu',
     'compute_gdf_gaines',
     'bootstrap_confidence_intervals',
     'hessian_standard_errors',
-    
+
+    # Summary Report
+    'SummaryReport',
+    'CoefficientInfo',
+    'FitStatistics',
+    'ModelSpecification',
+    'DataSummary',
+    'ConstraintSummary',
+    'ResidualAnalysis',
+    'generate_summary_report',
+
     # Utilities
     'generate_correlated_learning_data',
     'generate_test_data',

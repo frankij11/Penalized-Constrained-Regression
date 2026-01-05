@@ -21,6 +21,7 @@ from typing import Dict, List, Any, Tuple, Optional, Callable
 from itertools import product
 import json
 import os
+import hashlib
 
 # Suppress all warnings including sklearn's R² warnings for small samples
 warnings.filterwarnings('ignore')
@@ -765,6 +766,124 @@ MODEL_CLASSES: Dict[str, type] = {
 }
 
 
+def get_model_config(model_class: type) -> Dict[str, Any]:
+    """
+    Extract configuration from a model class for hashing.
+
+    Captures class attributes that define model behavior.
+    """
+    config = {'class_name': model_class.__name__}
+
+    # Extract relevant class attributes
+    for attr in ['x_transforms', 'y_transform', 'y_inverse',
+                 'regressor_class', 'regressor_params',
+                 'bounds_key', 'use_cv', 'selection_method', 'loss_type']:
+        if hasattr(model_class, attr):
+            val = getattr(model_class, attr)
+            # Convert to string representation for hashing
+            if attr == 'regressor_class':
+                config[attr] = val.__name__ if val else None
+            elif attr == 'x_transforms':
+                # Serialize transform pipeline structure
+                config[attr] = [(name, t.__class__.__name__) for name, t in val] if val else []
+            elif callable(val) and val is not None:
+                # For transform functions, use their name
+                config[attr] = getattr(val, '__name__', str(val))
+            else:
+                config[attr] = val
+
+    return config
+
+
+def get_model_hash(model_name: str) -> str:
+    """
+    Generate a hash for a model based on its configuration.
+
+    The hash changes when model parameters change, triggering re-run.
+
+    Parameters
+    ----------
+    model_name : str
+        Name of the model in MODEL_CLASSES.
+
+    Returns
+    -------
+    hash : str
+        12-character hash of the model configuration.
+    """
+    if model_name not in MODEL_CLASSES:
+        raise ValueError(f"Unknown model: {model_name}")
+
+    model_class = MODEL_CLASSES[model_name]
+    config = get_model_config(model_class)
+
+    # Create deterministic string representation
+    config_str = json.dumps(config, sort_keys=True, default=str)
+    return hashlib.md5(config_str.encode()).hexdigest()[:12]
+
+
+def get_all_model_hashes() -> Dict[str, str]:
+    """Get hashes for all registered models."""
+    return {name: get_model_hash(name) for name in MODEL_CLASSES}
+
+
+def migrate_add_model_hashes(output_dir: Path = None) -> None:
+    """
+    One-time migration: add model_hash column to existing results.
+
+    Run this once after updating to the new model-hash-based tracking.
+    Creates a backup before modifying.
+
+    Parameters
+    ----------
+    output_dir : Path, optional
+        Output directory. If None, uses CONFIG['output_dir'].
+    """
+    if output_dir is None:
+        output_dir = CONFIG['output_dir']
+
+    results_file = output_dir / 'simulation_results.parquet'
+
+    if not results_file.exists():
+        print(f"No results file found at {results_file}")
+        return
+
+    print(f"Migrating {results_file}...")
+
+    # Read existing results
+    df = pd.read_parquet(results_file)
+
+    if 'model_hash' in df.columns:
+        print("model_hash column already exists. Skipping migration.")
+        return
+
+    # Build hash lookup from current model definitions
+    hash_lookup = get_all_model_hashes()
+
+    # Check for unknown models
+    unknown_models = set(df['model_name'].unique()) - set(hash_lookup.keys())
+    if unknown_models:
+        print(f"Warning: Found models not in current registry: {unknown_models}")
+        print("These rows will have NaN model_hash and will be re-run.")
+
+    # Add hash column
+    df['model_hash'] = df['model_name'].map(hash_lookup)
+
+    # Create backup
+    backup_file = output_dir / 'simulation_results_backup.parquet'
+    df_original = pd.read_parquet(results_file)
+    df_original.to_parquet(backup_file, engine='pyarrow', index=False)
+    print(f"Created backup at {backup_file}")
+
+    # Save updated results
+    df.to_parquet(results_file, engine='pyarrow', index=False)
+    print(f"Added model_hash to {len(df)} rows")
+    print(f"Hash mapping:")
+    for name, hash_val in sorted(hash_lookup.items()):
+        count = (df['model_name'] == name).sum()
+        print(f"  {name}: {hash_val} ({count} rows)")
+
+
 def generate_wrong_bounds(true_b: float, true_c: float, a: float = 0.5,
                           random_state: int = None) -> List[Tuple[float, float]]:
     """Generate 'wrong' constraints following James et al. (2020) PAC methodology."""
@@ -903,11 +1022,21 @@ def compute_oos_metrics(y_pred: np.ndarray, y_true: np.ndarray) -> Dict[str, flo
 def run_single_scenario(
     scenario: Tuple,
     config: Dict,
+    models_to_run: Optional[List[str]] = None,
 ) -> Tuple[List[Dict], List[Dict]]:
     """
-    Run all models on a single scenario.
+    Run models on a single scenario.
 
     All models receive the SAME raw X, y data in unit space.
+
+    Parameters
+    ----------
+    scenario : tuple
+        (n_lots, correlation, cv_error, learning_rate, rate_effect, replication)
+    config : dict
+        Simulation configuration.
+    models_to_run : list of str, optional
+        List of model names to run. If None, runs all models in MODEL_CLASSES.
     """
     n_lots, correlation, cv_error, learning_rate, rate_effect, replication = scenario
 
@@ -979,10 +1108,14 @@ def run_single_scenario(
         'cv_folds': config['cv_folds'],
     }
 
-    # Create all models
-    models = create_models(scenario_config)
+    # Create models (only those requested, or all if not specified)
+    all_models = create_models(scenario_config)
+    if models_to_run is None:
+        models = all_models
+    else:
+        models = {name: all_models[name] for name in models_to_run if name in all_models}
 
-    # Fit all models
+    # Fit models
     results = []
     predictions = []
     save_predictions = config.get('save_predictions', False)
@@ -1038,7 +1171,7 @@ def run_single_scenario(
                 'test_n_lots': 0,
             })
 
-        # Add scenario metadata
+        # Add scenario metadata and model hash
         result.update({
             'n_lots': n_lots,
             'target_correlation': correlation,
@@ -1053,6 +1186,7 @@ def run_single_scenario(
             'seed': seed,
             'test_quantity': test_quantity,
             'first_test_unit': first_test_unit,
+            'model_hash': get_model_hash(model_name),
         })
 
         results.append(result)
@@ -1065,8 +1199,8 @@ def run_single_scenario(
 # ============================================================================
 def _scenario_worker(args: Tuple) -> Tuple[List[Dict], List[Dict]]:
     """Worker function for parallel execution."""
-    scenario, config = args
-    return run_single_scenario(scenario, config)
+    scenario, config, models_to_run = args
+    return run_single_scenario(scenario, config, models_to_run)
 
 
 def save_batch_file(
@@ -1086,60 +1220,148 @@ def save_batch_file(
 
 
 def merge_batch_files(output_dir: Path) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Merge all batch files into final output."""
-    # Merge results
+    """Merge all batch files into final output, appending to existing results."""
+    results_file = output_dir / 'simulation_results.parquet'
+    pred_file = output_dir / 'predictions_flat.parquet'
+
+    # Merge results - include existing file if present
     results_files = sorted(output_dir.glob('batch_results_*.parquet'))
     if results_files:
         results_dfs = [pd.read_parquet(f) for f in results_files]
+
+        # Append to existing results if file exists
+        if results_file.exists():
+            existing_df = pd.read_parquet(results_file)
+            results_dfs.insert(0, existing_df)
+
         results_df = pd.concat(results_dfs, ignore_index=True)
-        results_df.to_parquet(output_dir / 'simulation_results.parquet',
-                              engine='pyarrow', index=False)
+        results_df.to_parquet(results_file, engine='pyarrow', index=False)
+
+        # Clean up batch files
         for f in results_files:
             f.unlink()
     else:
-        results_df = pd.DataFrame()
+        # No new batches, just return existing
+        if results_file.exists():
+            results_df = pd.read_parquet(results_file)
+        else:
+            results_df = pd.DataFrame()
 
-    # Merge predictions
-    pred_files = sorted(output_dir.glob('batch_predictions_*.parquet'))
-    if pred_files:
-        pred_dfs = [pd.read_parquet(f) for f in pred_files]
+    # Merge predictions - include existing file if present
+    pred_batch_files = sorted(output_dir.glob('batch_predictions_*.parquet'))
+    if pred_batch_files:
+        pred_dfs = [pd.read_parquet(f) for f in pred_batch_files]
+
+        # Append to existing predictions if file exists
+        if pred_file.exists():
+            existing_pred_df = pd.read_parquet(pred_file)
+            pred_dfs.insert(0, existing_pred_df)
+
         predictions_df = pd.concat(pred_dfs, ignore_index=True)
-        predictions_df.to_parquet(output_dir / 'predictions_flat.parquet',
-                                  engine='pyarrow', index=False)
-        for f in pred_files:
+        predictions_df.to_parquet(pred_file, engine='pyarrow', index=False)
+
+        # Clean up batch files
+        for f in pred_batch_files:
             f.unlink()
     else:
-        predictions_df = pd.DataFrame()
+        # No new batches, just return existing
+        if pred_file.exists():
+            predictions_df = pd.read_parquet(pred_file)
+        else:
+            predictions_df = pd.DataFrame()
 
     return results_df, predictions_df
 
 
-def load_completed_scenarios(output_dir: Path) -> set:
-    """Load scenario keys that have already been computed."""
+def load_completed_scenarios(output_dir: Path) -> Tuple[set, set]:
+    """
+    Load scenario+model combinations that have already been computed.
+
+    Returns
+    -------
+    completed_scenario_models : set
+        Set of (n_lots, correlation, cv_error, learning_rate, rate_effect, replication, model_hash) tuples.
+    completed_scenarios : set
+        Set of (n_lots, correlation, cv_error, learning_rate, rate_effect, replication) tuples
+        where ALL current models have been run.
+    """
     results_file = output_dir / 'simulation_results.parquet'
 
     if not results_file.exists():
-        return set()
+        return set(), set()
 
     try:
         df = pd.read_parquet(results_file)
         if df.empty:
-            return set()
+            return set(), set()
 
+        # Get current model hashes
+        current_hashes = get_all_model_hashes()
+
+        # Check if model_hash column exists (for migration)
+        if 'model_hash' not in df.columns:
+            print("Warning: model_hash column not found. Run migrate_add_model_hashes() first.")
+            return set(), set()
+
+        # Build set of completed (scenario, model_hash) combinations
         scenario_cols = ['n_lots', 'target_correlation', 'cv_error',
-                         'learning_rate', 'rate_effect', 'replication']
+                         'learning_rate', 'rate_effect', 'replication', 'model_hash']
 
-        completed = set()
+        completed_scenario_models = set()
         for _, row in df[scenario_cols].drop_duplicates().iterrows():
             key = (row['n_lots'], row['target_correlation'], row['cv_error'],
-                   row['learning_rate'], row['rate_effect'], row['replication'])
-            completed.add(key)
+                   row['learning_rate'], row['rate_effect'], row['replication'],
+                   row['model_hash'])
+            completed_scenario_models.add(key)
 
-        return completed
+        # Find scenarios where ALL current models have been run
+        scenario_only_cols = ['n_lots', 'target_correlation', 'cv_error',
+                              'learning_rate', 'rate_effect', 'replication']
+        completed_scenarios = set()
+
+        for _, row in df[scenario_only_cols].drop_duplicates().iterrows():
+            scenario_key = (row['n_lots'], row['target_correlation'], row['cv_error'],
+                           row['learning_rate'], row['rate_effect'], row['replication'])
+
+            # Check if all current model hashes are present for this scenario
+            scenario_hashes = {h for (n, cor, cv, lr, re, rep, h) in completed_scenario_models
+                              if (n, cor, cv, lr, re, rep) == scenario_key}
+
+            if set(current_hashes.values()).issubset(scenario_hashes):
+                completed_scenarios.add(scenario_key)
+
+        return completed_scenario_models, completed_scenarios
 
     except Exception as e:
         print(f"Warning: Could not load existing results: {e}")
-        return set()
+        return set(), set()
+
+
+def get_models_to_run(scenario: Tuple, completed_scenario_models: set) -> List[str]:
+    """
+    Determine which models need to be run for a scenario.
+
+    Parameters
+    ----------
+    scenario : tuple
+        (n_lots, correlation, cv_error, learning_rate, rate_effect, replication)
+    completed_scenario_models : set
+        Set of completed (scenario..., model_hash) tuples.
+
+    Returns
+    -------
+    models_to_run : list
+        List of model names that need to be run.
+    """
+    current_hashes = get_all_model_hashes()
+    models_to_run = []
+
+    for model_name, model_hash in current_hashes.items():
+        key = (*scenario, model_hash)
+        if key not in completed_scenario_models:
+            models_to_run.append(model_name)
+
+    return models_to_run
 
 
 def run_simulation_parallel(config: Dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -1162,23 +1384,35 @@ def run_simulation_parallel(config: Dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
     ))
     n_total = len(all_scenarios)
 
-    # Resume capability
-    completed = load_completed_scenarios(output_dir)
-    scenarios_to_run = [s for s in all_scenarios if s not in completed]
-    n_to_run = len(scenarios_to_run)
+    # Resume capability - now tracks at model level
+    completed_scenario_models, completed_scenarios = load_completed_scenarios(output_dir)
+
+    # Build list of (scenario, models_to_run) pairs
+    scenarios_with_models = []
+    total_model_fits = 0
+    for scenario in all_scenarios:
+        if scenario in completed_scenarios:
+            # All models done for this scenario
+            continue
+        models_needed = get_models_to_run(scenario, completed_scenario_models)
+        if models_needed:
+            scenarios_with_models.append((scenario, models_needed))
+            total_model_fits += len(models_needed)
+
+    n_to_run = len(scenarios_with_models)
     n_skipped = n_total - n_to_run
 
     print(f"Total scenarios: {n_total}")
-    print(f"Already completed: {n_skipped}")
-    print(f"Scenarios to run: {n_to_run}")
-    print(f"Models per scenario: {n_models}")
-    print(f"Total model fits: {n_to_run * n_models}")
+    print(f"Fully completed scenarios: {n_skipped}")
+    print(f"Scenarios needing models: {n_to_run}")
+    print(f"Total models in registry: {n_models}")
+    print(f"Total model fits needed: {total_model_fits}")
     print(f"Parallel workers: {config['n_jobs']} (backend: {config['backend']})")
     print(f"Batch size: {config['batch_size']}")
     print()
 
     if n_to_run == 0:
-        print("All scenarios completed!")
+        print("All scenarios and models completed!")
         return merge_batch_files(output_dir)
 
     start_time = time.time()
@@ -1191,12 +1425,12 @@ def run_simulation_parallel(config: Dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
     for batch_idx in range(n_batches):
         batch_start = batch_idx * batch_size
         batch_end = min(batch_start + batch_size, n_to_run)
-        batch_scenarios = scenarios_to_run[batch_start:batch_end]
+        batch_items = scenarios_with_models[batch_start:batch_end]
 
         print(f"Processing batch {batch_idx + 1}/{n_batches} "
               f"(scenarios {batch_start + 1}-{batch_end})...")
 
-        worker_args = [(s, config) for s in batch_scenarios]
+        worker_args = [(s, config, models) for s, models in batch_items]
 
         batch_results_list = Parallel(
             n_jobs=n_jobs,
@@ -1248,10 +1482,22 @@ def run_simulation_sequential(config: Dict) -> Tuple[pd.DataFrame, pd.DataFrame]
         range(config['n_replications'])
     ))
 
-    completed = load_completed_scenarios(output_dir)
-    scenarios_to_run = [s for s in all_scenarios if s not in completed]
+    # Resume capability - now tracks at model level
+    completed_scenario_models, completed_scenarios = load_completed_scenarios(output_dir)
 
-    print(f"Running {len(scenarios_to_run)} scenarios sequentially...")
+    # Build list of (scenario, models_to_run) pairs
+    scenarios_with_models = []
+    total_model_fits = 0
+    for scenario in all_scenarios:
+        if scenario in completed_scenarios:
+            continue
+        models_needed = get_models_to_run(scenario, completed_scenario_models)
+        if models_needed:
+            scenarios_with_models.append((scenario, models_needed))
+            total_model_fits += len(models_needed)
+
+    print(f"Running {len(scenarios_with_models)} scenarios sequentially...")
+    print(f"Total model fits needed: {total_model_fits}")
 
     start_time = time.time()
     batch_size = config['batch_size']
@@ -1259,8 +1505,8 @@ def run_simulation_sequential(config: Dict) -> Tuple[pd.DataFrame, pd.DataFrame]
     batch_predictions = []
     batch_idx = 0
 
-    for i, scenario in enumerate(scenarios_to_run):
-        results, predictions = run_single_scenario(scenario, config)
+    for i, (scenario, models_to_run) in enumerate(scenarios_with_models):
+        results, predictions = run_single_scenario(scenario, config, models_to_run)
         batch_results.extend(results)
         batch_predictions.extend(predictions)
 
@@ -1272,7 +1518,7 @@ def run_simulation_sequential(config: Dict) -> Tuple[pd.DataFrame, pd.DataFrame]
 
         if (i + 1) % 10 == 0:
             elapsed = time.time() - start_time
-            print(f"Progress: {i+1}/{len(scenarios_to_run)} - {elapsed/60:.1f} min elapsed")
+            print(f"Progress: {i+1}/{len(scenarios_with_models)} - {elapsed/60:.1f} min elapsed")
 
     if batch_results:
         save_batch_file(batch_results, batch_predictions, output_dir, batch_idx)
@@ -1379,6 +1625,36 @@ def print_summary(df: pd.DataFrame, analysis: Dict):
 # MAIN
 # ============================================================================
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Run simulation study v2')
+    parser.add_argument('--migrate', action='store_true',
+                        help='Run one-time migration to add model_hash column')
+    parser.add_argument('--show-hashes', action='store_true',
+                        help='Show current model hashes and exit')
+    parser.add_argument('--run-doe', action='store_true',
+                        help='Run DOE analysis after simulation completes')
+    parser.add_argument('--doe-only', action='store_true',
+                        help='Run only DOE analysis (skip simulation)')
+    args = parser.parse_args()
+
+    if args.show_hashes:
+        print("Current model hashes:")
+        print("-" * 50)
+        for name, hash_val in sorted(get_all_model_hashes().items()):
+            print(f"  {name:<25} {hash_val}")
+        sys.exit(0)
+
+    if args.migrate:
+        migrate_add_model_hashes()
+        sys.exit(0)
+
+    if args.doe_only:
+        print("Running DOE analysis only...")
+        from doe_analysis import run_full_doe_analysis
+        run_full_doe_analysis()
+        sys.exit(0)
+
     print("=" * 80)
     print("SIMULATION STUDY v2: SimulationModel Base Class Architecture")
     print("Log-space models: OLS, Ridge, Lasso, etc.")
@@ -1424,3 +1700,11 @@ if __name__ == "__main__":
     print("SIMULATION COMPLETE")
     print(f"Results saved to: {output_dir}")
     print("=" * 80)
+
+    # Run DOE analysis if requested
+    if args.run_doe:
+        print("\n" + "=" * 80)
+        print("RUNNING DOE ANALYSIS")
+        print("=" * 80)
+        from doe_analysis import run_full_doe_analysis
+        run_full_doe_analysis()
