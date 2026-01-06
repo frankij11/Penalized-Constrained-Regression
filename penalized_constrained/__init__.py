@@ -47,7 +47,19 @@ from .diagnostics import (
     DataSummary,
     ConstraintSummary,
     ResidualAnalysis,
+    SampleData,
+    ModelEquation,
+    AlphaTraceResult,
     generate_summary_report,
+    # Equation formatting
+    format_model_equation,
+    format_linear_equation,
+    get_callable_source,
+    # Alpha trace analysis
+    compute_alpha_trace,
+    plot_alpha_trace,
+    find_optimal_alpha,
+    summarize_alpha_trace,
 )
 from .utils import (
     generate_correlated_learning_data,
@@ -87,7 +99,19 @@ __all__ = [
     'DataSummary',
     'ConstraintSummary',
     'ResidualAnalysis',
+    'SampleData',
+    'ModelEquation',
+    'AlphaTraceResult',
     'generate_summary_report',
+    'format_model_equation',
+    'format_linear_equation',
+    'get_callable_source',
+
+    # Alpha trace
+    'compute_alpha_trace',
+    'plot_alpha_trace',
+    'find_optimal_alpha',
+    'summarize_alpha_trace',
 
     # Utilities
     'generate_correlated_learning_data',

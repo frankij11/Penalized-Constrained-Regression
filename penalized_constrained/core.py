@@ -324,19 +324,19 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
     
     def _get_initial_params(self, X, y, bounds_parsed):
         """Get starting parameters, clipped to bounds."""
-        n_features = X.shape[1]
-        
+        n_params = len(bounds_parsed)
+
         if self.prediction_fn is not None:
             # For custom functions, use zeros or user-provided init
             if isinstance(self.init, str):
                 if self.init == 'zeros':
-                    params_init = np.zeros(n_features)
+                    params_init = np.zeros(n_params)
                 else:
                     # Default initialization for custom functions
-                    params_init = np.ones(n_features)
+                    params_init = np.ones(n_params)
             else:
                 params_init = np.array(self.init, dtype=float)
-        
+
         elif self.init == 'ols':
             try:
                 ols = LinearRegression(fit_intercept=self.fit_intercept)
@@ -344,19 +344,19 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
                 coef_init = ols.coef_.copy()
                 intercept_init = ols.intercept_ if self.fit_intercept else 0.0
             except Exception:
-                coef_init = np.zeros(n_features)
+                coef_init = np.zeros(n_params)
                 intercept_init = np.mean(y) if self.fit_intercept else 0.0
-            
+
             if self.fit_intercept:
                 params_init = np.append(coef_init, intercept_init)
             else:
                 params_init = coef_init
-        
+
         elif self.init == 'zeros':
             if self.fit_intercept:
-                params_init = np.append(np.zeros(n_features), np.mean(y))
+                params_init = np.append(np.zeros(n_params), np.mean(y))
             else:
-                params_init = np.zeros(n_features)
+                params_init = np.zeros(n_params)
         
         else:
             params_init = np.array(self.init, dtype=float)
@@ -409,9 +409,10 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         fit_start_time = time.perf_counter()
 
         # Extract feature names from DataFrame before validation converts to numpy
-        _df_columns = None
+        # Store as instance attribute so predict() can reconstruct DataFrame for prediction_fn
+        self._df_columns = None
         if hasattr(X, 'columns'):
-            _df_columns = list(X.columns)
+            self._df_columns = list(X.columns)
 
         # Validate input
         X, y = check_X_y(X, y, accept_sparse=False, y_numeric=True)
@@ -431,9 +432,9 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         # Store feature names - auto-generate if not provided
         if self.feature_names is not None:
             self.feature_names_in_ = np.array(self.feature_names)
-        elif _df_columns is not None:
+        elif self._df_columns is not None:
             # X was a pandas DataFrame - use column names
-            self.feature_names_in_ = np.array(_df_columns)
+            self.feature_names_in_ = np.array(self._df_columns)
         else:
             # Generate default names: X1_coef, X2_coef, etc.
             self.feature_names_in_ = np.array([f"X{i+1}_coef" for i in range(n_params)])
@@ -551,12 +552,14 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
     def predict(self, X):
         """
         Predict using the fitted model.
-        
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Samples to predict.
-            
+            Samples to predict. If the model was fit with a pandas DataFrame
+            and uses a custom prediction_fn, X will be converted back to a
+            DataFrame with the original column names.
+
         Returns
         -------
         y_pred : ndarray of shape (n_samples,)
@@ -564,16 +567,21 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         """
         check_is_fitted(self)
         X = check_array(X, accept_sparse=False)
-        
+
         if X.shape[1] != self.n_features_in_:
             raise ValueError(
                 f"X has {X.shape[1]} features, but model was fitted "
                 f"with {self.n_features_in_} features"
             )
-        
+
         if self.prediction_fn is not None:
+            # Reconstruct DataFrame if original X was a DataFrame
+            if hasattr(self, '_df_columns') and self._df_columns is not None:
+                import pandas as pd
+                X_df = pd.DataFrame(X, columns=self._df_columns)
+                return self.prediction_fn(X_df, self.coef_)
             return self.prediction_fn(X, self.coef_)
-        
+
         return X @ self.coef_ + self.intercept_
     
     def score(self, X, y):

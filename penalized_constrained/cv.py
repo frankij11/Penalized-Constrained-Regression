@@ -8,6 +8,9 @@ For small samples, AIC/BIC/GCV are more stable than k-fold CV because they
 don't require data splitting.
 """
 
+import time
+from datetime import datetime
+
 import numpy as np
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import GridSearchCV, KFold, LeaveOneOut
@@ -293,6 +296,10 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         self : object
             Fitted estimator.
         """
+        # Record fit start time
+        fit_start_time = time.perf_counter()
+        self.fit_datetime_ = datetime.now()
+
         X, y = check_X_y(X, y, accept_sparse=False, y_numeric=True)
         n_samples = X.shape[0]
 
@@ -313,11 +320,16 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
 
         # Route to appropriate selection method
         if self.selection in ['aic', 'aicc', 'bic', 'gcv']:
-            return self._fit_information_criterion(X, y, alphas, l1_ratios)
+            self._fit_information_criterion(X, y, alphas, l1_ratios)
         elif self.selection == 'loocv':
-            return self._fit_cv(X, y, alphas, l1_ratios, cv=LeaveOneOut())
+            self._fit_cv(X, y, alphas, l1_ratios, cv=LeaveOneOut())
         else:  # 'cv' (default)
-            return self._fit_cv(X, y, alphas, l1_ratios, cv=self.cv)
+            self._fit_cv(X, y, alphas, l1_ratios, cv=self.cv)
+
+        # Record fit duration
+        self.fit_duration_seconds_ = time.perf_counter() - fit_start_time
+
+        return self
 
     def _fit_cv(self, X, y, alphas, l1_ratios, cv):
         """Fit using cross-validation (K-fold or LOOCV)."""
@@ -365,8 +377,6 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
 
         # Copy attributes from best estimator
         self._copy_estimator_attributes()
-
-        return self
 
     def _fit_information_criterion(self, X, y, alphas, l1_ratios):
         """
@@ -483,8 +493,6 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
             print(f"Best {self.selection.upper()}: {best_score:.4f}")
             print(f"Best alpha: {best_alpha:.6f}, l1_ratio: {best_l1_ratio:.2f}")
 
-        return self
-
     def _copy_estimator_attributes(self):
         """Copy attributes from best_estimator_ to self."""
         self.coef_ = self.best_estimator_.coef_
@@ -494,6 +502,9 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         self.named_coef_ = self.best_estimator_.named_coef_
         self.active_constraints_ = self.best_estimator_.active_constraints_
         self.n_active_constraints_ = self.best_estimator_.n_active_constraints_
+        self.optimization_result_ = self.best_estimator_.optimization_result_
+        self._bounds_parsed = self.best_estimator_._bounds_parsed
+        self._objective = self.best_estimator_._objective
 
         if hasattr(self.best_estimator_, 'feature_names_in_'):
             self.feature_names_in_ = self.best_estimator_.feature_names_in_
