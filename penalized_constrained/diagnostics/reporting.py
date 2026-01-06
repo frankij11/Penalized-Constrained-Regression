@@ -16,7 +16,8 @@ from sklearn.utils.validation import check_is_fitted
 from .dataclasses import (
     CoefficientInfo, FitStatistics, ModelSpecification,
     DataSummary, ConstraintSummary, ResidualAnalysis,
-    SampleData, ModelEquation, AlphaTraceResult
+    SampleData, ModelEquation, AlphaTraceResult,
+    BootstrapCoefResults, BootstrapResults
 )
 from .confidence import bootstrap_confidence_intervals, hessian_standard_errors
 from .equations import format_model_equation
@@ -46,8 +47,8 @@ class SummaryReport:
         Constraint specification and status.
     residuals : Optional[ResidualAnalysis]
         Residual analysis (only in full mode).
-    bootstrap_results : Optional[Dict]
-        Bootstrap CI results (only in full mode with bootstrap=True).
+    bootstrap_results : Optional[BootstrapResults]
+        Bootstrap CI results (only when bootstrap=True).
     report_datetime : datetime
         When the report was generated.
     ci_method : str
@@ -66,7 +67,7 @@ class SummaryReport:
     fit_stats: FitStatistics
     constraints: ConstraintSummary
     residuals: Optional[ResidualAnalysis] = None
-    bootstrap_results: Optional[Dict] = None
+    bootstrap_results: Optional[BootstrapResults] = None
     report_datetime: Optional[datetime] = None
     ci_method: str = 'none'
     equation: Optional[ModelEquation] = None
@@ -363,7 +364,9 @@ class SummaryReport:
         filepath: Optional[str] = None,
         include_plots: bool = True,
         sample_n: int = 50,
-        include_equation: bool = True
+        include_equation: bool = True,
+        X: Optional[np.ndarray] = None,
+        y: Optional[np.ndarray] = None,
     ) -> str:
         """
         Export report to HTML format with embedded plots and sample data.
@@ -375,9 +378,13 @@ class SummaryReport:
         include_plots : bool, default=True
             Embed diagnostic plots as base64 images
         sample_n : int, default=50
-            Number of sample rows to include. -1 for all (warns if >100)
+            Number of sample rows to include in sample data table. -1 for all (warns if >100)
         include_equation : bool, default=True
             Include model equation section
+        X : np.ndarray, optional
+            Full feature matrix for interactive data explorer. If None, uses sample_data.
+        y : np.ndarray, optional
+            Full target array for interactive data explorer. If None, uses sample_data.
 
         Returns
         -------
@@ -389,7 +396,9 @@ class SummaryReport:
             self, filepath,
             include_plots=include_plots,
             sample_n=sample_n,
-            include_equation=include_equation
+            include_equation=include_equation,
+            X=X,
+            y=y,
         )
 
     def to_pdf(self, filepath: str, **kwargs):
@@ -569,7 +578,8 @@ def generate_summary_report(
     )
 
     # Data Summary
-    feature_names = list(model.feature_names_in_) if model.feature_names_in_ is not None else None
+    # coef_names are the coefficient/parameter names (e.g., T1, LC, RC)
+    coef_names = list(model.coef_names_in_) if hasattr(model, 'coef_names_in_') and model.coef_names_in_ is not None else None
     data_summary = DataSummary(
         n_samples=len(y),
         n_features=X.shape[1],
@@ -577,8 +587,12 @@ def generate_summary_report(
         y_std=float(np.std(y)),
         y_min=float(np.min(y)),
         y_max=float(np.max(y)),
-        feature_names=feature_names,
+        feature_names=coef_names,  # DataSummary.feature_names refers to coefficient/parameter names
     )
+
+    # Get X column names from feature_names_in_ (sklearn convention)
+    # These are the actual column names of the X matrix
+    x_column_names = list(model.feature_names_in_)
 
     # Sample Data
     sample_data = None
@@ -597,7 +611,7 @@ def generate_summary_report(
             y_pred_sample=y_pred[:actual_n].copy(),
             n_total=len(y),
             n_sample=actual_n,
-            feature_names=feature_names,
+            x_column_names=x_column_names,  # Use X column names, not parameter names
         )
 
     # Determine CI method and compute
@@ -615,19 +629,79 @@ def generate_summary_report(
             actual_ci_method = 'none'
 
     # Compute bootstrap if requested (in addition to hessian)
+    # Run both constrained (with bounds/alpha) and unconstrained (no bounds, alpha=0)
     if bootstrap:
+        constrained_results = None
+        unconstrained_results = None
+
+        # 1. Run constrained bootstrap (with original bounds and alpha)
         try:
-            bootstrap_results = bootstrap_confidence_intervals(
+            bootstrap_raw = bootstrap_confidence_intervals(
                 type(model), X, y,
                 n_bootstrap=n_bootstrap,
                 confidence=confidence,
                 random_state=random_state,
                 **model.get_params()
             )
-            # Bootstrap is the primary CI method when available
-            actual_ci_method = 'bootstrap' if bootstrap_results is not None else actual_ci_method
+            constrained_results = BootstrapCoefResults(
+                coef_mean=bootstrap_raw['coef_mean'],
+                coef_std=bootstrap_raw['coef_std'],
+                coef_ci_lower=bootstrap_raw['coef_ci_lower'],
+                coef_ci_upper=bootstrap_raw['coef_ci_upper'],
+                intercept_mean=bootstrap_raw.get('intercept_mean'),
+                intercept_std=bootstrap_raw.get('intercept_std'),
+                intercept_ci=bootstrap_raw.get('intercept_ci'),
+                bootstrap_coefs=bootstrap_raw['bootstrap_coefs'],
+                n_successful=bootstrap_raw['n_successful'],
+            )
         except Exception as e:
-            warnings.warn(f"Bootstrap failed: {e}", UserWarning)
+            warnings.warn(f"Constrained bootstrap failed: {e}", UserWarning)
+
+        # 2. Run unconstrained bootstrap (no bounds, alpha=0) for comparison
+        # Try for all models - some custom prediction_fn work without constraints
+        try:
+            # Get model params and remove constraints
+            unconstrained_params = model.get_params()
+            # Set bounds to None (no constraints)
+            unconstrained_params['bounds'] = None
+            unconstrained_params['intercept_bounds'] = None
+            # Set alpha to 0 (no regularization)
+            unconstrained_params['alpha'] = 0.0
+
+            bootstrap_raw_unc = bootstrap_confidence_intervals(
+                type(model), X, y,
+                n_bootstrap=n_bootstrap,
+                confidence=confidence,
+                random_state=random_state,
+                **unconstrained_params
+            )
+            unconstrained_results = BootstrapCoefResults(
+                coef_mean=bootstrap_raw_unc['coef_mean'],
+                coef_std=bootstrap_raw_unc['coef_std'],
+                coef_ci_lower=bootstrap_raw_unc['coef_ci_lower'],
+                coef_ci_upper=bootstrap_raw_unc['coef_ci_upper'],
+                intercept_mean=bootstrap_raw_unc.get('intercept_mean'),
+                intercept_std=bootstrap_raw_unc.get('intercept_std'),
+                intercept_ci=bootstrap_raw_unc.get('intercept_ci'),
+                bootstrap_coefs=bootstrap_raw_unc['bootstrap_coefs'],
+                n_successful=bootstrap_raw_unc['n_successful'],
+            )
+        except Exception:
+            # Silently skip unconstrained bootstrap if it fails
+            # This can happen if the model requires bounds/regularization to converge
+            pass
+
+        # Create combined BootstrapResults if we have constrained results
+        if constrained_results is not None:
+            bootstrap_results = BootstrapResults(
+                constrained=constrained_results,
+                unconstrained=unconstrained_results,
+                n_bootstrap=n_bootstrap,
+                confidence=confidence,
+                feature_names=coef_names,  # Use coefficient names for coefficients
+            )
+            # Bootstrap is the primary CI method when available
+            actual_ci_method = 'bootstrap'
 
     # Z-score for confidence interval
     from scipy import stats
@@ -636,8 +710,8 @@ def generate_summary_report(
     # Coefficients
     coefficients = []
     for i, coef_val in enumerate(model.coef_):
-        if model.feature_names_in_ is not None:
-            name = model.feature_names_in_[i]
+        if hasattr(model, 'coef_names_in_') and model.coef_names_in_ is not None:
+            name = model.coef_names_in_[i]
         else:
             name = f"beta_{i}"
 
@@ -647,19 +721,33 @@ def generate_summary_report(
         is_at_lower = np.isfinite(lb) and np.abs(coef_val - lb) < 1e-6
         is_at_upper = np.isfinite(ub) and np.abs(coef_val - ub) < 1e-6
 
-        # Get CI based on method
-        ci_lower = None
-        ci_upper = None
-        se = None
+        # Initialize all SE/CI values
+        hess_se = None
+        hess_ci_lower = None
+        hess_ci_upper = None
+        boot_se = None
+        boot_ci_lower = None
+        boot_ci_upper = None
 
+        # Hessian SE and CI
+        if hessian_se is not None and i < len(hessian_se) and not np.isnan(hessian_se[i]):
+            hess_se = float(hessian_se[i])
+            hess_ci_lower = float(coef_val - z_score * hess_se)
+            hess_ci_upper = float(coef_val + z_score * hess_se)
+
+        # Bootstrap SE and CI (constrained)
         if bootstrap_results is not None:
-            ci_lower = float(bootstrap_results['coef_ci_lower'][i])
-            ci_upper = float(bootstrap_results['coef_ci_upper'][i])
-            se = float(bootstrap_results['coef_std'][i])
-        elif hessian_se is not None and i < len(hessian_se) and not np.isnan(hessian_se[i]):
-            se = float(hessian_se[i])
-            ci_lower = float(coef_val - z_score * se)
-            ci_upper = float(coef_val + z_score * se)
+            boot_se = float(bootstrap_results.coef_std[i])
+            boot_ci_lower = float(bootstrap_results.coef_ci_lower[i])
+            boot_ci_upper = float(bootstrap_results.coef_ci_upper[i])
+
+        # Legacy fields: prefer bootstrap if available, otherwise hessian
+        if boot_se is not None:
+            se, ci_lower, ci_upper = boot_se, boot_ci_lower, boot_ci_upper
+        elif hess_se is not None:
+            se, ci_lower, ci_upper = hess_se, hess_ci_lower, hess_ci_upper
+        else:
+            se, ci_lower, ci_upper = None, None, None
 
         coefficients.append(CoefficientInfo(
             name=str(name),
@@ -668,6 +756,12 @@ def generate_summary_report(
             upper_bound=float(ub),
             is_at_lower=is_at_lower,
             is_at_upper=is_at_upper,
+            hessian_se=hess_se,
+            hessian_ci_lower=hess_ci_lower,
+            hessian_ci_upper=hess_ci_upper,
+            bootstrap_se=boot_se,
+            bootstrap_ci_lower=boot_ci_lower,
+            bootstrap_ci_upper=boot_ci_upper,
             se=se,
             ci_lower=ci_lower,
             ci_upper=ci_upper,
@@ -685,21 +779,35 @@ def generate_summary_report(
         is_at_lower = np.isfinite(int_lb) and np.abs(model.intercept_ - int_lb) < 1e-6
         is_at_upper = np.isfinite(int_ub) and np.abs(model.intercept_ - int_ub) < 1e-6
 
-        ci_lower = None
-        ci_upper = None
-        se = None
+        # Initialize all SE/CI values for intercept
+        hess_se = None
+        hess_ci_lower = None
+        hess_ci_upper = None
+        boot_se = None
+        boot_ci_lower = None
+        boot_ci_upper = None
 
-        if bootstrap_results is not None:
-            ci_lower = float(bootstrap_results['intercept_ci'][0])
-            ci_upper = float(bootstrap_results['intercept_ci'][1])
-            se = float(bootstrap_results['intercept_std'])
-        elif hessian_se is not None:
-            # Intercept is last parameter in hessian_se
+        # Hessian SE and CI for intercept
+        if hessian_se is not None:
             int_idx = len(model.coef_)
             if int_idx < len(hessian_se) and not np.isnan(hessian_se[int_idx]):
-                se = float(hessian_se[int_idx])
-                ci_lower = float(model.intercept_ - z_score * se)
-                ci_upper = float(model.intercept_ + z_score * se)
+                hess_se = float(hessian_se[int_idx])
+                hess_ci_lower = float(model.intercept_ - z_score * hess_se)
+                hess_ci_upper = float(model.intercept_ + z_score * hess_se)
+
+        # Bootstrap SE and CI for intercept
+        if bootstrap_results is not None and bootstrap_results.intercept_ci is not None:
+            boot_se = float(bootstrap_results.intercept_std)
+            boot_ci_lower = float(bootstrap_results.intercept_ci[0])
+            boot_ci_upper = float(bootstrap_results.intercept_ci[1])
+
+        # Legacy fields: prefer bootstrap if available, otherwise hessian
+        if boot_se is not None:
+            se, ci_lower, ci_upper = boot_se, boot_ci_lower, boot_ci_upper
+        elif hess_se is not None:
+            se, ci_lower, ci_upper = hess_se, hess_ci_lower, hess_ci_upper
+        else:
+            se, ci_lower, ci_upper = None, None, None
 
         intercept_info = CoefficientInfo(
             name='Intercept',
@@ -708,6 +816,12 @@ def generate_summary_report(
             upper_bound=float(int_ub),
             is_at_lower=is_at_lower,
             is_at_upper=is_at_upper,
+            hessian_se=hess_se,
+            hessian_ci_lower=hess_ci_lower,
+            hessian_ci_upper=hess_ci_upper,
+            bootstrap_se=boot_se,
+            bootstrap_ci_lower=boot_ci_lower,
+            bootstrap_ci_upper=boot_ci_upper,
             se=se,
             ci_lower=ci_lower,
             ci_upper=ci_upper,

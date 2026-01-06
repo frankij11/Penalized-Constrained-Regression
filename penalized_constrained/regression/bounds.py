@@ -33,14 +33,14 @@ def normalize_bound(bound):
     return (lower, upper)
 
 
-def parse_bounds(bounds, n_params, feature_names=None):
+def parse_bounds(bounds, n_params, coef_names=None):
     """Parse bounds parameter into list of (lower, upper) tuples.
 
     Supports multiple input formats for flexibility:
     - None: No bounds (unbounded)
     - Single tuple: Same bounds for all coefficients
     - List of tuples: Individual bounds for each coefficient
-    - Dict: Named bounds using feature_names
+    - Dict: Named bounds using coef_names
 
     Parameters
     ----------
@@ -48,8 +48,8 @@ def parse_bounds(bounds, n_params, feature_names=None):
         Coefficient bounds in any supported format.
     n_params : int
         Number of parameters to bound.
-    feature_names : list of str, optional
-        Feature names, required for dict-based bounds.
+    coef_names : list of str, optional
+        Coefficient names, required for dict-based bounds.
 
     Returns
     -------
@@ -69,19 +69,19 @@ def parse_bounds(bounds, n_params, feature_names=None):
     >>> parse_bounds((-1, 0), 3)
     [(-1, 0), (-1, 0), (-1, 0)]
 
-    >>> parse_bounds({'LC': (-1, 0)}, 2, feature_names=['LC', 'RC'])
+    >>> parse_bounds({'LC': (-1, 0)}, 2, coef_names=['LC', 'RC'])
     [(-1, 0), (-inf, inf)]
     """
     if bounds is None:
         return [(-np.inf, np.inf)] * n_params
 
-    # Dict-based bounds (requires feature_names)
+    # Dict-based bounds (requires coef_names)
     if isinstance(bounds, dict):
-        if feature_names is None:
+        if coef_names is None:
             raise ValueError(
-                "feature_names must be provided when using dict-based bounds"
+                "coef_names must be provided when using dict-based bounds"
             )
-        return _parse_dict_bounds(bounds, feature_names)
+        return _parse_dict_bounds(bounds, coef_names)
 
     # Single tuple for all coefficients
     if isinstance(bounds, tuple) and len(bounds) == 2:
@@ -102,23 +102,23 @@ def parse_bounds(bounds, n_params, feature_names=None):
     raise ValueError("bounds must be None, tuple, list of tuples, or dict")
 
 
-def _parse_dict_bounds(bounds, feature_names):
-    """Parse dictionary-based bounds using feature names.
+def _parse_dict_bounds(bounds, coef_names):
+    """Parse dictionary-based bounds using coefficient names.
 
     Parameters
     ----------
     bounds : dict
-        Dictionary mapping feature names to (lower, upper) tuples.
-    feature_names : list of str
-        Ordered list of feature names.
+        Dictionary mapping coefficient names to (lower, upper) tuples.
+    coef_names : list of str
+        Ordered list of coefficient names.
 
     Returns
     -------
     list of tuple
-        List of (lower, upper) tuples in feature_names order.
+        List of (lower, upper) tuples in coef_names order.
     """
     parsed = []
-    for name in feature_names:
+    for name in coef_names:
         if name in bounds:
             parsed.append(normalize_bound(bounds[name]))
         else:

@@ -29,6 +29,8 @@ from .dataclasses import (
     SampleData,
     ModelEquation,
     AlphaTraceResult,
+    BootstrapCoefResults,
+    BootstrapResults,
 )
 
 # Reporting
@@ -88,6 +90,8 @@ __all__ = [
     'SampleData',
     'ModelEquation',
     'AlphaTraceResult',
+    'BootstrapCoefResults',
+    'BootstrapResults',
     # Reporting
     'SummaryReport',
     'generate_summary_report',

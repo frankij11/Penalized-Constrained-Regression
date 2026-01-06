@@ -8,29 +8,29 @@ for excluding specific features from penalization.
 import numpy as np
 
 
-def validate_penalty_exclude(penalty_exclude, feature_names):
+def validate_penalty_exclude(penalty_exclude, coef_names):
     """Validate penalty_exclude and build a boolean mask.
 
     Parameters
     ----------
     penalty_exclude : list of str or None
-        Feature names to exclude from penalty. If None, all features
+        Coefficient names to exclude from penalty. If None, all coefficients
         are penalized.
-    feature_names : array-like
-        All feature names (must be resolved/populated).
+    coef_names : array-like
+        All coefficient names (must be resolved/populated).
 
     Returns
     -------
     mask : ndarray of bool
-        Boolean mask where True means the feature IS penalized,
-        False means the feature is excluded from penalty.
+        Boolean mask where True means the coefficient IS penalized,
+        False means the coefficient is excluded from penalty.
     resolved : list
-        Resolved list of excluded feature names (empty list if none).
+        Resolved list of excluded coefficient names (empty list if none).
 
     Raises
     ------
     ValueError
-        If penalty_exclude contains feature names not in feature_names.
+        If penalty_exclude contains coefficient names not in coef_names.
 
     Examples
     --------
@@ -46,25 +46,25 @@ def validate_penalty_exclude(penalty_exclude, feature_names):
     >>> resolved
     []
     """
-    n_params = len(feature_names)
+    n_params = len(coef_names)
 
-    # Default: penalize all features
+    # Default: penalize all coefficients
     if penalty_exclude is None:
         return np.ones(n_params, dtype=bool), []
 
     # Validate that all excluded names exist
     exclude_set = set(penalty_exclude)
-    feature_set = set(feature_names)
-    unknown = exclude_set - feature_set
+    coef_set = set(coef_names)
+    unknown = exclude_set - coef_set
 
     if unknown:
         raise ValueError(
-            f"penalty_exclude contains unknown feature names: {unknown}. "
-            f"Valid names are: {list(feature_names)}"
+            f"penalty_exclude contains unknown coefficient names: {unknown}. "
+            f"Valid names are: {list(coef_names)}"
         )
 
     # Build mask: True = penalize, False = exclude
-    mask = np.array([name not in exclude_set for name in feature_names])
+    mask = np.array([name not in exclude_set for name in coef_names])
     return mask, list(penalty_exclude)
 
 

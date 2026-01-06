@@ -145,13 +145,13 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
     bounds : list, tuple, dict, or None, default=None
         Coefficient bounds (same format as PenalizedConstrainedRegression).
 
-    feature_names : list of str or None, default=None
-        Names for coefficients.
+    coef_names : list of str or None, default=None
+        Names for coefficients/parameters. May differ from X column names.
 
     penalty_exclude : list of str or None, default=None
-        Feature names to exclude from L1/L2 penalty. Useful for intercept-like
+        Coefficient names to exclude from L1/L2 penalty. Useful for intercept-like
         parameters in custom prediction functions (e.g., T1 in learning curves).
-        Requires feature_names to be set.
+        Requires coef_names to be set.
 
     fit_intercept : bool, default=True
         Whether to fit an intercept term.
@@ -167,6 +167,12 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
 
     scale : bool, default=False
         Whether to standardize X internally.
+
+    x0 : str or array-like, default='ols'
+        Initial coefficient values for optimization (scipy convention).
+        - 'ols': Start from OLS solution (clipped to bounds)
+        - 'zeros': Start from zeros
+        - array-like: User-provided initial values
 
     selection : str, default='cv'
         Method for selecting best hyperparameters:
@@ -249,14 +255,14 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         alphas=None,
         l1_ratios=None,
         bounds=None,
-        feature_names=None,
+        coef_names=None,
         penalty_exclude=None,
         fit_intercept=True,
         intercept_bounds=None,
         loss='sspe',
         prediction_fn=None,
         scale=False,
-        init='ols',
+        x0='ols',
         selection='cv',
         cv=5,
         scoring='neg_mean_squared_error',
@@ -269,14 +275,14 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         self.alphas = alphas
         self.l1_ratios = l1_ratios
         self.bounds = bounds
-        self.feature_names = feature_names
+        self.coef_names = coef_names
         self.penalty_exclude = penalty_exclude
         self.fit_intercept = fit_intercept
         self.intercept_bounds = intercept_bounds
         self.loss = loss
         self.prediction_fn = prediction_fn
         self.scale = scale
-        self.init = init
+        self.x0 = x0
         self.selection = selection
         self.cv = cv
         self.scoring = scoring
@@ -306,6 +312,18 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         # Record fit start time
         fit_start_time = time.perf_counter()
         self.fit_datetime_ = datetime.now()
+
+        # Extract X column names BEFORE validation converts to numpy (sklearn convention)
+        if hasattr(X, 'columns'):
+            self._input_feature_names = np.array(list(X.columns))
+        else:
+            self._input_feature_names = np.array([f'X{i+1}' for i in range(X.shape[1])])
+
+        # Extract y name (optional, for reports)
+        if hasattr(y, 'name') and y.name is not None:
+            self._input_y_name = str(y.name)
+        else:
+            self._input_y_name = 'y'
 
         X, y = check_X_y(X, y, accept_sparse=False, y_numeric=True)
         n_samples = X.shape[0]
@@ -348,14 +366,14 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         # Base estimator
         base_estimator = PenalizedConstrainedRegression(
             bounds=self.bounds,
-            feature_names=self.feature_names,
+            coef_names=self.coef_names,
             penalty_exclude=self.penalty_exclude,
             fit_intercept=self.fit_intercept,
             intercept_bounds=self.intercept_bounds,
             loss=self.loss,
             prediction_fn=self.prediction_fn,
             scale=self.scale,
-            init=self.init,
+            x0=self.x0,
             method=self.method,
             max_iter=self.max_iter,
             tol=self.tol,
@@ -421,14 +439,14 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
                     alpha=alpha,
                     l1_ratio=l1_ratio,
                     bounds=self.bounds,
-                    feature_names=self.feature_names,
+                    coef_names=self.coef_names,
                     penalty_exclude=self.penalty_exclude,
                     fit_intercept=self.fit_intercept,
                     intercept_bounds=self.intercept_bounds,
                     loss=self.loss,
                     prediction_fn=self.prediction_fn,
                     scale=self.scale,
-                    init=self.init,
+                    x0=self.x0,
                     method=self.method,
                     max_iter=self.max_iter,
                     tol=self.tol,
@@ -516,8 +534,19 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         self._objective = self.best_estimator_._objective
         self._penalty_exclude_resolved = self.best_estimator_._penalty_exclude_resolved
 
-        if hasattr(self.best_estimator_, 'feature_names_in_'):
-            self.feature_names_in_ = self.best_estimator_.feature_names_in_
+        # Copy naming attributes - use input names (captured before numpy conversion)
+        # feature_names_in_ = X column names (sklearn convention)
+        self.feature_names_in_ = self._input_feature_names
+        # y_name_in_ = y column/series name
+        self.y_name_in_ = self._input_y_name
+        # coef_names_in_ = coefficient/parameter names (from coef_names or default to X columns)
+        if self.coef_names is not None:
+            self.coef_names_in_ = np.array(self.coef_names)
+        else:
+            self.coef_names_in_ = self._input_feature_names.copy()
+
+        # Rebuild named_coef_ using correct coef_names_in_
+        self.named_coef_ = dict(zip(self.coef_names_in_, self.coef_))
     
     def predict(self, X):
         """Predict using the best estimator."""

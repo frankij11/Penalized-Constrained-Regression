@@ -13,13 +13,22 @@ from datetime import datetime
 
 @dataclass
 class CoefficientInfo:
-    """Information about a single coefficient."""
+    """Information about a single coefficient with both Hessian and Bootstrap SE/CI."""
     name: str
     value: float
     lower_bound: float
     upper_bound: float
     is_at_lower: bool = False
     is_at_upper: bool = False
+    # Hessian-based standard errors and CI
+    hessian_se: Optional[float] = None
+    hessian_ci_lower: Optional[float] = None
+    hessian_ci_upper: Optional[float] = None
+    # Bootstrap-based standard errors and CI (constrained)
+    bootstrap_se: Optional[float] = None
+    bootstrap_ci_lower: Optional[float] = None
+    bootstrap_ci_upper: Optional[float] = None
+    # Legacy fields for backwards compatibility (point to best available)
     se: Optional[float] = None
     ci_lower: Optional[float] = None
     ci_upper: Optional[float] = None
@@ -165,15 +174,17 @@ class SampleData:
         Total dataset size
     n_sample : int
         Number of sample rows included
-    feature_names : Optional[List[str]]
-        Names of features
+    x_column_names : Optional[List[str]]
+        Names of X matrix columns (from DataFrame columns or auto-generated X1, X2, ...).
+        These are DIFFERENT from parameter/coefficient names when using custom prediction_fn.
+        For example, X columns might be ['midpoint', 'quantity'] while parameters are ['T1', 'LC', 'RC'].
     """
     X_sample: np.ndarray
     y_sample: np.ndarray
     y_pred_sample: np.ndarray
     n_total: int
     n_sample: int
-    feature_names: Optional[List[str]] = None
+    x_column_names: Optional[List[str]] = None
 
 
 @dataclass
@@ -221,3 +232,174 @@ class AlphaTraceResult:
     optimal: Dict
     l1_ratios: List[float]
     n_alphas: int
+
+
+@dataclass
+class BootstrapCoefResults:
+    """
+    Bootstrap results for a single run (constrained or unconstrained).
+
+    Attributes
+    ----------
+    coef_mean : np.ndarray
+        Mean of bootstrap coefficient estimates
+    coef_std : np.ndarray
+        Standard deviation of bootstrap coefficient estimates
+    coef_ci_lower : np.ndarray
+        Lower confidence interval bounds for coefficients
+    coef_ci_upper : np.ndarray
+        Upper confidence interval bounds for coefficients
+    intercept_mean : Optional[float]
+        Mean of bootstrap intercept estimates
+    intercept_std : Optional[float]
+        Standard deviation of bootstrap intercept estimates
+    intercept_ci : Optional[Tuple[float, float]]
+        Confidence interval for intercept (lower, upper)
+    bootstrap_coefs : np.ndarray
+        All bootstrap coefficient samples (n_bootstrap x n_features)
+    n_successful : int
+        Number of successful bootstrap fits
+    """
+    coef_mean: np.ndarray
+    coef_std: np.ndarray
+    coef_ci_lower: np.ndarray
+    coef_ci_upper: np.ndarray
+    intercept_mean: Optional[float]
+    intercept_std: Optional[float]
+    intercept_ci: Optional[Tuple[float, float]]
+    bootstrap_coefs: np.ndarray
+    n_successful: int
+
+
+@dataclass
+class BootstrapResults:
+    """
+    Results from bootstrap confidence interval analysis.
+
+    Contains both constrained (with bounds/alpha) and unconstrained bootstrap results
+    to allow comparison of uncertainty estimates.
+
+    Attributes
+    ----------
+    constrained : BootstrapCoefResults
+        Bootstrap results using the original model settings (with bounds and alpha)
+    unconstrained : Optional[BootstrapCoefResults]
+        Bootstrap results without bounds and alpha=0 (pure OLS bootstrap)
+    n_bootstrap : int
+        Number of bootstrap samples requested
+    confidence : float
+        Confidence level used (e.g., 0.95)
+    feature_names : Optional[List[str]]
+        Names of features for labeling
+    """
+    constrained: BootstrapCoefResults
+    unconstrained: Optional[BootstrapCoefResults]
+    n_bootstrap: int
+    confidence: float
+    feature_names: Optional[List[str]] = None
+
+    # Convenience properties to access constrained results directly
+    @property
+    def coef_mean(self) -> np.ndarray:
+        return self.constrained.coef_mean
+
+    @property
+    def coef_std(self) -> np.ndarray:
+        return self.constrained.coef_std
+
+    @property
+    def coef_ci_lower(self) -> np.ndarray:
+        return self.constrained.coef_ci_lower
+
+    @property
+    def coef_ci_upper(self) -> np.ndarray:
+        return self.constrained.coef_ci_upper
+
+    @property
+    def intercept_mean(self) -> Optional[float]:
+        return self.constrained.intercept_mean
+
+    @property
+    def intercept_std(self) -> Optional[float]:
+        return self.constrained.intercept_std
+
+    @property
+    def intercept_ci(self) -> Optional[Tuple[float, float]]:
+        return self.constrained.intercept_ci
+
+    @property
+    def bootstrap_coefs(self) -> np.ndarray:
+        return self.constrained.bootstrap_coefs
+
+    @property
+    def n_successful(self) -> int:
+        return self.constrained.n_successful
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for serialization."""
+        result = {
+            'constrained': {
+                'coef_mean': self.constrained.coef_mean.tolist() if self.constrained.coef_mean is not None else None,
+                'coef_std': self.constrained.coef_std.tolist() if self.constrained.coef_std is not None else None,
+                'coef_ci_lower': self.constrained.coef_ci_lower.tolist() if self.constrained.coef_ci_lower is not None else None,
+                'coef_ci_upper': self.constrained.coef_ci_upper.tolist() if self.constrained.coef_ci_upper is not None else None,
+                'intercept_mean': self.constrained.intercept_mean,
+                'intercept_std': self.constrained.intercept_std,
+                'intercept_ci': list(self.constrained.intercept_ci) if self.constrained.intercept_ci else None,
+                'n_successful': self.constrained.n_successful,
+            },
+            'n_bootstrap': self.n_bootstrap,
+            'confidence': self.confidence,
+            'feature_names': self.feature_names,
+        }
+        if self.unconstrained is not None:
+            result['unconstrained'] = {
+                'coef_mean': self.unconstrained.coef_mean.tolist() if self.unconstrained.coef_mean is not None else None,
+                'coef_std': self.unconstrained.coef_std.tolist() if self.unconstrained.coef_std is not None else None,
+                'coef_ci_lower': self.unconstrained.coef_ci_lower.tolist() if self.unconstrained.coef_ci_lower is not None else None,
+                'coef_ci_upper': self.unconstrained.coef_ci_upper.tolist() if self.unconstrained.coef_ci_upper is not None else None,
+                'intercept_mean': self.unconstrained.intercept_mean,
+                'intercept_std': self.unconstrained.intercept_std,
+                'intercept_ci': list(self.unconstrained.intercept_ci) if self.unconstrained.intercept_ci else None,
+                'n_successful': self.unconstrained.n_successful,
+            }
+        return result
+
+    def summary_dataframe(self, include_unconstrained: bool = True) -> 'pd.DataFrame':
+        """Return a summary DataFrame of bootstrap statistics by coefficient."""
+        import pandas as pd
+
+        names = self.feature_names if self.feature_names else [f'coef_{i}' for i in range(len(self.coef_mean))]
+
+        rows = []
+        for i, name in enumerate(names):
+            row = {
+                'Parameter': name,
+                'Constrained Mean': self.constrained.coef_mean[i],
+                'Constrained Std': self.constrained.coef_std[i],
+                'Constrained CI Lower': self.constrained.coef_ci_lower[i],
+                'Constrained CI Upper': self.constrained.coef_ci_upper[i],
+            }
+            if include_unconstrained and self.unconstrained is not None:
+                row['Unconstrained Mean'] = self.unconstrained.coef_mean[i]
+                row['Unconstrained Std'] = self.unconstrained.coef_std[i]
+                row['Unconstrained CI Lower'] = self.unconstrained.coef_ci_lower[i]
+                row['Unconstrained CI Upper'] = self.unconstrained.coef_ci_upper[i]
+            rows.append(row)
+
+        if self.constrained.intercept_mean is not None:
+            row = {
+                'Parameter': 'Intercept',
+                'Constrained Mean': self.constrained.intercept_mean,
+                'Constrained Std': self.constrained.intercept_std,
+                'Constrained CI Lower': self.constrained.intercept_ci[0] if self.constrained.intercept_ci else None,
+                'Constrained CI Upper': self.constrained.intercept_ci[1] if self.constrained.intercept_ci else None,
+            }
+            if include_unconstrained and self.unconstrained is not None and self.unconstrained.intercept_mean is not None:
+                row['Unconstrained Mean'] = self.unconstrained.intercept_mean
+                row['Unconstrained Std'] = self.unconstrained.intercept_std
+                row['Unconstrained CI Lower'] = self.unconstrained.intercept_ci[0] if self.unconstrained.intercept_ci else None
+                row['Unconstrained CI Upper'] = self.unconstrained.intercept_ci[1] if self.unconstrained.intercept_ci else None
+            rows.append(row)
+
+        return pd.DataFrame(rows)

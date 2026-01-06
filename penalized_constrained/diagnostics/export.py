@@ -12,7 +12,8 @@ import numpy as np
 if TYPE_CHECKING:
     from .dataclasses import (
         SummaryReport, CoefficientInfo, FitStatistics, ModelSpecification,
-        DataSummary, ConstraintSummary, ResidualAnalysis, SampleData, ModelEquation
+        DataSummary, ConstraintSummary, ResidualAnalysis, SampleData, ModelEquation,
+        BootstrapResults
     )
 
 
@@ -274,10 +275,10 @@ def _to_excel_single_sheet(report: 'SummaryReport', filepath: str, sample_n: int
         ws.cell(row=row, column=3, value=f"(showing {min(actual_n, report.sample_data.n_sample)} of {report.sample_data.n_total})")
         row += 1
 
-        # Headers
+        # Headers - use X column names (not parameter names)
         sample_headers = ["Row"]
-        if report.sample_data.feature_names:
-            sample_headers.extend(report.sample_data.feature_names)
+        if report.sample_data.x_column_names:
+            sample_headers.extend(report.sample_data.x_column_names)
         else:
             sample_headers.extend([f"X{i+1}" for i in range(report.sample_data.X_sample.shape[1])])
         sample_headers.extend(["Y (Actual)", "Y (Pred)", "Residual"])
@@ -447,7 +448,9 @@ def to_html(
     filepath: Optional[str] = None,
     include_plots: bool = True,
     sample_n: int = 50,
-    include_equation: bool = True
+    include_equation: bool = True,
+    X: Optional[np.ndarray] = None,
+    y: Optional[np.ndarray] = None,
 ) -> str:
     """
     Export report to HTML format with embedded plots and sample data.
@@ -461,31 +464,35 @@ def to_html(
     include_plots : bool, default=True
         Embed diagnostic plots as base64 images
     sample_n : int, default=50
-        Number of sample rows to include. -1 for all (warns if >100)
+        Number of sample rows to include in sample data table. -1 for all (warns if >100)
     include_equation : bool, default=True
         Include model equation section
+    X : np.ndarray, optional
+        Full feature matrix for interactive data explorer. If None, uses sample_data.
+    y : np.ndarray, optional
+        Full target array for interactive data explorer. If None, uses sample_data.
 
     Returns
     -------
     str
         HTML content.
     """
-    from .dataclasses import CoefficientInfo
-
     html_parts = []
 
-    # CSS Styles
+    # CSS Styles with Plotly support
     html_parts.append("""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
         <title>Penalized-Constrained Regression Summary</title>
+        <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
         <style>
             body { font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-            .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
             h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
             h2 { color: #34495e; margin-top: 30px; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; }
+            h3 { color: #5d6d7e; margin-top: 20px; }
             table { border-collapse: collapse; width: 100%; margin: 15px 0; }
             th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
             th { background-color: #3498db; color: white; }
@@ -504,8 +511,15 @@ def to_html(
             .source-code { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; font-size: 0.9em; }
             .plot-container { text-align: center; margin: 20px 0; }
             .plot-container img { max-width: 100%; border: 1px solid #ddd; border-radius: 5px; }
+            .plotly-container { width: 100%; margin: 20px 0; }
             .sample-data { max-height: 400px; overflow-y: auto; }
             .warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 10px; border-radius: 5px; margin: 10px 0; }
+            .info-box { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 10px; border-radius: 5px; margin: 10px 0; }
+            .controls { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+            .control-group { display: flex; flex-direction: column; }
+            .control-group label { font-weight: bold; margin-bottom: 5px; font-size: 0.9em; color: #34495e; }
+            .control-group select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: white; min-width: 150px; }
+            .bootstrap-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
         </style>
     </head>
     <body>
@@ -562,30 +576,27 @@ def to_html(
     html_parts.append(f"<tr><td>Y Range</td><td class='stat-value'>[{report.data_summary.y_min:.4f}, {report.data_summary.y_max:.4f}]</td></tr>")
     html_parts.append("</table>")
 
-    # Coefficients
+    # Coefficients - show both Hessian and Bootstrap SE/CI
     html_parts.append("<h2>Coefficients</h2>")
+
+    # Determine what columns we have
+    has_hessian = any(c.hessian_se is not None for c in report.coefficients)
+    has_bootstrap = any(c.bootstrap_se is not None for c in report.coefficients)
+
     html_parts.append("<table>")
 
-    has_ci = any(c.ci_lower is not None for c in report.coefficients)
-    if has_ci:
-        html_parts.append("<tr><th>Parameter</th><th>Value</th><th>95% CI</th><th>Bounds</th><th>Status</th></tr>")
-    else:
-        html_parts.append("<tr><th>Parameter</th><th>Value</th><th>Bounds</th><th>Status</th></tr>")
+    # Build header based on available data
+    header_parts = ["<tr><th>Parameter</th><th>Value</th>"]
+    if has_hessian:
+        header_parts.append("<th>Hessian SE</th><th>Hessian 95% CI</th>")
+    if has_bootstrap:
+        header_parts.append("<th>Bootstrap SE</th><th>Bootstrap 95% CI</th>")
+    header_parts.append("<th>Bounds</th><th>Status</th></tr>")
+    html_parts.append("".join(header_parts))
 
     all_coefs = list(report.coefficients)
     if report.intercept is not None:
-        intercept_info = CoefficientInfo(
-            name='Intercept',
-            value=report.intercept.value,
-            lower_bound=report.intercept.lower_bound,
-            upper_bound=report.intercept.upper_bound,
-            is_at_lower=report.intercept.is_at_lower,
-            is_at_upper=report.intercept.is_at_upper,
-            se=report.intercept.se,
-            ci_lower=report.intercept.ci_lower,
-            ci_upper=report.intercept.ci_upper,
-        )
-        all_coefs.append(intercept_info)
+        all_coefs.append(report.intercept)
 
     for c in all_coefs:
         lb = f"{c.lower_bound:.4f}" if np.isfinite(c.lower_bound) else "-inf"
@@ -593,13 +604,26 @@ def to_html(
         bounds_str = f"[{lb}, {ub}]"
         status_class = 'at-bound' if c.is_constrained else 'free'
 
-        if has_ci and c.ci_lower is not None:
-            ci_str = f"[{c.ci_lower:.4f}, {c.ci_upper:.4f}]"
-            html_parts.append(f"<tr><td>{c.name}</td><td class='stat-value'>{c.value:.6f}</td><td class='stat-value'>{ci_str}</td><td>{bounds_str}</td><td class='{status_class}'>{c.bound_status}</td></tr>")
-        elif has_ci:
-            html_parts.append(f"<tr><td>{c.name}</td><td class='stat-value'>{c.value:.6f}</td><td>-</td><td>{bounds_str}</td><td class='{status_class}'>{c.bound_status}</td></tr>")
-        else:
-            html_parts.append(f"<tr><td>{c.name}</td><td class='stat-value'>{c.value:.6f}</td><td>{bounds_str}</td><td class='{status_class}'>{c.bound_status}</td></tr>")
+        row_parts = [f"<tr><td>{c.name}</td><td class='stat-value'>{c.value:.6f}</td>"]
+
+        # Hessian columns
+        if has_hessian:
+            if c.hessian_se is not None:
+                hess_ci_str = f"[{c.hessian_ci_lower:.4f}, {c.hessian_ci_upper:.4f}]"
+                row_parts.append(f"<td class='stat-value'>{c.hessian_se:.4f}</td><td class='stat-value'>{hess_ci_str}</td>")
+            else:
+                row_parts.append("<td>-</td><td>-</td>")
+
+        # Bootstrap columns
+        if has_bootstrap:
+            if c.bootstrap_se is not None:
+                boot_ci_str = f"[{c.bootstrap_ci_lower:.4f}, {c.bootstrap_ci_upper:.4f}]"
+                row_parts.append(f"<td class='stat-value'>{c.bootstrap_se:.4f}</td><td class='stat-value'>{boot_ci_str}</td>")
+            else:
+                row_parts.append("<td>-</td><td>-</td>")
+
+        row_parts.append(f"<td>{bounds_str}</td><td class='{status_class}'>{c.bound_status}</td></tr>")
+        html_parts.append("".join(row_parts))
 
     html_parts.append("</table>")
 
@@ -661,10 +685,10 @@ def to_html(
         html_parts.append('<div class="sample-data">')
         html_parts.append("<table>")
 
-        # Header
+        # Header - use X column names (not parameter names)
         header_parts = ["<tr><th>Row</th>"]
-        if report.sample_data.feature_names:
-            for name in report.sample_data.feature_names:
+        if report.sample_data.x_column_names:
+            for name in report.sample_data.x_column_names:
                 header_parts.append(f"<th>{name}</th>")
         else:
             for i in range(report.sample_data.X_sample.shape[1]):
@@ -742,6 +766,16 @@ def to_html(
                 html_parts.append('</div>')
             except Exception as e:
                 html_parts.append(f'<p class="warning">Could not generate alpha trace plot: {e}</p>')
+
+    # Bootstrap Analysis Section
+    html_parts.append(_generate_bootstrap_section_html(report))
+
+    # Interactive Data Explorer (X vs Y scatter plot with Plotly)
+    # Use full X, y if provided, otherwise fall back to sample_data
+    if X is not None and y is not None:
+        html_parts.append(_generate_interactive_scatter_html(report, sample_n, X, y))
+    elif report.sample_data is not None:
+        html_parts.append(_generate_interactive_scatter_html(report, sample_n, None, None))
 
     # Footer
     html_parts.append(f"<p style='color: #7f8c8d; font-size: 0.9em; margin-top: 30px;'>Report generated: {report.report_datetime} | CI Method: {report.ci_method}</p>")
@@ -850,9 +884,9 @@ def _sample_data_to_dataframe(sample_data: 'SampleData', sample_n: int):
 
     data = {}
 
-    # Features
-    if sample_data.feature_names:
-        for i, name in enumerate(sample_data.feature_names):
+    # Features - use X column names (not parameter names)
+    if sample_data.x_column_names:
+        for i, name in enumerate(sample_data.x_column_names):
             data[name] = sample_data.X_sample[:n_rows, i]
     else:
         for i in range(sample_data.X_sample.shape[1]):
@@ -874,3 +908,499 @@ def _escape_html(text: str) -> str:
             .replace('>', '&gt;')
             .replace('"', '&quot;')
             .replace("'", '&#39;'))
+
+
+def _generate_bootstrap_section_html(report: 'SummaryReport') -> str:
+    """
+    Generate HTML for the Bootstrap Analysis section.
+
+    Parameters
+    ----------
+    report : SummaryReport
+        The summary report containing bootstrap_results
+
+    Returns
+    -------
+    str
+        HTML string for the bootstrap section (empty if no bootstrap results)
+    """
+    if report.bootstrap_results is None:
+        # Return empty placeholder section
+        return """
+        <h2>Bootstrap Analysis</h2>
+        <div class="bootstrap-section">
+            <p class="info-box">Bootstrap analysis was not performed. To include bootstrap confidence intervals,
+            use <code>bootstrap=True</code> when generating the report.</p>
+        </div>
+        """
+
+    bootstrap = report.bootstrap_results
+    html_parts = []
+
+    html_parts.append("<h2>Bootstrap Analysis</h2>")
+    html_parts.append('<div class="bootstrap-section">')
+
+    # Summary info
+    has_unconstrained = bootstrap.unconstrained is not None
+    html_parts.append(f"""
+    <p><strong>Bootstrap samples:</strong> {bootstrap.n_successful} of {bootstrap.n_bootstrap} successful |
+    <strong>Confidence level:</strong> {bootstrap.confidence:.0%}</p>
+    """)
+
+    if has_unconstrained:
+        html_parts.append("""
+        <p class="info-box">Bootstrap was run in two modes: <strong>Constrained</strong> (with bounds and regularization)
+        and <strong>Unconstrained</strong> (no bounds, alpha=0) to show the effect of constraints on uncertainty estimates.</p>
+        """)
+
+    names = bootstrap.feature_names if bootstrap.feature_names else [f'coef_{i}' for i in range(len(bootstrap.coef_mean))]
+
+    # Constrained Bootstrap Statistics
+    html_parts.append("<h3>Constrained Bootstrap (with bounds and alpha)</h3>")
+    html_parts.append("<table>")
+    html_parts.append("<tr><th>Parameter</th><th>Mean</th><th>Std</th><th>CI Lower</th><th>CI Upper</th><th>CI Width</th></tr>")
+
+    constrained = bootstrap.constrained
+    for i, name in enumerate(names):
+        ci_width = constrained.coef_ci_upper[i] - constrained.coef_ci_lower[i]
+        html_parts.append(f"""
+        <tr>
+            <td>{name}</td>
+            <td class='stat-value'>{constrained.coef_mean[i]:.6f}</td>
+            <td class='stat-value'>{constrained.coef_std[i]:.6f}</td>
+            <td class='stat-value'>{constrained.coef_ci_lower[i]:.6f}</td>
+            <td class='stat-value'>{constrained.coef_ci_upper[i]:.6f}</td>
+            <td class='stat-value'>{ci_width:.6f}</td>
+        </tr>
+        """)
+
+    if constrained.intercept_mean is not None and constrained.intercept_ci is not None:
+        ci_width = constrained.intercept_ci[1] - constrained.intercept_ci[0]
+        html_parts.append(f"""
+        <tr>
+            <td>Intercept</td>
+            <td class='stat-value'>{constrained.intercept_mean:.6f}</td>
+            <td class='stat-value'>{constrained.intercept_std:.6f}</td>
+            <td class='stat-value'>{constrained.intercept_ci[0]:.6f}</td>
+            <td class='stat-value'>{constrained.intercept_ci[1]:.6f}</td>
+            <td class='stat-value'>{ci_width:.6f}</td>
+        </tr>
+        """)
+    html_parts.append("</table>")
+
+    # Unconstrained Bootstrap Statistics (if available)
+    if has_unconstrained:
+        unconstrained = bootstrap.unconstrained
+        html_parts.append("<h3>Unconstrained Bootstrap (no bounds, alpha=0)</h3>")
+        html_parts.append("<table>")
+        html_parts.append("<tr><th>Parameter</th><th>Mean</th><th>Std</th><th>CI Lower</th><th>CI Upper</th><th>CI Width</th></tr>")
+
+        for i, name in enumerate(names):
+            ci_width = unconstrained.coef_ci_upper[i] - unconstrained.coef_ci_lower[i]
+            html_parts.append(f"""
+            <tr>
+                <td>{name}</td>
+                <td class='stat-value'>{unconstrained.coef_mean[i]:.6f}</td>
+                <td class='stat-value'>{unconstrained.coef_std[i]:.6f}</td>
+                <td class='stat-value'>{unconstrained.coef_ci_lower[i]:.6f}</td>
+                <td class='stat-value'>{unconstrained.coef_ci_upper[i]:.6f}</td>
+                <td class='stat-value'>{ci_width:.6f}</td>
+            </tr>
+            """)
+
+        if unconstrained.intercept_mean is not None and unconstrained.intercept_ci is not None:
+            ci_width = unconstrained.intercept_ci[1] - unconstrained.intercept_ci[0]
+            html_parts.append(f"""
+            <tr>
+                <td>Intercept</td>
+                <td class='stat-value'>{unconstrained.intercept_mean:.6f}</td>
+                <td class='stat-value'>{unconstrained.intercept_std:.6f}</td>
+                <td class='stat-value'>{unconstrained.intercept_ci[0]:.6f}</td>
+                <td class='stat-value'>{unconstrained.intercept_ci[1]:.6f}</td>
+                <td class='stat-value'>{ci_width:.6f}</td>
+            </tr>
+            """)
+        html_parts.append("</table>")
+
+        # Comparison table
+        html_parts.append("<h3>Constraint Effect on Uncertainty</h3>")
+        html_parts.append("<p>Comparison of CI widths between constrained and unconstrained bootstrap:</p>")
+        html_parts.append("<table>")
+        html_parts.append("<tr><th>Parameter</th><th>Constrained CI Width</th><th>Unconstrained CI Width</th><th>Reduction</th></tr>")
+
+        for i, name in enumerate(names):
+            const_width = constrained.coef_ci_upper[i] - constrained.coef_ci_lower[i]
+            unconst_width = unconstrained.coef_ci_upper[i] - unconstrained.coef_ci_lower[i]
+            reduction = ((unconst_width - const_width) / unconst_width * 100) if unconst_width > 0 else 0
+            html_parts.append(f"""
+            <tr>
+                <td>{name}</td>
+                <td class='stat-value'>{const_width:.6f}</td>
+                <td class='stat-value'>{unconst_width:.6f}</td>
+                <td class='stat-value'>{reduction:+.1f}%</td>
+            </tr>
+            """)
+        html_parts.append("</table>")
+
+    # Add bootstrap distribution plots using Plotly
+    html_parts.append("<h3>Bootstrap Coefficient Distributions</h3>")
+    html_parts.append('<div id="bootstrap-distributions" class="plotly-container"></div>')
+
+    # Generate Plotly JavaScript for bootstrap histograms
+    import json
+
+    n_coefs = len(bootstrap.coef_mean)
+    n_cols = min(3, n_coefs)
+    n_rows = (n_coefs + n_cols - 1) // n_cols
+
+    traces = []
+    for i in range(n_coefs):
+        name = names[i] if i < len(names) else f'coef_{i}'
+        # Constrained distribution
+        coef_samples = constrained.bootstrap_coefs[:, i].tolist()
+        traces.append({
+            'type': 'histogram',
+            'x': coef_samples,
+            'name': f'{name} (constrained)',
+            'opacity': 0.7,
+            'marker': {'color': '#3498db'},
+            'xaxis': f'x{i+1}' if i > 0 else 'x',
+            'yaxis': f'y{i+1}' if i > 0 else 'y',
+            'legendgroup': name,
+        })
+        # Unconstrained distribution (if available)
+        if has_unconstrained:
+            unconst_samples = unconstrained.bootstrap_coefs[:, i].tolist()
+            traces.append({
+                'type': 'histogram',
+                'x': unconst_samples,
+                'name': f'{name} (unconstrained)',
+                'opacity': 0.5,
+                'marker': {'color': '#e74c3c'},
+                'xaxis': f'x{i+1}' if i > 0 else 'x',
+                'yaxis': f'y{i+1}' if i > 0 else 'y',
+                'legendgroup': name,
+            })
+
+    # Create layout with subplots
+    layout = {
+        'title': 'Bootstrap Coefficient Distributions' + (' (blue=constrained, red=unconstrained)' if has_unconstrained else ''),
+        'showlegend': False,
+        'height': 200 * n_rows + 100,
+        'barmode': 'overlay',
+    }
+
+    # Create grid layout
+    for i in range(n_coefs):
+        row = i // n_cols
+        col = i % n_cols
+        x_domain = [col / n_cols + 0.02, (col + 1) / n_cols - 0.02]
+        y_domain = [1 - (row + 1) / n_rows + 0.05, 1 - row / n_rows - 0.05]
+
+        axis_suffix = str(i + 1) if i > 0 else ''
+        name = names[i] if i < len(names) else f'coef_{i}'
+        layout[f'xaxis{axis_suffix}'] = {
+            'domain': x_domain,
+            'title': name,
+            'anchor': f'y{axis_suffix}' if axis_suffix else 'y',
+        }
+        layout[f'yaxis{axis_suffix}'] = {
+            'domain': y_domain,
+            'anchor': f'x{axis_suffix}' if axis_suffix else 'x',
+        }
+
+    html_parts.append(f"""
+    <script>
+        var bootstrapTraces = {json.dumps(traces)};
+        var bootstrapLayout = {json.dumps(layout)};
+        Plotly.newPlot('bootstrap-distributions', bootstrapTraces, bootstrapLayout, {{responsive: true}});
+    </script>
+    """)
+
+    html_parts.append('</div>')
+    return "\n".join(html_parts)
+
+
+def _generate_interactive_scatter_html(
+    report: 'SummaryReport',
+    sample_n: int,
+    X: Optional[np.ndarray] = None,
+    y: Optional[np.ndarray] = None
+) -> str:
+    """
+    Generate HTML for interactive X vs Y scatter plot with variable selectors.
+
+    Parameters
+    ----------
+    report : SummaryReport
+        The summary report containing sample_data
+    sample_n : int
+        Number of sample rows to include (only used for sample_data fallback display)
+    X : np.ndarray, optional
+        Full feature matrix. If provided, uses this instead of sample_data for explorer.
+    y : np.ndarray, optional
+        Full target array. If provided, uses this instead of sample_data for explorer.
+
+    Returns
+    -------
+    str
+        HTML string for the interactive scatter plot section
+    """
+    import json
+
+    # Determine data source
+    if X is not None and y is not None:
+        # Use full dataset
+        X_arr = np.asarray(X)
+        y_arr = np.asarray(y).ravel()
+
+        # Get X column names (not parameter names) - these label the columns in the X matrix
+        if hasattr(X, 'columns'):
+            x_col_names = list(X.columns)
+        elif report.sample_data and report.sample_data.x_column_names:
+            # Try to use X column names from sample_data if they match
+            if len(report.sample_data.x_column_names) == X_arr.shape[1]:
+                x_col_names = report.sample_data.x_column_names
+            else:
+                x_col_names = [f'X{i+1}' for i in range(X_arr.shape[1])]
+        else:
+            x_col_names = [f'X{i+1}' for i in range(X_arr.shape[1])]
+
+        actual_n = len(y_arr)
+
+        # Get predictions if residuals are available
+        if report.residuals is not None and report.residuals.y_pred is not None:
+            y_pred = report.residuals.y_pred
+        else:
+            y_pred = np.zeros_like(y_arr)  # Fallback
+
+        data_source = "full dataset"
+    elif report.sample_data is not None:
+        # Use sample data
+        sample_data = report.sample_data
+        actual_n = sample_n if sample_n != -1 else sample_data.n_total
+        actual_n = min(actual_n, sample_data.n_sample)
+
+        X_arr = sample_data.X_sample[:actual_n]
+        y_arr = sample_data.y_sample[:actual_n]
+        y_pred = sample_data.y_pred_sample[:actual_n]
+
+        n_x_cols = X_arr.shape[1]
+        if sample_data.x_column_names and len(sample_data.x_column_names) == n_x_cols:
+            x_col_names = sample_data.x_column_names
+        else:
+            x_col_names = [f'X{i+1}' for i in range(n_x_cols)]
+
+        data_source = f"sample ({actual_n} of {sample_data.n_total})"
+    else:
+        return ""
+
+    # Prepare data as JSON for JavaScript
+    data_dict = {}
+    for i, name in enumerate(x_col_names):
+        data_dict[name] = X_arr[:, i].tolist()
+
+    data_dict['Y (Actual)'] = y_arr.tolist()
+    data_dict['Y (Predicted)'] = y_pred.tolist()
+    data_dict['Residual'] = (y_arr - y_pred).tolist()
+    data_dict['Row Index'] = list(range(1, actual_n + 1))
+
+    # All available variables for selection (X columns + Y + derived)
+    all_vars = list(x_col_names) + ['Y (Actual)', 'Y (Predicted)', 'Residual', 'Row Index']
+
+    html_parts = []
+
+    html_parts.append("<h2>Interactive Data Explorer</h2>")
+    html_parts.append(f"<p>Explore relationships in the data ({actual_n} observations from {data_source}). Select variables for axes, color, and size.</p>")
+
+    # Control panel
+    html_parts.append('<div class="controls">')
+
+    # X variable selector
+    html_parts.append('<div class="control-group">')
+    html_parts.append('<label for="x-var">X Variable</label>')
+    html_parts.append('<select id="x-var" onchange="updateScatterPlot()">')
+    for i, var in enumerate(all_vars):
+        selected = 'selected' if i == 0 else ''
+        html_parts.append(f'<option value="{var}" {selected}>{var}</option>')
+    html_parts.append('</select>')
+    html_parts.append('</div>')
+
+    # Y variable selector
+    html_parts.append('<div class="control-group">')
+    html_parts.append('<label for="y-var">Y Variable</label>')
+    html_parts.append('<select id="y-var" onchange="updateScatterPlot()">')
+    for var in all_vars:
+        selected = 'selected' if var == 'Y (Actual)' else ''
+        html_parts.append(f'<option value="{var}" {selected}>{var}</option>')
+    html_parts.append('</select>')
+    html_parts.append('</div>')
+
+    # Color variable selector
+    html_parts.append('<div class="control-group">')
+    html_parts.append('<label for="color-var">Color By</label>')
+    html_parts.append('<select id="color-var" onchange="updateScatterPlot()">')
+    html_parts.append('<option value="none" selected>None (single color)</option>')
+    for var in all_vars:
+        html_parts.append(f'<option value="{var}">{var}</option>')
+    html_parts.append('</select>')
+    html_parts.append('</div>')
+
+    # Size variable selector
+    html_parts.append('<div class="control-group">')
+    html_parts.append('<label for="size-var">Size By</label>')
+    html_parts.append('<select id="size-var" onchange="updateScatterPlot()">')
+    html_parts.append('<option value="none" selected>None (uniform size)</option>')
+    for var in all_vars:
+        html_parts.append(f'<option value="{var}">{var}</option>')
+    html_parts.append('</select>')
+    html_parts.append('</div>')
+
+    html_parts.append('</div>')  # end controls
+
+    # Axis controls row
+    html_parts.append('<div class="controls">')
+
+    # Y-axis min control
+    html_parts.append('<div class="control-group">')
+    html_parts.append('<label for="y-min">Y Min</label>')
+    html_parts.append('<select id="y-min" onchange="updateScatterPlot()">')
+    html_parts.append('<option value="0" selected>0</option>')
+    html_parts.append('<option value="auto">Auto</option>')
+    html_parts.append('</select>')
+    html_parts.append('</div>')
+
+    # Y-axis max control
+    html_parts.append('<div class="control-group">')
+    html_parts.append('<label for="y-max">Y Max</label>')
+    html_parts.append('<select id="y-max" onchange="updateScatterPlot()">')
+    html_parts.append('<option value="auto" selected>Auto</option>')
+    html_parts.append('<option value="custom">Custom...</option>')
+    html_parts.append('</select>')
+    html_parts.append('</div>')
+
+    # X-axis min control
+    html_parts.append('<div class="control-group">')
+    html_parts.append('<label for="x-min">X Min</label>')
+    html_parts.append('<select id="x-min" onchange="updateScatterPlot()">')
+    html_parts.append('<option value="auto" selected>Auto</option>')
+    html_parts.append('<option value="0">0</option>')
+    html_parts.append('</select>')
+    html_parts.append('</div>')
+
+    # X-axis max control
+    html_parts.append('<div class="control-group">')
+    html_parts.append('<label for="x-max">X Max</label>')
+    html_parts.append('<select id="x-max" onchange="updateScatterPlot()">')
+    html_parts.append('<option value="auto" selected>Auto</option>')
+    html_parts.append('</select>')
+    html_parts.append('</div>')
+
+    html_parts.append('</div>')  # end axis controls
+
+    # Plot container
+    html_parts.append('<div id="interactive-scatter" class="plotly-container" style="height: 500px;"></div>')
+
+    # JavaScript for interactive plotting
+    html_parts.append(f"""
+    <script>
+        // Data store
+        var plotData = {json.dumps(data_dict)};
+
+        // Normalize array for sizing (scale to 5-30 range)
+        function normalizeForSize(arr) {{
+            var min = Math.min(...arr);
+            var max = Math.max(...arr);
+            if (max === min) return arr.map(() => 12);
+            return arr.map(v => 5 + 25 * (v - min) / (max - min));
+        }}
+
+        function updateScatterPlot() {{
+            var xVar = document.getElementById('x-var').value;
+            var yVar = document.getElementById('y-var').value;
+            var colorVar = document.getElementById('color-var').value;
+            var sizeVar = document.getElementById('size-var').value;
+            var yMinSel = document.getElementById('y-min').value;
+            var yMaxSel = document.getElementById('y-max').value;
+            var xMinSel = document.getElementById('x-min').value;
+            var xMaxSel = document.getElementById('x-max').value;
+
+            var x = plotData[xVar];
+            var y = plotData[yVar];
+
+            var trace = {{
+                type: 'scatter',
+                mode: 'markers',
+                x: x,
+                y: y,
+                text: plotData['Row Index'].map((idx, i) => {{
+                    var lines = ['Row: ' + idx];
+                    lines.push(xVar + ': ' + (typeof x[i] === 'number' ? x[i].toFixed(4) : x[i]));
+                    lines.push(yVar + ': ' + (typeof y[i] === 'number' ? y[i].toFixed(4) : y[i]));
+                    if (colorVar !== 'none') {{
+                        var cv = plotData[colorVar][i];
+                        lines.push(colorVar + ': ' + (typeof cv === 'number' ? cv.toFixed(4) : cv));
+                    }}
+                    if (sizeVar !== 'none') {{
+                        var sv = plotData[sizeVar][i];
+                        lines.push(sizeVar + ': ' + (typeof sv === 'number' ? sv.toFixed(4) : sv));
+                    }}
+                    return lines.join('<br>');
+                }}),
+                hoverinfo: 'text',
+                marker: {{
+                    size: 10,
+                    opacity: 0.7,
+                    colorscale: 'Viridis',
+                    showscale: false
+                }}
+            }};
+
+            // Apply color if selected
+            if (colorVar !== 'none') {{
+                trace.marker.color = plotData[colorVar];
+                trace.marker.colorscale = 'Viridis';
+                trace.marker.showscale = true;
+                trace.marker.colorbar = {{title: colorVar}};
+            }} else {{
+                trace.marker.color = '#3498db';
+            }}
+
+            // Apply size if selected
+            if (sizeVar !== 'none') {{
+                trace.marker.size = normalizeForSize(plotData[sizeVar]);
+                trace.marker.sizemode = 'diameter';
+            }}
+
+            // Build axis range settings
+            var yAxisConfig = {{title: yVar}};
+            var xAxisConfig = {{title: xVar}};
+
+            // Y-axis range
+            if (yMinSel === '0') {{
+                var yMax = yMaxSel === 'auto' ? Math.max(...y) * 1.05 : parseFloat(yMaxSel);
+                yAxisConfig.range = [0, yMax];
+            }}
+            // X-axis range
+            if (xMinSel === '0') {{
+                var xMax = xMaxSel === 'auto' ? Math.max(...x) * 1.05 : parseFloat(xMaxSel);
+                xAxisConfig.range = [0, xMax];
+            }}
+
+            var layout = {{
+                title: yVar + ' vs ' + xVar,
+                xaxis: xAxisConfig,
+                yaxis: yAxisConfig,
+                hovermode: 'closest',
+                showlegend: false
+            }};
+
+            Plotly.newPlot('interactive-scatter', [trace], layout, {{responsive: true}});
+        }}
+
+        // Initial plot
+        updateScatterPlot();
+    </script>
+    """)
+
+    return "\n".join(html_parts)

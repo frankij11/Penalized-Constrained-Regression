@@ -46,18 +46,20 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         - None: No bounds (uses (-inf, inf) for all)
         - Single tuple (lower, upper): Same bounds for all coefficients
         - List of tuples: [(lb0, ub0), (lb1, ub1), ...]
-        - Dict with feature names: {'LC': (-1, 0), 'RC': (-0.5, 0)}
-          Requires feature_names to be set.
+        - Dict with coefficient names: {'LC': (-1, 0), 'RC': (-0.5, 0)}
+          Requires coef_names to be set.
         Use None in tuple for unbounded: (0, None) means ≥ 0.
 
-    feature_names : list of str or None, default=None
-        Names for coefficients. Enables dict-based bounds and named access.
+    coef_names : list of str or None, default=None
+        Names for coefficients/parameters. Enables dict-based bounds and named access.
+        These may differ from X column names when using custom prediction_fn.
         Example: ['T1', 'LC', 'RC'] for learning curve model.
+        If not provided, defaults to X column names (if DataFrame) or X1, X2, etc.
 
     penalty_exclude : list of str or None, default=None
-        Feature names to exclude from L1/L2 penalty. Useful for intercept-like
+        Coefficient names to exclude from L1/L2 penalty. Useful for intercept-like
         parameters in custom prediction functions (e.g., T1 in learning curves).
-        Requires feature_names to be set.
+        Requires coef_names to be set.
         Example: ['T1'] to exclude T1 from regularization.
 
     fit_intercept : bool, default=True
@@ -87,11 +89,11 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         Whether to standardize X internally before fitting.
         Coefficients are transformed back to original scale after fitting.
 
-    init : str or array-like, default='ols'
-        Initialization strategy:
+    x0 : str or array-like, default='ols'
+        Initial coefficient values for optimization (scipy convention).
         - 'ols': Start from OLS solution (clipped to bounds)
         - 'zeros': Start from zeros
-        - array-like: User-provided initial values
+        - array-like: User-provided initial values (e.g., [100, 0.9, 0.9])
 
     method : str, default='SLSQP'
         Optimization method for scipy.optimize.minimize:
@@ -118,16 +120,24 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         Intercept term. 0.0 if fit_intercept=False.
 
     n_features_in_ : int
-        Number of features seen during fit.
+        Number of features seen during fit (X.shape[1]).
 
-    feature_names_in_ : ndarray of shape (n_features,)
-        Feature names seen during fit. Always populated (auto-generated if not provided).
+    feature_names_in_ : ndarray of shape (n_features_in_,)
+        Names of X columns seen during fit (sklearn convention).
+        From DataFrame.columns or auto-generated as X1, X2, etc.
+
+    coef_names_in_ : ndarray of shape (n_params,)
+        Names for coefficients/parameters. From coef_names param or defaults to
+        feature_names_in_. May differ from feature_names_in_ when using prediction_fn.
+
+    y_name_in_ : str
+        Name of target variable. From Series.name or defaults to 'y'.
 
     converged_ : bool
         Whether the optimizer converged successfully.
 
     active_constraints_ : list of tuples
-        List of (index_or_name, 'lower'|'upper') for binding constraints.
+        List of (coef_name, 'lower'|'upper') for binding constraints.
 
     n_active_constraints_ : int
         Number of active (binding) constraints at the solution.
@@ -136,10 +146,10 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         Full optimization result from scipy.
 
     named_coef_ : dict
-        Coefficients as dict with feature names as keys.
+        Coefficients as dict with coef_names_in_ as keys.
 
     _penalty_exclude_resolved : list
-        Resolved list of feature names excluded from penalty. Empty if none excluded.
+        Resolved list of coefficient names excluded from penalty. Empty if none excluded.
 
     Examples
     --------
@@ -160,7 +170,7 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
 
     >>> # With named coefficients
     >>> model = PenalizedConstrainedRegression(
-    ...     feature_names=['LC', 'RC'],
+    ...     coef_names=['LC', 'RC'],
     ...     bounds={'LC': (-1, 0), 'RC': (-0.5, 0)},
     ...     alpha=0.1
     ... )
@@ -174,7 +184,7 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
     >>>
     >>> model = PenalizedConstrainedRegression(
     ...     prediction_fn=lc_func,
-    ...     feature_names=['T1', 'LC', 'RC'],
+    ...     coef_names=['T1', 'LC', 'RC'],
     ...     bounds={'T1': (0, None), 'LC': (-1, 0), 'RC': (-1, 0)},
     ...     penalty_exclude=['T1'],  # Don't penalize the intercept-like T1
     ...     fit_intercept=False
@@ -186,14 +196,14 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         alpha=0.0,
         l1_ratio=0.0,
         bounds=None,
-        feature_names=None,
+        coef_names=None,
         penalty_exclude=None,
         fit_intercept=True,
         intercept_bounds=None,
         loss='sspe',
         prediction_fn=None,
         scale=False,
-        init='ols',
+        x0='ols',
         method='SLSQP',
         max_iter=1000,
         tol=1e-6,
@@ -202,14 +212,14 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         self.alpha = alpha
         self.l1_ratio = l1_ratio
         self.bounds = bounds
-        self.feature_names = feature_names
+        self.coef_names = coef_names
         self.penalty_exclude = penalty_exclude
         self.fit_intercept = fit_intercept
         self.intercept_bounds = intercept_bounds
         self.loss = loss
         self.prediction_fn = prediction_fn
         self.scale = scale
-        self.init = init
+        self.x0 = x0
         self.method = method
         self.max_iter = max_iter
         self.tol = tol
@@ -259,17 +269,17 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         n_params = len(bounds_parsed)
 
         if self.prediction_fn is not None:
-            # For custom functions, use zeros or user-provided init
-            if isinstance(self.init, str):
-                if self.init == 'zeros':
+            # For custom functions, use zeros or user-provided x0
+            if isinstance(self.x0, str):
+                if self.x0 == 'zeros':
                     params_init = np.zeros(n_params)
                 else:
                     # Default initialization for custom functions
                     params_init = np.ones(n_params)
             else:
-                params_init = np.array(self.init, dtype=float)
+                params_init = np.array(self.x0, dtype=float)
 
-        elif self.init == 'ols':
+        elif self.x0 == 'ols':
             try:
                 ols = LinearRegression(fit_intercept=self.fit_intercept)
                 ols.fit(X, y)
@@ -284,14 +294,14 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             else:
                 params_init = coef_init
 
-        elif self.init == 'zeros':
+        elif self.x0 == 'zeros':
             if self.fit_intercept:
                 params_init = np.append(np.zeros(n_params), np.mean(y))
             else:
                 params_init = np.zeros(n_params)
 
         else:
-            params_init = np.array(self.init, dtype=float)
+            params_init = np.array(self.x0, dtype=float)
 
         # Clip to bounds
         for i, (lb, ub) in enumerate(bounds_parsed):
@@ -327,40 +337,33 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         self.fit_datetime_ = datetime.now()
         fit_start_time = time.perf_counter()
 
-        # Extract feature names from DataFrame before validation converts to numpy
-        # Store as instance attribute so predict() can reconstruct DataFrame for prediction_fn
-        self._df_columns = None
+        # Extract X column names BEFORE validation converts to numpy (sklearn convention)
         if hasattr(X, 'columns'):
-            self._df_columns = list(X.columns)
+            self.feature_names_in_ = np.array(list(X.columns))
+        else:
+            self.feature_names_in_ = np.array([f'X{i+1}' for i in range(X.shape[1])])
 
-        # Validate input
+        # Extract y name (optional, for reports)
+        if hasattr(y, 'name') and y.name is not None:
+            self.y_name_in_ = str(y.name)
+        else:
+            self.y_name_in_ = 'y'
+
+        # Validate input (converts to numpy)
         X, y = check_X_y(X, y, accept_sparse=False, y_numeric=True)
         self.n_features_in_ = X.shape[1]
 
-        # Determine number of parameters
-        if self.prediction_fn is not None:
-            # For custom functions, use feature_names to determine n_params
-            if self.feature_names is None:
-                raise ValueError(
-                    "feature_names must be provided when using prediction_fn"
-                )
-            n_params = len(self.feature_names)
+        # Determine n_params and coef_names_in_
+        if self.coef_names is not None:
+            n_params = len(self.coef_names)
+            self.coef_names_in_ = np.array(self.coef_names)
         else:
             n_params = self.n_features_in_
+            self.coef_names_in_ = self.feature_names_in_.copy()
 
-        # Store feature names - auto-generate if not provided
-        if self.feature_names is not None:
-            self.feature_names_in_ = np.array(self.feature_names)
-        elif self._df_columns is not None:
-            # X was a pandas DataFrame - use column names
-            self.feature_names_in_ = np.array(self._df_columns)
-        else:
-            # Generate default names: X1_coef, X2_coef, etc.
-            self.feature_names_in_ = np.array([f"X{i+1}_coef" for i in range(n_params)])
-
-        # Validate and resolve penalty exclusions (after feature_names_in_ is set)
+        # Validate and resolve penalty exclusions (uses coef_names_in_)
         self._penalty_mask, self._penalty_exclude_resolved = \
-            validate_penalty_exclude(self.penalty_exclude, self.feature_names_in_)
+            validate_penalty_exclude(self.penalty_exclude, self.coef_names_in_)
 
         # Scale if requested
         if self.scale:
@@ -371,8 +374,8 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         else:
             X_work = X
 
-        # Parse bounds based on number of parameters
-        bounds_parsed = parse_bounds(self.bounds, n_params, self.feature_names)
+        # Parse bounds based on number of parameters (using coef_names_in_)
+        bounds_parsed = parse_bounds(self.bounds, n_params, list(self.coef_names_in_))
         self._bounds_parsed = bounds_parsed
 
         # Get initial parameters
@@ -436,8 +439,8 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         elif self.prediction_fn is None:
             self.coef_ = coef_work
 
-        # Create named coefficients dict (always available now)
-        self.named_coef_ = dict(zip(self.feature_names_in_, self.coef_))
+        # Create named coefficients dict using coef_names_in_
+        self.named_coef_ = dict(zip(self.coef_names_in_, self.coef_))
 
         # Compute active constraints
         self._compute_active_constraints()
@@ -455,11 +458,8 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             if i >= len(self.coef_):
                 break
 
-            # Get name or index
-            if self.feature_names_in_ is not None:
-                name = self.feature_names_in_[i]
-            else:
-                name = i
+            # Get coefficient name
+            name = self.coef_names_in_[i]
 
             if np.isfinite(lb) and np.abs(self.coef_[i] - lb) < tol:
                 self.active_constraints_.append((name, 'lower'))
@@ -503,12 +503,10 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             )
 
         if self.prediction_fn is not None:
-            # Reconstruct DataFrame if original X was a DataFrame
-            if hasattr(self, '_df_columns') and self._df_columns is not None:
-                import pandas as pd
-                X_df = pd.DataFrame(X, columns=self._df_columns)
-                return self.prediction_fn(X_df, self.coef_)
-            return self.prediction_fn(X, self.coef_)
+            # Reconstruct DataFrame with feature_names_in_ for custom prediction_fn
+            import pandas as pd
+            X_df = pd.DataFrame(X, columns=self.feature_names_in_)
+            return self.prediction_fn(X_df, self.coef_)
 
         return X @ self.coef_ + self.intercept_
 
@@ -540,14 +538,14 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             'alpha': self.alpha,
             'l1_ratio': self.l1_ratio,
             'bounds': self.bounds,
-            'feature_names': self.feature_names,
+            'coef_names': self.coef_names,
             'penalty_exclude': self.penalty_exclude,
             'fit_intercept': self.fit_intercept,
             'intercept_bounds': self.intercept_bounds,
             'loss': self.loss,
             'prediction_fn': self.prediction_fn,
             'scale': self.scale,
-            'init': self.init,
+            'x0': self.x0,
             'method': self.method,
             'max_iter': self.max_iter,
             'tol': self.tol,
@@ -577,14 +575,10 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             print(f"Penalty excluded: {self._penalty_exclude_resolved}")
 
         print("\nCoefficients:")
-        if self.named_coef_ is not None:
-            for name, coef in self.named_coef_.items():
-                excluded = name in self._penalty_exclude_resolved
-                suffix = " (not penalized)" if excluded else ""
-                print(f"  {name}: {coef:.6f}{suffix}")
-        else:
-            for i, coef in enumerate(self.coef_):
-                print(f"  β_{i}: {coef:.6f}")
+        for name, coef in self.named_coef_.items():
+            excluded = name in self._penalty_exclude_resolved
+            suffix = " (not penalized)" if excluded else ""
+            print(f"  {name}: {coef:.6f}{suffix}")
 
         if self.fit_intercept and self.prediction_fn is None:
             print(f"  Intercept: {self.intercept_:.6f}")

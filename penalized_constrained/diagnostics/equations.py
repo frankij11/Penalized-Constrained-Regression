@@ -161,7 +161,8 @@ def format_model_equation(model) -> ModelEquation:
     # Standard linear model
     coef_ = getattr(model, 'coef_', None)
     intercept_ = getattr(model, 'intercept_', 0.0)
-    feature_names = getattr(model, 'feature_names_in_', None)
+    # Use coef_names_in_ for coefficient names in equations
+    coef_names = getattr(model, 'coef_names_in_', None)
     fit_intercept = getattr(model, 'fit_intercept', True)
 
     if coef_ is None:
@@ -175,7 +176,7 @@ def format_model_equation(model) -> ModelEquation:
     eq_dict = format_linear_equation(
         coef_=coef_,
         intercept_=intercept_,
-        feature_names=feature_names,
+        feature_names=coef_names,
         fit_intercept=fit_intercept
     )
 
