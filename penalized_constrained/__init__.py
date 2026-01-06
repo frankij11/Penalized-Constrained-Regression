@@ -31,7 +31,7 @@ ICEAA 2026 Professional Development & Training Workshop
 Kevin Joy, Max Watstein, Herren Associates
 """
 
-from .core import PenalizedConstrainedRegression, PCRegression
+from .regression import PenalizedConstrainedRegression, PCRegression
 from .cv import PenalizedConstrainedCV, PCCV
 from .diagnostics import (
     ModelDiagnostics,

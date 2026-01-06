@@ -1,5 +1,6 @@
 import penalized_constrained as pcreg
 import numpy as np
+import pandas as pd
 
 
 # Generate realistic learning curve data
@@ -7,7 +8,7 @@ data = pcreg.generate_correlated_learning_data(
     n_lots=20,
     T1=100,
     target_correlation=0.7,  # Correlation between predictors
-    cv_error=0.1,            # 10% CV error
+    cv_error=0.3,            # 30% CV error
     random_state=42
 )
 
@@ -38,17 +39,25 @@ model = pcreg.PenalizedConstrainedCV(
     loss='sspe',
     prediction_fn=lc_func,
     fit_intercept=False,
+    penalty_exclude=['T1'],
     init=[100, 0.99, 0.99]  # Starting point
 )
 model.fit(X, y)
 
-# Compare to true values
-print(f"True b: {true_params['b']:.4f} ({2**true_params['b']:.4f})" )
-print(f"Estimated b: {np.log(model.named_coef_['LC'])/np.log(2):.4f} ({model.named_coef_['LC']:.4f})")
-print(f"True c: {true_params['c']:.4f} ({2**true_params['c']:.4f})")
-print(f"Estimated c: {np.log(model.named_coef_['RC'])/np.log(2):.4f} ({model.named_coef_['RC']:.4f})")
-print(f"True T1: {true_params['T1']:.2f}")
-print(f"Estimated T1: {model.named_coef_['T1']:.2f}")
+ols_model = pcreg.PCRegression(
+    feature_names=['b', 'r'],
+    bounds={'b': (None,None), 'r': (None, None)},
+    loss='sse',
+    alpha=0.0,
+    prediction_fn=None, # OLS
+    fit_intercept=True
+)
+
+ols_model.fit(np.log(X), np.log(y))
+
+print(f"True Parameters:  T1={true_params['T1']}, LC={2**true_params['b']}, RC={2**true_params['c']}")
+print(f"PCReg Parameters: T1={model.named_coef_['T1']:.2f}, LC={model.named_coef_['LC']:.4f}, RC={model.named_coef_['RC']:.4f}")
+print(f"OLS Parameters:   T1={np.exp(ols_model.intercept_):.2f}, LC={2**ols_model.named_coef_['b']:.4f}, RC={2**ols_model.named_coef_['r']:.4f}")
 
 diag = pcreg.ModelDiagnostics(model, X, y)
 # Note: alpha_trace not supported for custom prediction_fn with different param count than X features
@@ -57,4 +66,9 @@ report.plot_diagnostics()
 report.to_html("scripts/demo/simple_usage_diagnostics.html")
 report.to_excel("scripts/demo/simple_usage_diagnostics.xlsx")
 report.to_pdf("scripts/demo/simple_usage_diagnostics.pdf")
-print(report)
+#print(report)
+
+report_ols = pcreg.ModelDiagnostics(ols_model, np.log(X), np.log(y))
+report_ols_summary = report_ols.summary(bootstrap=True, n_bootstrap=100, include_alpha_trace=True)
+report_ols_summary.plot_diagnostics()
+report_ols_summary.to_html("scripts/demo/simple_usage_ols_diagnostics.html")

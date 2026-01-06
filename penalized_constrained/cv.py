@@ -15,7 +15,7 @@ import numpy as np
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import GridSearchCV, KFold, LeaveOneOut
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from .core import PenalizedConstrainedRegression
+from .regression import PenalizedConstrainedRegression
 
 
 def compute_effective_df(model, X, y):
@@ -148,6 +148,11 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
     feature_names : list of str or None, default=None
         Names for coefficients.
 
+    penalty_exclude : list of str or None, default=None
+        Feature names to exclude from L1/L2 penalty. Useful for intercept-like
+        parameters in custom prediction functions (e.g., T1 in learning curves).
+        Requires feature_names to be set.
+
     fit_intercept : bool, default=True
         Whether to fit an intercept term.
 
@@ -245,6 +250,7 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         l1_ratios=None,
         bounds=None,
         feature_names=None,
+        penalty_exclude=None,
         fit_intercept=True,
         intercept_bounds=None,
         loss='sspe',
@@ -264,6 +270,7 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         self.l1_ratios = l1_ratios
         self.bounds = bounds
         self.feature_names = feature_names
+        self.penalty_exclude = penalty_exclude
         self.fit_intercept = fit_intercept
         self.intercept_bounds = intercept_bounds
         self.loss = loss
@@ -342,6 +349,7 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         base_estimator = PenalizedConstrainedRegression(
             bounds=self.bounds,
             feature_names=self.feature_names,
+            penalty_exclude=self.penalty_exclude,
             fit_intercept=self.fit_intercept,
             intercept_bounds=self.intercept_bounds,
             loss=self.loss,
@@ -414,6 +422,7 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
                     l1_ratio=l1_ratio,
                     bounds=self.bounds,
                     feature_names=self.feature_names,
+                    penalty_exclude=self.penalty_exclude,
                     fit_intercept=self.fit_intercept,
                     intercept_bounds=self.intercept_bounds,
                     loss=self.loss,
@@ -505,6 +514,7 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         self.optimization_result_ = self.best_estimator_.optimization_result_
         self._bounds_parsed = self.best_estimator_._bounds_parsed
         self._objective = self.best_estimator_._objective
+        self._penalty_exclude_resolved = self.best_estimator_._penalty_exclude_resolved
 
         if hasattr(self.best_estimator_, 'feature_names_in_'):
             self.feature_names_in_ = self.best_estimator_.feature_names_in_
