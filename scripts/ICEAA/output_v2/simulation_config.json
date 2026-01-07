@@ -1,0 +1,55 @@
+{
+  "sample_sizes": [
+    5,
+    10,
+    30
+  ],
+  "correlations": [
+    0.0,
+    0.5,
+    0.9
+  ],
+  "cv_errors": [
+    0.01,
+    0.1,
+    0.2
+  ],
+  "learning_rates": [
+    0.85,
+    0.9,
+    0.95
+  ],
+  "rate_effects": [
+    0.8,
+    0.85,
+    0.9
+  ],
+  "n_replications": 25,
+  "T1": 100,
+  "base_seed": 42,
+  "cv_folds": 3,
+  "alpha_grid": "[1.00000000e-05 3.59381366e-05 1.29154967e-04 4.64158883e-04\n 1.66810054e-03 5.99484250e-03 2.15443469e-02 7.74263683e-02\n 2.78255940e-01 1.00000000e+00]",
+  "l1_ratio_grid": [
+    0.0,
+    0.5,
+    1.0
+  ],
+  "correct_loose_bounds": [
+    [
+      -0.5,
+      0
+    ],
+    [
+      -0.5,
+      0
+    ]
+  ],
+  "wrong_constraint_a": 0.5,
+  "test_n_lots": 5,
+  "test_quantity_multiplier": 2,
+  "n_jobs": -1,
+  "batch_size": 100,
+  "backend": "loky",
+  "output_dir": "C:\\Users\\KevinJoy\\OneDrive - Herren Associates\\Constrained-Penalized Regression Paper - General\\penalized_constrained\\scripts\\output_v2",
+  "save_predictions": true
+}

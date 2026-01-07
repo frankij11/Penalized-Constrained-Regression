@@ -4,6 +4,7 @@ Test suite for penalized_constrained package.
 import numpy as np
 import pytest
 from sklearn.utils.estimator_checks import check_estimator
+from sklearn.linear_model import LinearRegression
 
 import sys
 from pathlib import Path
@@ -205,6 +206,205 @@ class TestPenalizedConstrainedRegression:
         
         # Allow some tolerance due to optimization differences
         np.testing.assert_allclose(y_pred_unscaled, y_pred_scaled, rtol=0.1)
+
+
+class TestOLSEquivalence:
+    """
+    Tests verifying that PCRegression equals OLS in specific cases:
+    1. No constraints, no penalty (alpha=0, bounds=None)
+    2. When OLS coefficients naturally fall within bounds (alpha=0)
+    """
+
+    def test_no_constraints_no_penalty_equals_ols(self):
+        """
+        Test that PCRegression without constraints or penalty matches OLS exactly.
+
+        When alpha=0 and bounds=None, PCRegression should produce the same
+        coefficients as sklearn's LinearRegression (OLS).
+        """
+        np.random.seed(42)
+        n, p = 50, 3
+        X = np.random.randn(n, p)
+        true_coef = np.array([0.5, -0.3, 0.8])  # Mixed signs
+        y = X @ true_coef + 2.0 + np.random.randn(n) * 0.1
+
+        # OLS
+        ols = LinearRegression()
+        ols.fit(X, y)
+
+        # PCRegression without constraints or penalty
+        pcr = PenalizedConstrainedRegression(
+            alpha=0.0,
+            bounds=None,
+            fit_intercept=True,
+            loss='sse'
+        )
+        pcr.fit(X, y)
+
+        # Coefficients should match within numerical tolerance
+        np.testing.assert_allclose(pcr.coef_, ols.coef_, rtol=1e-3, atol=1e-4)
+        np.testing.assert_allclose(pcr.intercept_, ols.intercept_, rtol=1e-3, atol=1e-4)
+
+    def test_ols_within_bounds_equals_ols(self):
+        """
+        Test that PCRegression matches OLS when OLS solution is within bounds.
+
+        When alpha=0 and bounds are wide enough that OLS solution satisfies them,
+        PCRegression should produce the same result as OLS.
+        """
+        np.random.seed(123)
+        n, p = 50, 3
+        X = np.random.randn(n, p)
+        # True coefficients that are negative
+        true_coef = np.array([-0.3, -0.5, -0.2])
+        y = X @ true_coef + 5.0 + np.random.randn(n) * 0.1
+
+        # OLS first to see what coefficients it produces
+        ols = LinearRegression()
+        ols.fit(X, y)
+
+        # Set bounds wide enough that OLS solution is inside
+        ols_min = np.min(ols.coef_)
+        ols_max = np.max(ols.coef_)
+        bounds = [(ols_min - 1.0, ols_max + 1.0) for _ in range(p)]
+
+        # PCRegression with non-constraining bounds
+        pcr = PenalizedConstrainedRegression(
+            alpha=0.0,
+            bounds=bounds,
+            fit_intercept=True,
+            loss='sse'
+        )
+        pcr.fit(X, y)
+
+        # Verify OLS is indeed within bounds
+        for i in range(p):
+            assert bounds[i][0] <= ols.coef_[i] <= bounds[i][1], \
+                f"OLS coef {i} not within bounds"
+
+        # Coefficients should match
+        np.testing.assert_allclose(pcr.coef_, ols.coef_, rtol=1e-3, atol=1e-4)
+        np.testing.assert_allclose(pcr.intercept_, ols.intercept_, rtol=1e-3, atol=1e-4)
+
+    def test_ols_outside_bounds_differs_from_ols(self):
+        """
+        Test that PCRegression differs from OLS when OLS violates bounds.
+
+        When alpha=0 but bounds are violated by OLS solution, PCRegression
+        should produce constrained coefficients that differ from OLS.
+        """
+        np.random.seed(456)
+        n, p = 50, 3
+        X = np.random.randn(n, p)
+        # True coefficients that are positive
+        true_coef = np.array([0.8, 0.6, 0.4])
+        y = X @ true_coef + 3.0 + np.random.randn(n) * 0.1
+
+        # OLS
+        ols = LinearRegression()
+        ols.fit(X, y)
+
+        # Tight bounds that constrain to negative values (OLS is positive)
+        bounds = [(-1.0, 0.0) for _ in range(p)]
+
+        # PCRegression with constraining bounds
+        pcr = PenalizedConstrainedRegression(
+            alpha=0.0,
+            bounds=bounds,
+            fit_intercept=True,
+            loss='sse'
+        )
+        pcr.fit(X, y)
+
+        # Verify OLS is outside bounds
+        ols_outside = any(
+            ols.coef_[i] < bounds[i][0] or ols.coef_[i] > bounds[i][1]
+            for i in range(p)
+        )
+        assert ols_outside, "OLS should be outside bounds for this test"
+
+        # PCR coefficients should be within bounds
+        for i in range(p):
+            assert bounds[i][0] - 1e-6 <= pcr.coef_[i] <= bounds[i][1] + 1e-6, \
+                f"PCR coef {i} not within bounds"
+
+        # Coefficients should differ significantly
+        coef_diff = np.max(np.abs(ols.coef_ - pcr.coef_))
+        assert coef_diff > 0.1, "Coefficients should differ when bounds are violated"
+
+    def test_log_linear_ols_within_bounds(self):
+        """
+        Test log-linear model: OLS vs PCR when OLS is naturally within bounds.
+
+        This simulates a learning curve scenario where OLS produces negative
+        slopes that satisfy the constraints naturally.
+        """
+        np.random.seed(789)
+        n = 30
+
+        # Generate learning curve-like data
+        log_x1 = np.log(np.arange(1, n + 1) + np.random.rand(n) * 0.5)
+        log_x2 = np.log(5 + np.random.rand(n) * 2)
+        X = np.column_stack([log_x1, log_x2])
+
+        # True slopes are negative (typical for learning curves)
+        true_b, true_c = -0.15, -0.07
+        log_T1 = np.log(100)
+        y = log_T1 + true_b * X[:, 0] + true_c * X[:, 1] + np.random.randn(n) * 0.05
+
+        # OLS
+        ols = LinearRegression()
+        ols.fit(X, y)
+
+        # Bounds typical for learning curves
+        bounds = [(-1.0, 0.0), (-1.0, 0.0)]
+
+        # Check if OLS is within bounds
+        ols_within_bounds = all(
+            bounds[i][0] <= ols.coef_[i] <= bounds[i][1]
+            for i in range(2)
+        )
+
+        pcr = PenalizedConstrainedRegression(
+            alpha=0.0,
+            bounds=bounds,
+            fit_intercept=True,
+            loss='sse'
+        )
+        pcr.fit(X, y)
+
+        if ols_within_bounds:
+            # If OLS is within bounds, PCR should match
+            np.testing.assert_allclose(pcr.coef_, ols.coef_, rtol=1e-3, atol=1e-4)
+        else:
+            # If OLS is outside bounds, PCR should be constrained
+            for i in range(2):
+                assert bounds[i][0] - 1e-6 <= pcr.coef_[i] <= bounds[i][1] + 1e-6
+
+    def test_no_intercept_equals_ols(self):
+        """
+        Test PCRegression without intercept matches OLS without intercept.
+        """
+        np.random.seed(999)
+        n, p = 50, 2
+        X = np.random.randn(n, p)
+        true_coef = np.array([-0.4, 0.6])
+        y = X @ true_coef + np.random.randn(n) * 0.1  # No intercept
+
+        # OLS without intercept
+        ols = LinearRegression(fit_intercept=False)
+        ols.fit(X, y)
+
+        # PCRegression without intercept
+        pcr = PenalizedConstrainedRegression(
+            alpha=0.0,
+            bounds=None,
+            fit_intercept=False,
+            loss='sse'
+        )
+        pcr.fit(X, y)
+
+        np.testing.assert_allclose(pcr.coef_, ols.coef_, rtol=1e-3, atol=1e-4)
 
 
 class TestPenalizedConstrainedCV:

@@ -22,14 +22,10 @@ This is particularly useful for:
 
 ## Installation
 
-```bash
-pip install penalized-constrained
-```
-
-Or install from source:
+install from source (pip installation comming soon):
 
 ```bash
-git clone https://github.com/herrenassociates/penalized-constrained.git
+git clone https://github.com/frankij11/penalized-constrained.git
 cd penalized-constrained
 pip install -e .
 ```
@@ -79,7 +75,7 @@ true_params = data['params']
 
 # Fit with named coefficients
 model = pcreg.PenalizedConstrainedCV(
-    feature_names=['LC', 'RC'],
+    coef_names=['LC', 'RC'],
     bounds={'LC': (-1, 0), 'RC': (-0.5, 0)},
     alphas=np.logspace(-2, 1, 10),
     l1_ratios=[0.0, 0.5, 1.0],
@@ -106,7 +102,7 @@ def lc_func(X, params):
 
 model = pcreg.PenalizedConstrainedRegression(
     prediction_fn=lc_func,
-    feature_names=['T1', 'LC', 'RC'],
+    coef_names=['T1', 'LC', 'RC'],
     bounds={'T1': (0, None), 'LC': (-1, 0), 'RC': (-1, 0)},
     fit_intercept=False,
     alpha=0.1
@@ -121,14 +117,65 @@ from penalized_constrained import ModelDiagnostics
 
 # Compute GDF-adjusted statistics
 diag = ModelDiagnostics(model, X, y, gdf_method='hu')
-diag.summary()
 
-# Output:
-# GDF: 17.0
-# R²: 0.85
-# Adjusted R² (GDF): 0.83
-# SPE: 8.5%
-# Active constraints: 2
+# Basic summary
+report = diag.summary()
+report.print_summary()
+
+# With bootstrap confidence intervals (recommended for small samples)
+report = diag.summary(
+    bootstrap=True,
+    n_bootstrap=1000,
+    ci_level=0.95,
+    warm_start_coef=model.coef_  # Improves convergence for custom prediction_fn
+)
+
+# Export to various formats
+report.to_html('model_report.html')   # Interactive HTML with plots
+report.to_excel('model_report.xlsx')  # Multi-sheet Excel workbook
+report.to_pdf('model_report.pdf')     # PDF report
+report.to_dataframe()                 # Pandas DataFrame
+```
+
+### Bootstrap Confidence Intervals
+
+For small samples where asymptotic standard errors may be unreliable:
+
+```python
+from penalized_constrained import bootstrap_confidence_intervals
+
+# Compute bootstrap CIs
+results = bootstrap_confidence_intervals(
+    model, X, y,
+    n_bootstrap=1000,
+    ci_level=0.95,
+    warm_start_coef=model.coef_,  # Use fitted coefs as initialization
+    random_state=42
+)
+
+print(f"Coefficient means: {results['coef_mean']}")
+print(f"Coefficient std: {results['coef_std']}")
+print(f"95% CI lower: {results['coef_ci_lower']}")
+print(f"95% CI upper: {results['coef_ci_upper']}")
+print(f"Successful fits: {results['n_successful']}/{n_bootstrap}")
+```
+
+### Alpha Trace Analysis
+
+Visualize coefficient stability across hyperparameter values:
+
+```python
+from penalized_constrained import compute_alpha_trace, plot_alpha_trace
+
+# Compute trace across alpha grid
+trace = compute_alpha_trace(
+    model, X, y,
+    alphas=np.logspace(-4, 0, 20),
+    l1_ratios=[0.0, 0.5, 1.0]
+)
+
+# Plot coefficient paths
+plot_alpha_trace(trace, coef_names=['LC', 'RC'])
 ```
 
 ## Key Features
@@ -151,9 +198,31 @@ bounds = (-1, 0)
 # List: individual bounds per coefficient
 bounds = [(-1, 0), (-0.5, 0.1), (None, 10)]
 
-# Dict: named bounds (requires feature_names)
+# Dict: named bounds (requires coef_names)
 bounds = {'LC': (-1, 0), 'RC': (-0.5, 0)}
 ```
+
+### Penalty Exclusion
+
+Exclude specific coefficients from regularization while still applying bounds:
+
+```python
+# T1 (theoretical first unit cost) should be constrained but not penalized
+model = pcreg.PenalizedConstrainedCV(
+    prediction_fn=lc_func,
+    coef_names=['T1', 'LC', 'RC'],
+    bounds={'T1': (0, None), 'LC': (-1, 0), 'RC': (-1, 0)},
+    penalty_exclude=['T1'],  # Only LC and RC receive L1/L2 penalty
+    alpha=0.1
+)
+```
+
+### Safe Mode for Custom Functions
+
+When using custom `prediction_fn`, invalid parameters can produce `inf` or `nan`. With `safe_mode=True` (default), the optimizer:
+- Detects invalid predictions
+- Returns a gradient-informative penalty pointing back toward valid parameters
+- Tracks last valid parameters for recovery
 
 ### Generalized Degrees of Freedom
 
@@ -170,18 +239,21 @@ Main estimator class.
 
 ```python
 PenalizedConstrainedRegression(
-    alpha=0.0,           # Penalty strength
-    l1_ratio=0.0,        # L1/L2 mix: 0=Ridge, 1=Lasso
-    bounds=None,         # Coefficient bounds
-    feature_names=None,  # Names for coefficients
-    fit_intercept=True,  # Fit intercept
-    loss='sspe',         # Loss function
-    prediction_fn=None,  # Custom prediction function
-    scale=False,         # Standardize X internally
-    method='SLSQP',      # Optimizer
-    max_iter=1000,       # Max iterations
-    tol=1e-6,            # Tolerance
-    verbose=0            # Verbosity
+    alpha=0.0,            # Penalty strength
+    l1_ratio=0.0,         # L1/L2 mix: 0=Ridge, 1=Lasso
+    bounds=None,          # Coefficient bounds
+    coef_names=None,      # Names for coefficients
+    penalty_exclude=None, # Coefficients to exclude from penalty
+    fit_intercept=True,   # Fit intercept
+    loss='sspe',          # Loss function
+    prediction_fn=None,   # Custom prediction function
+    scale=False,          # Standardize X internally
+    x0='ols',             # Initial params: 'ols', 'zeros', or array
+    method='SLSQP',       # Optimizer
+    max_iter=1000,        # Max iterations
+    tol=1e-6,             # Tolerance
+    safe_mode=True,       # Handle inf/nan in custom prediction_fn
+    verbose=0             # Verbosity
 )
 ```
 
@@ -191,15 +263,27 @@ Cross-validated version with automatic hyperparameter tuning.
 
 ```python
 PenalizedConstrainedCV(
-    alphas=None,         # Grid of alpha values
-    l1_ratios=None,      # Grid of l1_ratio values
+    alphas=None,         # Grid of alpha values (default: logspace(-4, 0, 10))
+    l1_ratios=None,      # Grid of l1_ratio values (default: [0.0, 0.5, 1.0])
     bounds=None,         # Coefficient bounds
+    selection='cv',      # Selection method (see below)
     cv=5,                # Cross-validation folds
     scoring='neg_mean_squared_error',
     n_jobs=-1,           # Parallel jobs
     ...                  # Same as base class
 )
 ```
+
+**Selection Methods** (`selection` parameter):
+
+| Method | Description | Best For |
+|--------|-------------|----------|
+| `'cv'` | K-fold cross-validation (default) | Moderate sample sizes (n > 30) |
+| `'loocv'` | Leave-one-out cross-validation | Small samples, no randomness |
+| `'aic'` | Akaike Information Criterion | Balancing fit and complexity |
+| `'aicc'` | Corrected AIC | Small samples (n/df < 40) - **recommended** |
+| `'bic'` | Bayesian Information Criterion | Conservative model selection |
+| `'gcv'` | Generalized Cross-Validation | Approximates LOOCV efficiently |
 
 ## References
 
