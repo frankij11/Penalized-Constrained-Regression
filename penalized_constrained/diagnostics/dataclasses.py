@@ -109,18 +109,75 @@ class FitStatistics:
 
 @dataclass
 class ModelSpecification:
-    """Model specification details."""
+    """
+    Model specification details - all input parameters needed to recreate the model.
+
+    This dataclass captures all constructor parameters so the model can be
+    recreated from the report.
+    """
+    # Core model type
     model_type: str
+
+    # Loss and penalty settings
     loss_function: str
     alpha: float
     l1_ratio: float
+
+    # Structural settings
     fit_intercept: bool
-    method: str
-    converged: bool
+    scale: bool = False
+
+    # Bounds (stored as original format for reproducibility)
+    bounds: Optional[Dict] = None
+    intercept_bounds: Optional[Tuple[float, float]] = None
+
+    # Naming
+    coef_names: Optional[List[str]] = None
+    penalty_exclude: Optional[List[str]] = None
+
+    # Optimization settings
+    method: str = 'SLSQP'
+    max_iter: int = 1000
+    tol: float = 1e-6
+    x0: Optional[str] = 'ols'  # Initial values - can be 'ols', 'zeros', or array
+
+    # Custom function (stored as string representation)
+    prediction_fn_source: Optional[str] = None
+    has_custom_prediction_fn: bool = False
+    has_custom_loss_fn: bool = False
+
+    # Fit results
+    converged: bool = False
     n_iterations: Optional[int] = None
     final_objective: Optional[float] = None
     fit_datetime: Optional[datetime] = None
     fit_duration_seconds: Optional[float] = None
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for serialization."""
+        return {
+            'model_type': self.model_type,
+            'loss_function': self.loss_function,
+            'alpha': self.alpha,
+            'l1_ratio': self.l1_ratio,
+            'fit_intercept': self.fit_intercept,
+            'scale': self.scale,
+            'bounds': self.bounds,
+            'intercept_bounds': self.intercept_bounds,
+            'coef_names': self.coef_names,
+            'penalty_exclude': self.penalty_exclude,
+            'method': self.method,
+            'max_iter': self.max_iter,
+            'tol': self.tol,
+            'x0': self.x0 if isinstance(self.x0, str) else list(self.x0) if self.x0 is not None else None,
+            'has_custom_prediction_fn': self.has_custom_prediction_fn,
+            'has_custom_loss_fn': self.has_custom_loss_fn,
+            'converged': self.converged,
+            'n_iterations': self.n_iterations,
+            'final_objective': self.final_objective,
+            'fit_datetime': self.fit_datetime.isoformat() if self.fit_datetime else None,
+            'fit_duration_seconds': self.fit_duration_seconds,
+        }
 
 
 @dataclass
@@ -298,47 +355,57 @@ class BootstrapResults:
     confidence: float
     feature_names: Optional[List[str]] = None
 
-    # Convenience properties to access constrained results directly
+    # Convenience properties - prefer constrained if available, else unconstrained
+    @property
+    def _primary(self) -> BootstrapCoefResults:
+        """Return the primary results (constrained if available, else unconstrained)."""
+        return self.constrained if self.constrained is not None else self.unconstrained
+
     @property
     def coef_mean(self) -> np.ndarray:
-        return self.constrained.coef_mean
+        return self._primary.coef_mean
 
     @property
     def coef_std(self) -> np.ndarray:
-        return self.constrained.coef_std
+        return self._primary.coef_std
 
     @property
     def coef_ci_lower(self) -> np.ndarray:
-        return self.constrained.coef_ci_lower
+        return self._primary.coef_ci_lower
 
     @property
     def coef_ci_upper(self) -> np.ndarray:
-        return self.constrained.coef_ci_upper
+        return self._primary.coef_ci_upper
 
     @property
     def intercept_mean(self) -> Optional[float]:
-        return self.constrained.intercept_mean
+        return self._primary.intercept_mean
 
     @property
     def intercept_std(self) -> Optional[float]:
-        return self.constrained.intercept_std
+        return self._primary.intercept_std
 
     @property
     def intercept_ci(self) -> Optional[Tuple[float, float]]:
-        return self.constrained.intercept_ci
+        return self._primary.intercept_ci
 
     @property
     def bootstrap_coefs(self) -> np.ndarray:
-        return self.constrained.bootstrap_coefs
+        return self._primary.bootstrap_coefs
 
     @property
     def n_successful(self) -> int:
-        return self.constrained.n_successful
+        return self._primary.n_successful
 
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization."""
         result = {
-            'constrained': {
+            'n_bootstrap': self.n_bootstrap,
+            'confidence': self.confidence,
+            'feature_names': self.feature_names,
+        }
+        if self.constrained is not None:
+            result['constrained'] = {
                 'coef_mean': self.constrained.coef_mean.tolist() if self.constrained.coef_mean is not None else None,
                 'coef_std': self.constrained.coef_std.tolist() if self.constrained.coef_std is not None else None,
                 'coef_ci_lower': self.constrained.coef_ci_lower.tolist() if self.constrained.coef_ci_lower is not None else None,
@@ -347,11 +414,7 @@ class BootstrapResults:
                 'intercept_std': self.constrained.intercept_std,
                 'intercept_ci': list(self.constrained.intercept_ci) if self.constrained.intercept_ci else None,
                 'n_successful': self.constrained.n_successful,
-            },
-            'n_bootstrap': self.n_bootstrap,
-            'confidence': self.confidence,
-            'feature_names': self.feature_names,
-        }
+            }
         if self.unconstrained is not None:
             result['unconstrained'] = {
                 'coef_mean': self.unconstrained.coef_mean.tolist() if self.unconstrained.coef_mean is not None else None,

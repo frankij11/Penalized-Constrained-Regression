@@ -205,6 +205,10 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
     verbose : int, default=0
         Verbosity level.
 
+    safe_mode : bool, default=True
+        If True, automatically handle inf/nan from custom prediction_fn by
+        returning a gradient-informative penalty. Passed to base estimator.
+
     Attributes
     ----------
     alpha_ : float
@@ -270,7 +274,8 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         method='SLSQP',
         max_iter=1000,
         tol=1e-6,
-        verbose=0
+        verbose=0,
+        safe_mode=True
     ):
         self.alphas = alphas
         self.l1_ratios = l1_ratios
@@ -291,6 +296,7 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         self.max_iter = max_iter
         self.tol = tol
         self.verbose = verbose
+        self.safe_mode = safe_mode
     
     def fit(self, X, y):
         """
@@ -377,7 +383,8 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
             method=self.method,
             max_iter=self.max_iter,
             tol=self.tol,
-            verbose=0  # Suppress during CV
+            verbose=0,  # Suppress during CV
+            safe_mode=self.safe_mode
         )
 
         # Grid search with cross-validation
@@ -450,7 +457,8 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
                     method=self.method,
                     max_iter=self.max_iter,
                     tol=self.tol,
-                    verbose=0
+                    verbose=0,
+                    safe_mode=self.safe_mode
                 )
 
                 try:
@@ -549,8 +557,41 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
         self.named_coef_ = dict(zip(self.coef_names_in_, self.coef_))
     
     def predict(self, X):
-        """Predict using the best estimator."""
+        """
+        Predict using the best estimator.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Samples to predict.
+
+        Returns
+        -------
+        y_pred : ndarray of shape (n_samples,)
+            Predicted values.
+
+        Notes
+        -----
+        For custom prediction_fn, X is always passed as a numpy array.
+        The prediction_fn should handle numpy arrays (using X[:, i] indexing).
+        """
         check_is_fitted(self)
+
+        # For custom prediction functions, handle prediction directly
+        # (best_estimator_ may have incorrect feature_names_in_ from numpy conversion)
+        if self.prediction_fn is not None:
+            X = check_array(X, accept_sparse=False)
+
+            if X.shape[1] != self.n_features_in_:
+                raise ValueError(
+                    f"X has {X.shape[1]} features, but model was fitted "
+                    f"with {self.n_features_in_} features"
+                )
+
+            # Always pass numpy array to custom prediction_fn for consistency
+            return self.prediction_fn(X, self.coef_)
+
+        # For standard linear models, delegate to best_estimator_
         return self.best_estimator_.predict(X)
     
     def score(self, X, y):

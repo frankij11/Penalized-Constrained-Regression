@@ -487,6 +487,7 @@ def to_html(
         <meta charset="UTF-8">
         <title>Penalized-Constrained Regression Summary</title>
         <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
         <style>
             body { font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; background: #f5f5f5; }
             .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -541,25 +542,62 @@ def to_html(
     if include_equation and report.equation is not None:
         html_parts.append("<h2>Model Equation</h2>")
         html_parts.append(f'<div class="equation-box">')
-        html_parts.append(f'<strong>{report.equation.text}</strong>')
+        # Use <pre> style to preserve newlines and spacing in equation text
+        escaped_text = _escape_html(report.equation.text)
+        html_parts.append(f'<pre style="margin: 0; font-family: Consolas, monospace; white-space: pre-wrap;">{escaped_text}</pre>')
         if report.equation.latex:
-            html_parts.append(f'<div class="equation-latex">LaTeX: {report.equation.latex}</div>')
+            # Use MathJax display mode delimiters for rendered equation
+            html_parts.append(f'<div class="equation-latex" style="margin-top: 15px; font-size: 1.2em;">\\[{report.equation.latex}\\]</div>')
         html_parts.append('</div>')
 
         if report.equation.source:
             html_parts.append("<h3>Source Code</h3>")
             html_parts.append(f'<pre class="source-code">{_escape_html(report.equation.source)}</pre>')
 
-    # Model Specification
+    # Model Specification - All input parameters for reproducibility
     html_parts.append("<h2>Model Specification</h2>")
+    html_parts.append("<h3>Constructor Parameters</h3>")
     html_parts.append("<table>")
     html_parts.append(f"<tr><td>Model Type</td><td class='stat-value'>{report.model_spec.model_type}</td></tr>")
     html_parts.append(f"<tr><td>Loss Function</td><td class='stat-value'>{report.model_spec.loss_function}</td></tr>")
     html_parts.append(f"<tr><td>Alpha</td><td class='stat-value'>{report.model_spec.alpha}</td></tr>")
     html_parts.append(f"<tr><td>L1 Ratio</td><td class='stat-value'>{report.model_spec.l1_ratio}</td></tr>")
+    html_parts.append(f"<tr><td>Fit Intercept</td><td class='stat-value'>{report.model_spec.fit_intercept}</td></tr>")
+    html_parts.append(f"<tr><td>Scale</td><td class='stat-value'>{report.model_spec.scale}</td></tr>")
+    # Bounds
+    if report.model_spec.bounds:
+        bounds_str = str(report.model_spec.bounds)
+        html_parts.append(f"<tr><td>Bounds</td><td class='stat-value'>{_escape_html(bounds_str)}</td></tr>")
+    if report.model_spec.intercept_bounds:
+        html_parts.append(f"<tr><td>Intercept Bounds</td><td class='stat-value'>{report.model_spec.intercept_bounds}</td></tr>")
+    # Naming
+    if report.model_spec.coef_names:
+        html_parts.append(f"<tr><td>Coefficient Names</td><td class='stat-value'>{report.model_spec.coef_names}</td></tr>")
+    if report.model_spec.penalty_exclude:
+        html_parts.append(f"<tr><td>Penalty Exclude</td><td class='stat-value'>{report.model_spec.penalty_exclude}</td></tr>")
+    # Optimization
     html_parts.append(f"<tr><td>Method</td><td class='stat-value'>{report.model_spec.method}</td></tr>")
+    html_parts.append(f"<tr><td>Max Iterations</td><td class='stat-value'>{report.model_spec.max_iter}</td></tr>")
+    html_parts.append(f"<tr><td>Tolerance</td><td class='stat-value'>{report.model_spec.tol}</td></tr>")
+    # x0 initial values
+    x0_str = str(report.model_spec.x0) if report.model_spec.x0 else 'ols'
+    html_parts.append(f"<tr><td>x0 (Initial Values)</td><td class='stat-value'>{_escape_html(x0_str)}</td></tr>")
+    # Custom functions
+    if report.model_spec.has_custom_prediction_fn:
+        html_parts.append(f"<tr><td>Custom Prediction Function</td><td class='stat-value'>Yes</td></tr>")
+    if report.model_spec.has_custom_loss_fn:
+        html_parts.append(f"<tr><td>Custom Loss Function</td><td class='stat-value'>Yes</td></tr>")
+    html_parts.append("</table>")
+
+    # Fit Results
+    html_parts.append("<h3>Fit Results</h3>")
+    html_parts.append("<table>")
     converged_class = 'converged-true' if report.model_spec.converged else 'converged-false'
     html_parts.append(f"<tr><td>Converged</td><td class='stat-value {converged_class}'>{report.model_spec.converged}</td></tr>")
+    if report.model_spec.n_iterations:
+        html_parts.append(f"<tr><td>Iterations</td><td class='stat-value'>{report.model_spec.n_iterations}</td></tr>")
+    if report.model_spec.final_objective:
+        html_parts.append(f"<tr><td>Final Objective</td><td class='stat-value'>{report.model_spec.final_objective:.6f}</td></tr>")
     if report.model_spec.fit_datetime:
         html_parts.append(f"<tr><td>Fit Date</td><td class='stat-value'>{report.model_spec.fit_datetime}</td></tr>")
     if report.model_spec.fit_duration_seconds:
@@ -940,56 +978,66 @@ def _generate_bootstrap_section_html(report: 'SummaryReport') -> str:
     html_parts.append("<h2>Bootstrap Analysis</h2>")
     html_parts.append('<div class="bootstrap-section">')
 
-    # Summary info
+    # Determine what we have
+    has_constrained = bootstrap.constrained is not None
     has_unconstrained = bootstrap.unconstrained is not None
+
+    # Summary info - use whichever is available for n_successful
+    n_successful = bootstrap.constrained.n_successful if has_constrained else bootstrap.unconstrained.n_successful
     html_parts.append(f"""
-    <p><strong>Bootstrap samples:</strong> {bootstrap.n_successful} of {bootstrap.n_bootstrap} successful |
+    <p><strong>Bootstrap samples:</strong> {n_successful} of {bootstrap.n_bootstrap} successful |
     <strong>Confidence level:</strong> {bootstrap.confidence:.0%}</p>
     """)
 
-    if has_unconstrained:
+    # Determine number of coefficients from whichever result is available
+    if has_constrained:
+        n_coefs = len(bootstrap.constrained.coef_mean)
+    else:
+        n_coefs = len(bootstrap.unconstrained.coef_mean)
+
+    names = bootstrap.feature_names if bootstrap.feature_names else [f'coef_{i}' for i in range(n_coefs)]
+
+    if has_constrained and has_unconstrained:
+        # Model IS constrained: show both tables and comparison
         html_parts.append("""
         <p class="info-box">Bootstrap was run in two modes: <strong>Constrained</strong> (with bounds and regularization)
         and <strong>Unconstrained</strong> (no bounds, alpha=0) to show the effect of constraints on uncertainty estimates.</p>
         """)
 
-    names = bootstrap.feature_names if bootstrap.feature_names else [f'coef_{i}' for i in range(len(bootstrap.coef_mean))]
+        # Constrained Bootstrap Statistics
+        constrained = bootstrap.constrained
+        html_parts.append("<h3>Constrained Bootstrap (with bounds and alpha)</h3>")
+        html_parts.append("<table>")
+        html_parts.append("<tr><th>Parameter</th><th>Mean</th><th>Std</th><th>CI Lower</th><th>CI Upper</th><th>CI Width</th></tr>")
 
-    # Constrained Bootstrap Statistics
-    html_parts.append("<h3>Constrained Bootstrap (with bounds and alpha)</h3>")
-    html_parts.append("<table>")
-    html_parts.append("<tr><th>Parameter</th><th>Mean</th><th>Std</th><th>CI Lower</th><th>CI Upper</th><th>CI Width</th></tr>")
+        for i, name in enumerate(names):
+            ci_width = constrained.coef_ci_upper[i] - constrained.coef_ci_lower[i]
+            html_parts.append(f"""
+            <tr>
+                <td>{name}</td>
+                <td class='stat-value'>{constrained.coef_mean[i]:.6f}</td>
+                <td class='stat-value'>{constrained.coef_std[i]:.6f}</td>
+                <td class='stat-value'>{constrained.coef_ci_lower[i]:.6f}</td>
+                <td class='stat-value'>{constrained.coef_ci_upper[i]:.6f}</td>
+                <td class='stat-value'>{ci_width:.6f}</td>
+            </tr>
+            """)
 
-    constrained = bootstrap.constrained
-    for i, name in enumerate(names):
-        ci_width = constrained.coef_ci_upper[i] - constrained.coef_ci_lower[i]
-        html_parts.append(f"""
-        <tr>
-            <td>{name}</td>
-            <td class='stat-value'>{constrained.coef_mean[i]:.6f}</td>
-            <td class='stat-value'>{constrained.coef_std[i]:.6f}</td>
-            <td class='stat-value'>{constrained.coef_ci_lower[i]:.6f}</td>
-            <td class='stat-value'>{constrained.coef_ci_upper[i]:.6f}</td>
-            <td class='stat-value'>{ci_width:.6f}</td>
-        </tr>
-        """)
+        if constrained.intercept_mean is not None and constrained.intercept_ci is not None:
+            ci_width = constrained.intercept_ci[1] - constrained.intercept_ci[0]
+            html_parts.append(f"""
+            <tr>
+                <td>Intercept</td>
+                <td class='stat-value'>{constrained.intercept_mean:.6f}</td>
+                <td class='stat-value'>{constrained.intercept_std:.6f}</td>
+                <td class='stat-value'>{constrained.intercept_ci[0]:.6f}</td>
+                <td class='stat-value'>{constrained.intercept_ci[1]:.6f}</td>
+                <td class='stat-value'>{ci_width:.6f}</td>
+            </tr>
+            """)
+        html_parts.append("</table>")
 
-    if constrained.intercept_mean is not None and constrained.intercept_ci is not None:
-        ci_width = constrained.intercept_ci[1] - constrained.intercept_ci[0]
-        html_parts.append(f"""
-        <tr>
-            <td>Intercept</td>
-            <td class='stat-value'>{constrained.intercept_mean:.6f}</td>
-            <td class='stat-value'>{constrained.intercept_std:.6f}</td>
-            <td class='stat-value'>{constrained.intercept_ci[0]:.6f}</td>
-            <td class='stat-value'>{constrained.intercept_ci[1]:.6f}</td>
-            <td class='stat-value'>{ci_width:.6f}</td>
-        </tr>
-        """)
-    html_parts.append("</table>")
-
-    # Unconstrained Bootstrap Statistics (if available)
-    if has_unconstrained:
+        # Unconstrained Bootstrap Statistics
         unconstrained = bootstrap.unconstrained
         html_parts.append("<h3>Unconstrained Bootstrap (no bounds, alpha=0)</h3>")
         html_parts.append("<table>")
@@ -1042,6 +1090,89 @@ def _generate_bootstrap_section_html(report: 'SummaryReport') -> str:
             """)
         html_parts.append("</table>")
 
+    elif has_unconstrained and not has_constrained:
+        # Model has NO constraints: only show unconstrained results
+        html_parts.append("""
+        <p class="info-box">Model has no constraints (no bounds and alpha=0), so only unconstrained bootstrap was performed.
+        Constrained bootstrap comparison is not applicable.</p>
+        """)
+
+        unconstrained = bootstrap.unconstrained
+        html_parts.append("<h3>Bootstrap Results (Unconstrained Model)</h3>")
+        html_parts.append("<table>")
+        html_parts.append("<tr><th>Parameter</th><th>Mean</th><th>Std</th><th>CI Lower</th><th>CI Upper</th><th>CI Width</th></tr>")
+
+        for i, name in enumerate(names):
+            ci_width = unconstrained.coef_ci_upper[i] - unconstrained.coef_ci_lower[i]
+            html_parts.append(f"""
+            <tr>
+                <td>{name}</td>
+                <td class='stat-value'>{unconstrained.coef_mean[i]:.6f}</td>
+                <td class='stat-value'>{unconstrained.coef_std[i]:.6f}</td>
+                <td class='stat-value'>{unconstrained.coef_ci_lower[i]:.6f}</td>
+                <td class='stat-value'>{unconstrained.coef_ci_upper[i]:.6f}</td>
+                <td class='stat-value'>{ci_width:.6f}</td>
+            </tr>
+            """)
+
+        if unconstrained.intercept_mean is not None and unconstrained.intercept_ci is not None:
+            ci_width = unconstrained.intercept_ci[1] - unconstrained.intercept_ci[0]
+            html_parts.append(f"""
+            <tr>
+                <td>Intercept</td>
+                <td class='stat-value'>{unconstrained.intercept_mean:.6f}</td>
+                <td class='stat-value'>{unconstrained.intercept_std:.6f}</td>
+                <td class='stat-value'>{unconstrained.intercept_ci[0]:.6f}</td>
+                <td class='stat-value'>{unconstrained.intercept_ci[1]:.6f}</td>
+                <td class='stat-value'>{ci_width:.6f}</td>
+            </tr>
+            """)
+        html_parts.append("</table>")
+
+    elif has_constrained and not has_unconstrained:
+        # Model IS constrained but unconstrained bootstrap failed
+        # (e.g., model requires bounds to converge, custom prediction_fn, etc.)
+        html_parts.append("""
+        <p class="info-box">Model has constraints. Unconstrained bootstrap comparison was attempted but failed
+        (model may require constraints to converge properly). Showing constrained bootstrap results only.</p>
+        """)
+
+        constrained = bootstrap.constrained
+        html_parts.append("<h3>Constrained Bootstrap (with bounds and alpha)</h3>")
+        html_parts.append("<table>")
+        html_parts.append("<tr><th>Parameter</th><th>Mean</th><th>Std</th><th>CI Lower</th><th>CI Upper</th><th>CI Width</th></tr>")
+
+        for i, name in enumerate(names):
+            ci_width = constrained.coef_ci_upper[i] - constrained.coef_ci_lower[i]
+            html_parts.append(f"""
+            <tr>
+                <td>{name}</td>
+                <td class='stat-value'>{constrained.coef_mean[i]:.6f}</td>
+                <td class='stat-value'>{constrained.coef_std[i]:.6f}</td>
+                <td class='stat-value'>{constrained.coef_ci_lower[i]:.6f}</td>
+                <td class='stat-value'>{constrained.coef_ci_upper[i]:.6f}</td>
+                <td class='stat-value'>{ci_width:.6f}</td>
+            </tr>
+            """)
+
+        if constrained.intercept_mean is not None and constrained.intercept_ci is not None:
+            ci_width = constrained.intercept_ci[1] - constrained.intercept_ci[0]
+            html_parts.append(f"""
+            <tr>
+                <td>Intercept</td>
+                <td class='stat-value'>{constrained.intercept_mean:.6f}</td>
+                <td class='stat-value'>{constrained.intercept_std:.6f}</td>
+                <td class='stat-value'>{constrained.intercept_ci[0]:.6f}</td>
+                <td class='stat-value'>{constrained.intercept_ci[1]:.6f}</td>
+                <td class='stat-value'>{ci_width:.6f}</td>
+            </tr>
+            """)
+        html_parts.append("</table>")
+
+    else:
+        # No results available
+        html_parts.append("<p class='warning'>Bootstrap analysis failed to produce results.</p>")
+
     # Add bootstrap distribution plots using Plotly
     html_parts.append("<h3>Bootstrap Coefficient Distributions</h3>")
     html_parts.append('<div id="bootstrap-distributions" class="plotly-container"></div>')
@@ -1049,42 +1180,53 @@ def _generate_bootstrap_section_html(report: 'SummaryReport') -> str:
     # Generate Plotly JavaScript for bootstrap histograms
     import json
 
-    n_coefs = len(bootstrap.coef_mean)
     n_cols = min(3, n_coefs)
     n_rows = (n_coefs + n_cols - 1) // n_cols
 
     traces = []
     for i in range(n_coefs):
         name = names[i] if i < len(names) else f'coef_{i}'
-        # Constrained distribution
-        coef_samples = constrained.bootstrap_coefs[:, i].tolist()
-        traces.append({
-            'type': 'histogram',
-            'x': coef_samples,
-            'name': f'{name} (constrained)',
-            'opacity': 0.7,
-            'marker': {'color': '#3498db'},
-            'xaxis': f'x{i+1}' if i > 0 else 'x',
-            'yaxis': f'y{i+1}' if i > 0 else 'y',
-            'legendgroup': name,
-        })
+
+        # Constrained distribution (if available)
+        if has_constrained:
+            coef_samples = bootstrap.constrained.bootstrap_coefs[:, i].tolist()
+            traces.append({
+                'type': 'histogram',
+                'x': coef_samples,
+                'name': f'{name} (constrained)',
+                'opacity': 0.7,
+                'marker': {'color': '#3498db'},
+                'xaxis': f'x{i+1}' if i > 0 else 'x',
+                'yaxis': f'y{i+1}' if i > 0 else 'y',
+                'legendgroup': name,
+            })
+
         # Unconstrained distribution (if available)
         if has_unconstrained:
-            unconst_samples = unconstrained.bootstrap_coefs[:, i].tolist()
+            unconst_samples = bootstrap.unconstrained.bootstrap_coefs[:, i].tolist()
+            # Use blue if no constrained, red if showing both
+            color = '#e74c3c' if has_constrained else '#3498db'
+            opacity = 0.5 if has_constrained else 0.7
+            label = f'{name} (unconstrained)' if has_constrained else name
             traces.append({
                 'type': 'histogram',
                 'x': unconst_samples,
-                'name': f'{name} (unconstrained)',
-                'opacity': 0.5,
-                'marker': {'color': '#e74c3c'},
+                'name': label,
+                'opacity': opacity,
+                'marker': {'color': color},
                 'xaxis': f'x{i+1}' if i > 0 else 'x',
                 'yaxis': f'y{i+1}' if i > 0 else 'y',
                 'legendgroup': name,
             })
 
     # Create layout with subplots
+    if has_constrained and has_unconstrained:
+        title = 'Bootstrap Coefficient Distributions (blue=constrained, red=unconstrained)'
+    else:
+        title = 'Bootstrap Coefficient Distributions'
+
     layout = {
-        'title': 'Bootstrap Coefficient Distributions' + (' (blue=constrained, red=unconstrained)' if has_unconstrained else ''),
+        'title': title,
         'showlegend': False,
         'height': 200 * n_rows + 100,
         'barmode': 'overlay',
@@ -1213,7 +1355,7 @@ def _generate_interactive_scatter_html(
     html_parts.append("<h2>Interactive Data Explorer</h2>")
     html_parts.append(f"<p>Explore relationships in the data ({actual_n} observations from {data_source}). Select variables for axes, color, and size.</p>")
 
-    # Control panel
+    # Control panel - all controls in one row
     html_parts.append('<div class="controls">')
 
     # X variable selector
@@ -1256,12 +1398,7 @@ def _generate_interactive_scatter_html(
     html_parts.append('</select>')
     html_parts.append('</div>')
 
-    html_parts.append('</div>')  # end controls
-
-    # Axis controls row
-    html_parts.append('<div class="controls">')
-
-    # Y-axis min control
+    # Y-axis min control (only control for axis, others removed)
     html_parts.append('<div class="control-group">')
     html_parts.append('<label for="y-min">Y Min</label>')
     html_parts.append('<select id="y-min" onchange="updateScatterPlot()">')
@@ -1270,33 +1407,7 @@ def _generate_interactive_scatter_html(
     html_parts.append('</select>')
     html_parts.append('</div>')
 
-    # Y-axis max control
-    html_parts.append('<div class="control-group">')
-    html_parts.append('<label for="y-max">Y Max</label>')
-    html_parts.append('<select id="y-max" onchange="updateScatterPlot()">')
-    html_parts.append('<option value="auto" selected>Auto</option>')
-    html_parts.append('<option value="custom">Custom...</option>')
-    html_parts.append('</select>')
-    html_parts.append('</div>')
-
-    # X-axis min control
-    html_parts.append('<div class="control-group">')
-    html_parts.append('<label for="x-min">X Min</label>')
-    html_parts.append('<select id="x-min" onchange="updateScatterPlot()">')
-    html_parts.append('<option value="auto" selected>Auto</option>')
-    html_parts.append('<option value="0">0</option>')
-    html_parts.append('</select>')
-    html_parts.append('</div>')
-
-    # X-axis max control
-    html_parts.append('<div class="control-group">')
-    html_parts.append('<label for="x-max">X Max</label>')
-    html_parts.append('<select id="x-max" onchange="updateScatterPlot()">')
-    html_parts.append('<option value="auto" selected>Auto</option>')
-    html_parts.append('</select>')
-    html_parts.append('</div>')
-
-    html_parts.append('</div>')  # end axis controls
+    html_parts.append('</div>')  # end controls
 
     # Plot container
     html_parts.append('<div id="interactive-scatter" class="plotly-container" style="height: 500px;"></div>')
@@ -1321,9 +1432,6 @@ def _generate_interactive_scatter_html(
             var colorVar = document.getElementById('color-var').value;
             var sizeVar = document.getElementById('size-var').value;
             var yMinSel = document.getElementById('y-min').value;
-            var yMaxSel = document.getElementById('y-max').value;
-            var xMinSel = document.getElementById('x-min').value;
-            var xMaxSel = document.getElementById('x-max').value;
 
             var x = plotData[xVar];
             var y = plotData[yVar];
@@ -1376,15 +1484,10 @@ def _generate_interactive_scatter_html(
             var yAxisConfig = {{title: yVar}};
             var xAxisConfig = {{title: xVar}};
 
-            // Y-axis range
+            // Y-axis range: 0 or Auto
             if (yMinSel === '0') {{
-                var yMax = yMaxSel === 'auto' ? Math.max(...y) * 1.05 : parseFloat(yMaxSel);
+                var yMax = Math.max(...y) * 1.05;
                 yAxisConfig.range = [0, yMax];
-            }}
-            // X-axis range
-            if (xMinSel === '0') {{
-                var xMax = xMaxSel === 'auto' ? Math.max(...x) * 1.05 : parseFloat(xMaxSel);
-                xAxisConfig.range = [0, xMax];
             }}
 
             var layout = {{

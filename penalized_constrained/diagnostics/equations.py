@@ -3,13 +3,134 @@ Model equation formatting utilities.
 
 Generates human-readable equations for linear models and extracts
 source code from custom prediction functions.
+
+Supports docstring-based equation definitions:
+    Equation: y = exp(b0 + b1*x1)
+    Equation-LaTeX: \\hat{y} = e^{\\beta_0 + \\beta_1 x_1}
 """
 
+import ast
 import inspect
-from typing import Optional, Callable, List, Union
+import re
+from typing import Optional, Callable, List, Tuple
 import numpy as np
 
 from .dataclasses import ModelEquation
+
+
+def parse_equation_from_docstring(func: Callable) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Extract equation definitions from a function's docstring.
+
+    Looks for special tags:
+    - Equation: <text equation>
+    - Equation-LaTeX: <latex equation>
+
+    Parameters
+    ----------
+    func : Callable
+        The function to extract equation from
+
+    Returns
+    -------
+    Tuple[Optional[str], Optional[str]]
+        (text_equation, latex_equation) - either or both may be None
+    """
+    docstring = inspect.getdoc(func)
+    if not docstring:
+        return None, None
+
+    text_eq = None
+    latex_eq = None
+
+    # Parse Equation: tag (text equation)
+    text_match = re.search(r'^Equation:\s*(.+)$', docstring, re.MULTILINE)
+    if text_match:
+        text_eq = text_match.group(1).strip()
+
+    # Parse Equation-LaTeX: tag
+    latex_match = re.search(r'^Equation-LaTeX:\s*(.+)$', docstring, re.MULTILINE)
+    if latex_match:
+        latex_eq = latex_match.group(1).strip()
+
+    return text_eq, latex_eq
+
+
+def extract_return_expressions(func: Callable) -> List[str]:
+    """
+    Extract return expressions from a function using AST parsing.
+
+    For return statements that return a variable (like `return ans`),
+    traces back to find the last assignment to that variable.
+
+    Parameters
+    ----------
+    func : Callable
+        The function to analyze
+
+    Returns
+    -------
+    List[str]
+        List of unique return expression strings
+    """
+    try:
+        source = inspect.getsource(func)
+    except (OSError, TypeError):
+        return []
+
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+
+    # Find the function definition node
+    func_def = None
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            func_def = node
+            break
+
+    if func_def is None:
+        return []
+
+    # Collect all assignments in the function (for variable tracing)
+    assignments = {}
+    for node in ast.walk(func_def):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    # Store the assignment expression for this variable
+                    try:
+                        assignments[target.id] = ast.unparse(node.value)
+                    except Exception:
+                        assignments[target.id] = None
+
+    # Collect return expressions
+    expressions = []
+    common_result_vars = {'ans', 'result', 'res', 'out', 'output', 'y', 'y_pred', 'pred', 'prediction'}
+
+    for node in ast.walk(func_def):
+        if isinstance(node, ast.Return) and node.value is not None:
+            try:
+                # Check if return value is a simple variable
+                if isinstance(node.value, ast.Name):
+                    var_name = node.value.id
+                    # If it's a common result variable, trace back to assignment
+                    if var_name.lower() in common_result_vars or var_name in assignments:
+                        if var_name in assignments and assignments[var_name]:
+                            expr = f"{var_name} = {assignments[var_name]}"
+                            if expr not in expressions:
+                                expressions.append(expr)
+                            continue
+
+                # Otherwise, just unparse the return expression
+                expr = ast.unparse(node.value)
+                if expr not in expressions:
+                    expressions.append(expr)
+            except Exception:
+                continue
+
+    return expressions
 
 
 def get_callable_source(func: Callable) -> Optional[str]:
@@ -151,9 +272,33 @@ def format_model_equation(model) -> ModelEquation:
             if loss_source:
                 source = f"# Prediction function:\n{source}\n\n# Loss function:\n{loss_source}"
 
+        # Try to extract equation from docstring
+        docstring_text, docstring_latex = parse_equation_from_docstring(prediction_fn)
+
+        # Extract return expressions via AST parsing
+        return_expressions = extract_return_expressions(prediction_fn)
+
+        # Build text field - always show both docstring equation and parsed expressions
+        text_parts = []
+        if docstring_text:
+            text_parts.append(f"Equation: {docstring_text}")
+        else:
+            text_parts.append("Custom prediction function")
+
+        if return_expressions:
+            parsed_label = "Parsed: "
+            indent = " " * len(parsed_label)
+            for i, expr in enumerate(return_expressions):
+                if i == 0:
+                    text_parts.append(f"{parsed_label}{expr}")
+                else:
+                    text_parts.append(f"{indent}{expr}")
+
+        text = "\n".join(text_parts)
+
         return ModelEquation(
-            text="Custom prediction model (see source code)",
-            latex=None,
+            text=text,
+            latex=docstring_latex,
             source=source,
             is_custom=True
         )
@@ -164,6 +309,7 @@ def format_model_equation(model) -> ModelEquation:
     # Use coef_names_in_ for coefficient names in equations
     coef_names = getattr(model, 'coef_names_in_', None)
     fit_intercept = getattr(model, 'fit_intercept', True)
+    feature_names = getattr(model, 'feature_names_in_', coef_names)
 
     if coef_ is None:
         return ModelEquation(
@@ -176,7 +322,7 @@ def format_model_equation(model) -> ModelEquation:
     eq_dict = format_linear_equation(
         coef_=coef_,
         intercept_=intercept_,
-        feature_names=coef_names,
+        feature_names=feature_names,
         fit_intercept=fit_intercept
     )
 

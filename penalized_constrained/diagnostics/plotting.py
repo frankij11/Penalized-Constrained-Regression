@@ -96,43 +96,95 @@ def plot_diagnostics(
     ax3.set_title('Scale-Location')
 
     # 4. Coefficient Plot with Bounds
+    # Show each coefficient on its own scale to handle different magnitudes
     ax4 = axes[1, 1]
-    names = [c.name for c in coefficients]
-    values = [c.value for c in coefficients]
-    lowers = [c.lower_bound if np.isfinite(c.lower_bound) else min(values) - 1 for c in coefficients]
-    uppers = [c.upper_bound if np.isfinite(c.upper_bound) else max(values) + 1 for c in coefficients]
 
-    y_pos = np.arange(len(names))
-    colors = ['red' if c.is_constrained else 'steelblue' for c in coefficients]
+    n_coefs = len(coefficients)
+    if n_coefs == 0:
+        ax4.text(0.5, 0.5, 'No coefficients', ha='center', va='center', transform=ax4.transAxes)
+        ax4.set_title('Coefficients with Bounds')
+    else:
+        # Create mini-plots for each coefficient within the subplot
+        # This handles coefficients on very different scales (e.g., T1=100, LC=0.9)
+        y_positions = np.arange(n_coefs)
+        bar_height = 0.6
 
-    ax4.barh(y_pos, values, color=colors, alpha=0.7, edgecolor='black')
+        for i, c in enumerate(coefficients):
+            value = c.value
+            lb = c.lower_bound if np.isfinite(c.lower_bound) else None
+            ub = c.upper_bound if np.isfinite(c.upper_bound) else None
 
-    # Add bound markers
-    for i, (lb, ub) in enumerate(zip(lowers, uppers)):
-        if np.isfinite(coefficients[i].lower_bound):
-            ax4.plot(lb, i, 'k<', markersize=8)
-        if np.isfinite(coefficients[i].upper_bound):
-            ax4.plot(ub, i, 'k>', markersize=8)
+            # Determine x-axis range for this coefficient
+            points = [value]
+            if lb is not None:
+                points.append(lb)
+            if ub is not None:
+                points.append(ub)
+            if c.ci_lower is not None:
+                points.append(c.ci_lower)
+            if c.ci_upper is not None:
+                points.append(c.ci_upper)
 
-    # Add CI bars if available
-    for i, c in enumerate(coefficients):
-        if c.ci_lower is not None and c.ci_upper is not None:
-            ax4.plot([c.ci_lower, c.ci_upper], [i, i], 'k-', linewidth=2)
-            ax4.plot([c.ci_lower, c.ci_upper], [i, i], 'k|', markersize=10)
+            x_min, x_max = min(points), max(points)
+            x_range = x_max - x_min if x_max != x_min else abs(value) * 0.2 or 1.0
+            x_min -= x_range * 0.1
+            x_max += x_range * 0.1
 
-    ax4.set_yticks(y_pos)
-    ax4.set_yticklabels(names)
-    ax4.axvline(x=0, color='gray', linestyle='--', linewidth=0.5)
-    ax4.set_xlabel('Coefficient Value')
-    ax4.set_title('Coefficients with Bounds')
+            # Normalize position within [0, 1] for this coefficient's row
+            def normalize(val):
+                if x_max == x_min:
+                    return 0.5
+                return (val - x_min) / (x_max - x_min)
 
-    # Add legend
-    from matplotlib.patches import Patch
-    legend_elements = [
-        Patch(facecolor='steelblue', alpha=0.7, edgecolor='black', label='Free'),
-        Patch(facecolor='red', alpha=0.7, edgecolor='black', label='At Bound'),
-    ]
-    ax4.legend(handles=legend_elements, loc='best')
+            # Color based on constraint status
+            color = 'red' if c.is_constrained else 'steelblue'
+
+            # Draw coefficient value as a dot
+            norm_val = normalize(value)
+            ax4.plot(norm_val, i, 'o', color=color, markersize=12, zorder=3)
+
+            # Draw bounds as markers
+            if lb is not None:
+                norm_lb = normalize(lb)
+                ax4.plot(norm_lb, i, 'k<', markersize=8, zorder=2)
+            if ub is not None:
+                norm_ub = normalize(ub)
+                ax4.plot(norm_ub, i, 'k>', markersize=8, zorder=2)
+
+            # Draw CI if available
+            if c.ci_lower is not None and c.ci_upper is not None:
+                norm_ci_low = normalize(c.ci_lower)
+                norm_ci_high = normalize(c.ci_upper)
+                ax4.plot([norm_ci_low, norm_ci_high], [i, i], 'k-', linewidth=2, zorder=1)
+                ax4.plot([norm_ci_low, norm_ci_high], [i, i], 'k|', markersize=10, zorder=2)
+
+            # Draw horizontal line for context
+            ax4.axhline(y=i, color='lightgray', linestyle='-', linewidth=0.5, zorder=0)
+
+            # Add value label
+            ax4.annotate(f'{value:.4g}', (norm_val, i), textcoords='offset points',
+                        xytext=(0, 10), ha='center', fontsize=8)
+
+        ax4.set_yticks(y_positions)
+        ax4.set_yticklabels([c.name for c in coefficients])
+        ax4.set_xlim(-0.1, 1.1)
+        ax4.set_ylim(-0.5, n_coefs - 0.5)
+        ax4.set_xlabel('Relative Position (scaled per coefficient)')
+        ax4.set_title('Coefficients with Bounds\n(each row scaled independently)')
+
+        # Remove x-axis ticks since each row has different scale
+        ax4.set_xticks([])
+
+        # Add legend
+        from matplotlib.patches import Patch
+        from matplotlib.lines import Line2D
+        legend_elements = [
+            Line2D([0], [0], marker='o', color='w', markerfacecolor='steelblue', markersize=10, label='Free'),
+            Line2D([0], [0], marker='o', color='w', markerfacecolor='red', markersize=10, label='At Bound'),
+            Line2D([0], [0], marker='<', color='black', markersize=8, linestyle='', label='Lower Bound'),
+            Line2D([0], [0], marker='>', color='black', markersize=8, linestyle='', label='Upper Bound'),
+        ]
+        ax4.legend(handles=legend_elements, loc='upper right', fontsize=7)
 
     plt.tight_layout()
 

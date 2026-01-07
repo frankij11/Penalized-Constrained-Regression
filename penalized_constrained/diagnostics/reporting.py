@@ -553,7 +553,7 @@ def generate_summary_report(
     # Model Equation
     equation = format_model_equation(model)
 
-    # Model Specification with timing info
+    # Model Specification with all input parameters for reproducibility
     loss_str = model.loss if isinstance(model.loss, str) else 'custom'
     # Handle both CV models (alpha_, l1_ratio_) and base models (alpha, l1_ratio)
     # Note: Can't use `or` here because 0.0 is a valid value but falsy
@@ -563,13 +563,36 @@ def generate_summary_report(
     l1_ratio = getattr(model, 'l1_ratio_', None)
     if l1_ratio is None:
         l1_ratio = getattr(model, 'l1_ratio', None)
+
+    # Get prediction_fn source code if custom
+    prediction_fn_source = None
+    has_custom_prediction_fn = model.prediction_fn is not None
+    if has_custom_prediction_fn:
+        prediction_fn_source = equation.source if equation else None
+
+    # Determine x0 value (may be string or array)
+    x0_value = getattr(model, 'x0', 'ols')
+    if hasattr(x0_value, 'tolist'):  # numpy array
+        x0_value = x0_value.tolist()
+
     model_spec = ModelSpecification(
         model_type=type(model).__name__,
         loss_function=loss_str,
         alpha=alpha,
         l1_ratio=l1_ratio,
         fit_intercept=model.fit_intercept,
+        scale=getattr(model, 'scale', False),
+        bounds=model.bounds,
+        intercept_bounds=getattr(model, 'intercept_bounds', None),
+        coef_names=list(model.coef_names) if hasattr(model, 'coef_names') and model.coef_names else None,
+        penalty_exclude=getattr(model, 'penalty_exclude', None),
         method=model.method,
+        max_iter=getattr(model, 'max_iter', 1000),
+        tol=getattr(model, 'tol', 1e-6),
+        x0=x0_value,
+        prediction_fn_source=prediction_fn_source,
+        has_custom_prediction_fn=has_custom_prediction_fn,
+        has_custom_loss_fn=callable(model.loss),
         converged=model.converged_,
         n_iterations=getattr(getattr(model, 'optimization_result_', None), 'nit', None),
         final_objective=getattr(getattr(model, 'optimization_result_', None), 'fun', None),
@@ -629,78 +652,178 @@ def generate_summary_report(
             actual_ci_method = 'none'
 
     # Compute bootstrap if requested (in addition to hessian)
-    # Run both constrained (with bounds/alpha) and unconstrained (no bounds, alpha=0)
     if bootstrap:
         constrained_results = None
         unconstrained_results = None
 
-        # 1. Run constrained bootstrap (with original bounds and alpha)
-        try:
-            bootstrap_raw = bootstrap_confidence_intervals(
-                type(model), X, y,
-                n_bootstrap=n_bootstrap,
-                confidence=confidence,
-                random_state=random_state,
-                **model.get_params()
-            )
-            constrained_results = BootstrapCoefResults(
-                coef_mean=bootstrap_raw['coef_mean'],
-                coef_std=bootstrap_raw['coef_std'],
-                coef_ci_lower=bootstrap_raw['coef_ci_lower'],
-                coef_ci_upper=bootstrap_raw['coef_ci_upper'],
-                intercept_mean=bootstrap_raw.get('intercept_mean'),
-                intercept_std=bootstrap_raw.get('intercept_std'),
-                intercept_ci=bootstrap_raw.get('intercept_ci'),
-                bootstrap_coefs=bootstrap_raw['bootstrap_coefs'],
-                n_successful=bootstrap_raw['n_successful'],
-            )
-        except Exception as e:
-            warnings.warn(f"Constrained bootstrap failed: {e}", UserWarning)
+        def _has_effective_constraints(mdl):
+            """
+            Check if model has any effective constraints or regularization.
 
-        # 2. Run unconstrained bootstrap (no bounds, alpha=0) for comparison
-        # Try for all models - some custom prediction_fn work without constraints
-        try:
-            # Get model params and remove constraints
-            unconstrained_params = model.get_params()
-            # Set bounds to None (no constraints)
-            unconstrained_params['bounds'] = None
-            unconstrained_params['intercept_bounds'] = None
-            # Set alpha to 0 (no regularization)
-            unconstrained_params['alpha'] = 0.0
+            Returns True if model has:
+            - alpha > 0 (regularization penalty), OR
+            - any coefficient bound that is finite (not ±inf), OR
+            - any intercept bound that is finite
 
-            bootstrap_raw_unc = bootstrap_confidence_intervals(
-                type(model), X, y,
-                n_bootstrap=n_bootstrap,
-                confidence=confidence,
-                random_state=random_state,
-                **unconstrained_params
-            )
-            unconstrained_results = BootstrapCoefResults(
-                coef_mean=bootstrap_raw_unc['coef_mean'],
-                coef_std=bootstrap_raw_unc['coef_std'],
-                coef_ci_lower=bootstrap_raw_unc['coef_ci_lower'],
-                coef_ci_upper=bootstrap_raw_unc['coef_ci_upper'],
-                intercept_mean=bootstrap_raw_unc.get('intercept_mean'),
-                intercept_std=bootstrap_raw_unc.get('intercept_std'),
-                intercept_ci=bootstrap_raw_unc.get('intercept_ci'),
-                bootstrap_coefs=bootstrap_raw_unc['bootstrap_coefs'],
-                n_successful=bootstrap_raw_unc['n_successful'],
-            )
-        except Exception:
-            # Silently skip unconstrained bootstrap if it fails
-            # This can happen if the model requires bounds/regularization to converge
-            pass
+            Returns False if model is unconstrained (no bounds, alpha=0).
+            """
+            # Check alpha (regularization penalty)
+            alpha_val = getattr(mdl, 'alpha_', None)
+            if alpha_val is None:
+                alpha_val = getattr(mdl, 'alpha', 0.0)
+            if alpha_val is not None and alpha_val > 0:
+                return True
 
-        # Create combined BootstrapResults if we have constrained results
-        if constrained_results is not None:
+            # Check coefficient bounds
+            bounds_parsed = getattr(mdl, '_bounds_parsed', None)
+            if bounds_parsed:
+                for lb, ub in bounds_parsed:
+                    # A constraint exists if either bound is finite (not ±inf)
+                    if np.isfinite(lb) or np.isfinite(ub):
+                        return True
+
+            # Check intercept bounds
+            intercept_bounds = getattr(mdl, 'intercept_bounds', None)
+            if intercept_bounds is not None:
+                lb, ub = intercept_bounds
+                if (lb is not None and np.isfinite(lb)) or (ub is not None and np.isfinite(ub)):
+                    return True
+
+            return False
+
+        model_is_constrained = _has_effective_constraints(model)
+
+        # Import base model class for bootstrap (works for both base and CV models)
+        from ..regression import PenalizedConstrainedRegression
+
+        def _get_base_model_params(mdl):
+            """
+            Extract base model parameters for bootstrap.
+
+            For CV models, extracts the best alpha/l1_ratio and base model params.
+            For base models, returns get_params() directly.
+            """
+            # Check if it's a CV model by looking for best_estimator_
+            if hasattr(mdl, 'best_estimator_'):
+                # CV model - use selected alpha/l1_ratio and base params
+                return {
+                    'alpha': mdl.alpha_,
+                    'l1_ratio': mdl.l1_ratio_,
+                    'bounds': mdl.bounds,
+                    'coef_names': mdl.coef_names,
+                    'penalty_exclude': getattr(mdl, 'penalty_exclude', None),
+                    'fit_intercept': mdl.fit_intercept,
+                    'intercept_bounds': getattr(mdl, 'intercept_bounds', None),
+                    'loss': mdl.loss,
+                    'prediction_fn': mdl.prediction_fn,
+                    'scale': getattr(mdl, 'scale', False),
+                    'x0': mdl.x0,
+                    'method': mdl.method,
+                    'max_iter': mdl.max_iter,
+                    'tol': mdl.tol,
+                    'verbose': 0,
+                    'safe_mode': getattr(mdl, 'safe_mode', True),
+                }
+            else:
+                # Base model - use get_params() directly
+                params = mdl.get_params()
+                params['verbose'] = 0
+                return params
+
+        if model_is_constrained:
+            # Model HAS constraints: run BOTH constrained and unconstrained bootstrap
+
+            # 1. Run constrained bootstrap (with original bounds and alpha)
+            try:
+                constrained_params = _get_base_model_params(model)
+                bootstrap_raw = bootstrap_confidence_intervals(
+                    PenalizedConstrainedRegression, X, y,
+                    n_bootstrap=n_bootstrap,
+                    confidence=confidence,
+                    random_state=random_state,
+                    warm_start_coef=model.coef_,  # Use fit coefficients as starting point
+                    **constrained_params
+                )
+                constrained_results = BootstrapCoefResults(
+                    coef_mean=bootstrap_raw['coef_mean'],
+                    coef_std=bootstrap_raw['coef_std'],
+                    coef_ci_lower=bootstrap_raw['coef_ci_lower'],
+                    coef_ci_upper=bootstrap_raw['coef_ci_upper'],
+                    intercept_mean=bootstrap_raw.get('intercept_mean'),
+                    intercept_std=bootstrap_raw.get('intercept_std'),
+                    intercept_ci=bootstrap_raw.get('intercept_ci'),
+                    bootstrap_coefs=bootstrap_raw['bootstrap_coefs'],
+                    n_successful=bootstrap_raw['n_successful'],
+                )
+            except Exception as e:
+                warnings.warn(f"Constrained bootstrap failed: {e}", UserWarning)
+
+            # 2. Run unconstrained bootstrap (no bounds, alpha=0)
+            try:
+                unconstrained_params = _get_base_model_params(model)
+                unconstrained_params['bounds'] = None
+                unconstrained_params['intercept_bounds'] = None
+                unconstrained_params['alpha'] = 0.0
+
+                bootstrap_raw_unc = bootstrap_confidence_intervals(
+                    PenalizedConstrainedRegression, X, y,
+                    n_bootstrap=n_bootstrap,
+                    confidence=confidence,
+                    random_state=random_state,
+                    warm_start_coef=model.coef_,  # Use fit coefficients as starting point
+                    **unconstrained_params
+                )
+                unconstrained_results = BootstrapCoefResults(
+                    coef_mean=bootstrap_raw_unc['coef_mean'],
+                    coef_std=bootstrap_raw_unc['coef_std'],
+                    coef_ci_lower=bootstrap_raw_unc['coef_ci_lower'],
+                    coef_ci_upper=bootstrap_raw_unc['coef_ci_upper'],
+                    intercept_mean=bootstrap_raw_unc.get('intercept_mean'),
+                    intercept_std=bootstrap_raw_unc.get('intercept_std'),
+                    intercept_ci=bootstrap_raw_unc.get('intercept_ci'),
+                    bootstrap_coefs=bootstrap_raw_unc['bootstrap_coefs'],
+                    n_successful=bootstrap_raw_unc['n_successful'],
+                )
+            except Exception as e:
+                # Unconstrained bootstrap can fail if model needs constraints to converge
+                # or if the model uses custom prediction_fn that requires specific params
+                warnings.warn(f"Unconstrained bootstrap failed: {e}", UserWarning)
+        else:
+            # Model has NO constraints: only run unconstrained bootstrap
+            # (constrained_results stays None to indicate no constraints)
+            try:
+                unconstrained_params = _get_base_model_params(model)
+                bootstrap_raw_unc = bootstrap_confidence_intervals(
+                    PenalizedConstrainedRegression, X, y,
+                    n_bootstrap=n_bootstrap,
+                    confidence=confidence,
+                    random_state=random_state,
+                    warm_start_coef=model.coef_,  # Use fit coefficients as starting point
+                    **unconstrained_params
+                )
+                unconstrained_results = BootstrapCoefResults(
+                    coef_mean=bootstrap_raw_unc['coef_mean'],
+                    coef_std=bootstrap_raw_unc['coef_std'],
+                    coef_ci_lower=bootstrap_raw_unc['coef_ci_lower'],
+                    coef_ci_upper=bootstrap_raw_unc['coef_ci_upper'],
+                    intercept_mean=bootstrap_raw_unc.get('intercept_mean'),
+                    intercept_std=bootstrap_raw_unc.get('intercept_std'),
+                    intercept_ci=bootstrap_raw_unc.get('intercept_ci'),
+                    bootstrap_coefs=bootstrap_raw_unc['bootstrap_coefs'],
+                    n_successful=bootstrap_raw_unc['n_successful'],
+                )
+            except Exception as e:
+                warnings.warn(f"Bootstrap failed: {e}", UserWarning)
+
+        # Create BootstrapResults if we have any results
+        if constrained_results is not None or unconstrained_results is not None:
             bootstrap_results = BootstrapResults(
-                constrained=constrained_results,
+                constrained=constrained_results,  # None if model has no constraints
                 unconstrained=unconstrained_results,
                 n_bootstrap=n_bootstrap,
                 confidence=confidence,
-                feature_names=coef_names,  # Use coefficient names for coefficients
+                feature_names=coef_names,
             )
-            # Bootstrap is the primary CI method when available
             actual_ci_method = 'bootstrap'
 
     # Z-score for confidence interval

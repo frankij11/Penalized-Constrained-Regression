@@ -111,6 +111,13 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
     verbose : int, default=0
         Verbosity level. 0=silent, 1=warnings, 2=detailed.
 
+    safe_mode : bool, default=True
+        If True, automatically handle inf/nan from custom prediction_fn by
+        returning a gradient-informative penalty. This helps the optimizer
+        avoid invalid parameter regions and find its way back to valid space.
+        The penalty is: BASE + SCALE * ||params - last_valid_params||²
+        which creates a gradient pointing back toward the last known valid region.
+
     Attributes
     ----------
     coef_ : ndarray of shape (n_features,)
@@ -207,7 +214,8 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         method='SLSQP',
         max_iter=1000,
         tol=1e-6,
-        verbose=0
+        verbose=0,
+        safe_mode=True
     ):
         self.alpha = alpha
         self.l1_ratio = l1_ratio
@@ -224,6 +232,8 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         self.max_iter = max_iter
         self.tol = tol
         self.verbose = verbose
+        self.safe_mode = safe_mode
+        self._last_valid_params = None  # Track for gradient-informative penalties
 
     def _predict_internal(self, X, params):
         """Make predictions using custom function or linear model."""
@@ -239,14 +249,51 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
 
         return X @ coef + intercept
 
+    def _invalid_penalty(self, params):
+        """Return gradient-informative penalty for invalid parameter regions.
+
+        Creates a penalty that increases with distance from the last known valid
+        parameters, providing gradient information to guide the optimizer back
+        to valid regions.
+        """
+        BASE = 1e15
+        SCALE = 1e10
+        if self._last_valid_params is not None:
+            # Distance from last valid point - creates gradient toward valid region
+            return BASE + SCALE * np.sum((params - self._last_valid_params)**2)
+        else:
+            # Fallback: magnitude penalty - encourages smaller params
+            return BASE + SCALE * np.sum(params**2)
+
     def _objective(self, params, X, y):
         """Compute objective: loss + penalty terms."""
-        # Get predictions
-        y_pred = self._predict_internal(X, params)
+        if self.safe_mode:
+            # Check for invalid parameters first
+            if not np.all(np.isfinite(params)):
+                return self._invalid_penalty(params)
+
+            # Get predictions with exception handling
+            # Suppress numpy warnings (e.g., "invalid value in log") since we handle inf/nan
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                try:
+                    y_pred = self._predict_internal(X, params)
+                except Exception:
+                    return self._invalid_penalty(params)
+
+            # Check for invalid predictions
+            if not np.all(np.isfinite(y_pred)):
+                return self._invalid_penalty(params)
+        else:
+            # No safety checks - raw behavior
+            y_pred = self._predict_internal(X, params)
 
         # Loss term
         loss_func = get_loss_function(self.loss)
         loss_value = loss_func(y, y_pred)
+
+        if self.safe_mode and not np.isfinite(loss_value):
+            return self._invalid_penalty(params)
 
         # Extract coefficients for penalty (exclude intercept if present)
         if self.prediction_fn is not None:
@@ -262,7 +309,13 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             coef, self.alpha, self.l1_ratio, self._penalty_mask
         )
 
-        return loss_value + penalty
+        total = loss_value + penalty
+
+        # Track last valid params for gradient-informative invalid penalties
+        if self.safe_mode and np.isfinite(total):
+            self._last_valid_params = params.copy()
+
+        return total
 
     def _get_initial_params(self, X, y, bounds_parsed):
         """Get starting parameters, clipped to bounds."""
@@ -279,7 +332,7 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             else:
                 params_init = np.array(self.x0, dtype=float)
 
-        elif self.x0 == 'ols':
+        elif isinstance(self.x0, str) and self.x0 == 'ols':
             try:
                 ols = LinearRegression(fit_intercept=self.fit_intercept)
                 ols.fit(X, y)
@@ -294,14 +347,24 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             else:
                 params_init = coef_init
 
-        elif self.x0 == 'zeros':
+        elif isinstance(self.x0, str) and self.x0 == 'zeros':
             if self.fit_intercept:
                 params_init = np.append(np.zeros(n_params), np.mean(y))
             else:
                 params_init = np.zeros(n_params)
 
         else:
+            # x0 is array-like (user-provided initial values)
             params_init = np.array(self.x0, dtype=float)
+
+            # For standard linear models with fit_intercept, x0 may only contain
+            # coefficients (e.g., from warm_start_coef). Append intercept estimate.
+            if (self.prediction_fn is None and self.fit_intercept
+                    and len(params_init) == n_params):
+                # x0 has only coefficients, need to append intercept estimate
+                # Estimate intercept from data: y_mean - X_mean @ coef
+                intercept_init = np.mean(y) - np.mean(X, axis=0) @ params_init
+                params_init = np.append(params_init, intercept_init)
 
         # Clip to bounds
         for i, (lb, ub) in enumerate(bounds_parsed):
@@ -380,6 +443,10 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
 
         # Get initial parameters
         params_init = self._get_initial_params(X_work, y, bounds_parsed)
+
+        # Initialize last valid params for safe_mode gradient-informative penalty
+        if self.safe_mode:
+            self._last_valid_params = params_init.copy()
 
         # Build scipy bounds
         scipy_bounds = build_scipy_bounds(
@@ -484,14 +551,17 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Samples to predict. If the model was fit with a pandas DataFrame
-            and uses a custom prediction_fn, X will be converted back to a
-            DataFrame with the original column names.
+            Samples to predict.
 
         Returns
         -------
         y_pred : ndarray of shape (n_samples,)
             Predicted values in the same space as training y.
+
+        Notes
+        -----
+        For custom prediction_fn, X is always passed as a numpy array.
+        The prediction_fn should handle numpy arrays (using X[:, i] indexing).
         """
         check_is_fitted(self)
         X = check_array(X, accept_sparse=False)
@@ -503,10 +573,9 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             )
 
         if self.prediction_fn is not None:
-            # Reconstruct DataFrame with feature_names_in_ for custom prediction_fn
-            import pandas as pd
-            X_df = pd.DataFrame(X, columns=self.feature_names_in_)
-            return self.prediction_fn(X_df, self.coef_)
+            # Always pass numpy array to custom prediction_fn for consistency
+            # (both during fit optimization and predict calls)
+            return self.prediction_fn(X, self.coef_)
 
         return X @ self.coef_ + self.intercept_
 
@@ -549,7 +618,8 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
             'method': self.method,
             'max_iter': self.max_iter,
             'tol': self.tol,
-            'verbose': self.verbose
+            'verbose': self.verbose,
+            'safe_mode': self.safe_mode
         }
 
     def set_params(self, **params):

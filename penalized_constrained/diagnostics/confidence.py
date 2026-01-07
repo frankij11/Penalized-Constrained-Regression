@@ -12,6 +12,7 @@ from sklearn.utils.validation import check_is_fitted
 
 def bootstrap_confidence_intervals(model_class, X, y, n_bootstrap=100,
                                    confidence=0.95, random_state=None,
+                                   warm_start_coef=None,
                                    **model_kwargs):
     """
     Compute bootstrap confidence intervals for coefficients.
@@ -36,6 +37,11 @@ def bootstrap_confidence_intervals(model_class, X, y, n_bootstrap=100,
     random_state : int or None, default=None
         Random seed for reproducibility.
 
+    warm_start_coef : array-like, optional
+        Coefficient values from the original fit to use as starting point (x0).
+        Significantly improves convergence for non-linear models with custom
+        prediction functions.
+
     **model_kwargs : dict
         Keyword arguments passed to model constructor.
 
@@ -55,7 +61,12 @@ def bootstrap_confidence_intervals(model_class, X, y, n_bootstrap=100,
     -----
     Bootstrap CIs for penalized models may be narrower than true uncertainty
     because the penalty constrains coefficient variability across resamples.
+
+    For non-linear models with custom prediction_fn, using warm_start_coef
+    from the original fit significantly improves convergence rates.
     """
+    import warnings
+
     X = np.asarray(X)
     y = np.asarray(y)
     n_samples = len(y)
@@ -66,8 +77,13 @@ def bootstrap_confidence_intervals(model_class, X, y, n_bootstrap=100,
     # Suppress verbose output during bootstrap
     model_kwargs['verbose'] = 0
 
+    # Use warm start coefficients if provided (helps non-linear models converge)
+    if warm_start_coef is not None:
+        model_kwargs['x0'] = np.asarray(warm_start_coef).copy()
+
     bootstrap_coefs = []
     bootstrap_intercepts = []
+    failure_reasons = []
 
     for i in range(n_bootstrap):
         # Resample with replacement
@@ -79,13 +95,42 @@ def bootstrap_confidence_intervals(model_class, X, y, n_bootstrap=100,
         try:
             model = model_class(**model_kwargs)
             model.fit(X_boot, y_boot)
+
+            # Check convergence for models that track it
+            if hasattr(model, 'converged_') and not model.converged_:
+                failure_reasons.append('did_not_converge')
+                continue
+
             bootstrap_coefs.append(model.coef_.copy())
             bootstrap_intercepts.append(model.intercept_)
-        except Exception:
+        except Exception as e:
+            failure_reasons.append(str(e)[:50])
             continue
 
-    if len(bootstrap_coefs) < 10:
-        raise ValueError("Too few successful bootstrap samples")
+    n_successful = len(bootstrap_coefs)
+
+    # Minimum threshold - more lenient when warm start is provided (non-linear models)
+    min_required = 5 if warm_start_coef is not None else 10
+
+    if n_successful < min_required:
+        # Provide diagnostic info about failures
+        if failure_reasons:
+            unique_reasons = set(failure_reasons)
+            reason_str = "; ".join(f"{r}: {failure_reasons.count(r)}" for r in unique_reasons)
+            raise ValueError(
+                f"Too few successful bootstrap samples ({n_successful}/{n_bootstrap}). "
+                f"Failures: {reason_str}"
+            )
+        else:
+            raise ValueError(f"Too few successful bootstrap samples ({n_successful}/{n_bootstrap})")
+
+    # Warn if many fits failed
+    if n_successful < n_bootstrap * 0.5:
+        warnings.warn(
+            f"Only {n_successful}/{n_bootstrap} bootstrap samples succeeded. "
+            f"Consider using constraints or providing warm_start_coef.",
+            UserWarning
+        )
 
     bootstrap_coefs = np.array(bootstrap_coefs)
     bootstrap_intercepts = np.array(bootstrap_intercepts)

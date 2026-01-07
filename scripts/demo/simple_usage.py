@@ -21,6 +21,7 @@ def lc_func(X, params):
     T1, LC, RC = params
     b = np.log(LC) / np.log(2)
     c = np.log(RC) / np.log(2)
+
     # Handle both DataFrame and numpy array input
     if hasattr(X, 'lot_midpoint'):
         midpoint = X.lot_midpoint.values
@@ -31,14 +32,15 @@ def lc_func(X, params):
     return T1 * (midpoint ** b) * (quantity ** c)
 
 X, y = data['lot_data'][['lot_midpoint', 'lot_quantity']], data['lot_data']['observed_cost']  # Unit space data [midpoint, quantity]
-X_log, y_log = data['lot_data'][['log_midpoint', 'log_quantity']], data['log_lot_data']['log_observed_cost']  # Log space data [midpoint, quantity]
+X_log, y_log = data['lot_data'][['log_midpoint', 'log_quantity']], data['lot_data']['log_observed_cost']  # Log space data [midpoint, quantity]
 
 true_params = data['params']
 
 # Fit with named coefficients
 model = pcreg.PenalizedConstrainedCV(
     coef_names=['T1', 'LC', 'RC'],
-    bounds={'T1': (0,None), 'LC': (.7, 1), 'RC': (.7, 1)},
+    #bounds={'T1': (0,None), 'LC': (.7, 1), 'RC': (.7, 1)},
+    bounds=None,
     alphas=np.logspace(-4, .5, 10),
     l1_ratios=[0.0, 0.5, 1.0],
     loss='sspe',
