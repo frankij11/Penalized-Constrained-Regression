@@ -1,6 +1,7 @@
 import penalized_constrained as pcreg
 import numpy as np
 import pandas as pd
+import openpyxl
 
 
 # Generate realistic learning curve data
@@ -71,7 +72,7 @@ diag = pcreg.ModelDiagnostics(model, X, y)
 report = diag.summary(bootstrap=True, n_bootstrap=100, include_alpha_trace=True)
 report.plot_diagnostics()
 report.to_html("scripts/demo/simple_usage_diagnostics.html")
-report.to_excel("scripts/demo/simple_usage_diagnostics.xlsx")
+#report.to_excel("scripts/demo/simple_usage_diagnostics.xlsx")
 #report.to_pdf("scripts/demo/simple_usage_diagnostics.pdf")
 
 report_ols = pcreg.ModelDiagnostics(ols_model, np.log(X), np.log(y))

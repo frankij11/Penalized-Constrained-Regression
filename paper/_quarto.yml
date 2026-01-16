@@ -1,0 +1,38 @@
+project:
+  type: manuscript
+  output-dir: _output
+
+manuscript:
+  article: paper.qmd
+
+execute:
+  freeze: auto           # Cache computations, re-run only when source changes
+  cache: false           # Disable Jupyter caching (requires jupyter-cache)
+  error: false           # Stop on errors
+  warning: true          # Show warnings (useful during development)
+
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    code-fold: true
+    code-tools: true
+  pdf:
+    documentclass: article
+    papersize: letter
+    fontsize: 11pt
+    geometry:
+      - margin=1in
+    toc: true
+    number-sections: true
+    colorlinks: true
+  docx:
+    toc: true
+    number-sections: true
+
+bibliography: references.bib
+
+# Python environment - use the project venv kernel
+jupyter: penalized_constrained

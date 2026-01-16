@@ -177,8 +177,8 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
 
     >>> # With named coefficients
     >>> model = PenalizedConstrainedRegression(
-    ...     coef_names=['LC', 'RC'],
-    ...     bounds={'LC': (-1, 0), 'RC': (-0.5, 0)},
+    ...     coef_names=['b', 'r'],
+    ...     bounds={'b': (-1, 0), 'r': (-0.5, 0)},
     ...     alpha=0.1
     ... )
     >>> model.fit(X, y)
@@ -191,8 +191,8 @@ class PenalizedConstrainedRegression(BaseEstimator, RegressorMixin):
     >>>
     >>> model = PenalizedConstrainedRegression(
     ...     prediction_fn=lc_func,
-    ...     coef_names=['T1', 'LC', 'RC'],
-    ...     bounds={'T1': (0, None), 'LC': (-1, 0), 'RC': (-1, 0)},
+    ...     coef_names=['T1', 'b', 'c'],
+    ...     bounds={'T1': (0, None), 'b': (-1, 0), 'c': (-1, 0)},
     ...     penalty_exclude=['T1'],  # Don't penalize the intercept-like T1
     ...     fit_intercept=False
     ... )

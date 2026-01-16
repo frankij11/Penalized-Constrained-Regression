@@ -1,0 +1,86 @@
+# Appendix D: Key Quotes for Reference {#sec-appendix-quotes .unnumbered}
+
+This appendix compiles key quotes from the literature that support the methodology and findings presented in this paper. These quotes may be useful for presentations, discussions, and future research.
+
+## D.1 On Multicollinearity Severity {.unnumbered}
+
+> "The statistical literature regards multicollinearity as one of the most vexing and intractable problems in all of regression analysis."
+> --- @flynn2016multicollinearity
+
+## D.2 On Coefficient Instability {.unnumbered}
+
+> "Generate unstable models where small changes in the data produce big changes in parameter estimates [bouncing β's]."
+> --- @flynn2016multicollinearity
+
+## D.3 On GDF Importance {.unnumbered}
+
+> "ZMPE users do not adjust the degrees of freedom (DF) to account for constraints included in the regression process. As a result, fit statistics for the ZMPE equations, e.g., the standard percent error (SPE) and generalized R² (GRSQ), can be incorrect and misleading."
+> --- @hu2010gdf
+
+> "Using ZMPE CERs in cost uncertainty analysis may unduly tighten the S-curve because their SPEs underestimate the CER error distribution."
+> --- @hu2010gdf
+
+## D.4 On Robustness to Imperfect Constraints {.unnumbered}
+
+> "The results suggest that PAC and relaxed PAC are surprisingly robust to random violations in the constraints. While both methods deteriorated slightly as [constraint error] increased, they were still both superior to their unconstrained counterparts for all values of [error] and all settings."
+> --- @james2020pac
+
+## D.5 On Constrained Lasso Flexibility {.unnumbered}
+
+> "The constrained lasso is a very flexible framework for imposing additional knowledge and structure onto the lasso coefficient estimates."
+> --- @gaines2018constrained
+
+## D.6 On pcLAD with Heavy-Tailed Errors {.unnumbered}
+
+> "pcLAD enjoys the Oracle property even with Cauchy-distributed errors... particularly effective for monotone curve fitting and non-negative constraints."
+> --- @wu2022pclad
+
+## D.7 On Ridge Regression Optimality {.unnumbered}
+
+The Theobald-Farebrother theorem establishes:
+
+> For any OLS problem, there exists a ridge parameter $\lambda^* > 0$ such that the ridge estimator has strictly lower Mean Squared Error (MSE) than OLS.
+> --- @theobald1974; @farebrother1976
+
+## D.8 On Bayesian Regularization {.unnumbered}
+
+> "Bayesian interpolation using a spherical Gaussian prior $p(w|\lambda) = N(w|0, \lambda^{-1}I)$ iteratively maximizes marginal log-likelihood to optimize regularization parameters."
+> --- @mackay1992bayesian
+
+## D.9 Key Definitions {.unnumbered}
+
+### Oracle Property
+
+An estimator has the **Oracle property** if it:
+
+1. Correctly identifies which coefficients are truly zero (variable selection consistency)
+2. Estimates non-zero coefficients as efficiently as if an "oracle" revealed the true model in advance
+
+This is the gold standard for high-dimensional estimators---the Lasso achieves it under certain conditions.
+
+### Cauchy-Distributed Errors
+
+The **Cauchy distribution** has extremely heavy tails---so heavy that its mean and variance are mathematically undefined (infinite). Outliers occur far more frequently than with normal distributions.
+
+- Squared-error methods (OLS, Ridge, Lasso) perform poorly with Cauchy errors because outliers dominate the objective
+- LAD methods minimize absolute errors, so outliers have linear rather than quadratic influence---making them robust to such extremes
+
+### BLUE (Best Linear Unbiased Estimator)
+
+By the **Gauss-Markov theorem**, OLS is the Best Linear Unbiased Estimator under classical assumptions:
+
+- Linear in the parameters
+- Unbiased: $E[\hat{\beta}] = \beta$
+- Minimum variance among all linear unbiased estimators
+
+Introducing penalties and/or constraints means the resulting estimator is **no longer BLUE**. This is an intentional tradeoff accepting bias for reduced variance.
+
+## D.10 Summary Table {.unnumbered}
+
+| Topic | Key Finding | Source |
+|-------|-------------|--------|
+| Multicollinearity | "Most vexing problem in regression" | Flynn & James (2016) |
+| Constraint robustness | PAC outperforms unconstrained even with wrong constraints | James et al. (2020) |
+| GDF adjustment | Unadjusted fit stats are misleading | Hu (2010) |
+| Ridge optimality | Always exists λ* > 0 with lower MSE than OLS | Theobald-Farebrother |
+| pcLAD robustness | Oracle property even with Cauchy errors | Wu et al. (2022) |

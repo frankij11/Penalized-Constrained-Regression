@@ -664,4 +664,4 @@ class PenalizedConstrainedCV(BaseEstimator, RegressorMixin):
 
 
 # Alias
-PCCV = PenalizedConstrainedCV
+PCRegressionCV = PenalizedConstrainedCV

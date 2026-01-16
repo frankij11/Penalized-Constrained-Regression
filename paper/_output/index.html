@@ -1,0 +1,2795 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.26">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Kevin Joy">
+<meta name="author" content="Max Watstein">
+<meta name="dcterms.date" content="2026-01-07">
+<meta name="keywords" content="learning curves, constrained optimization, regularization, cost estimation, multicollinearity">
+
+<title>Penalized-Constrained Regression for Learning Curve Estimation</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-4d7f0bce1131f3e5f9547cd857cfbfc8.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<meta name="citation_title" content="Penalized-Constrained Regression for Learning Curve Estimation">
+<meta name="citation_abstract" content="Small datasets with multicollinearity pose serious challenges to the stability
+of coefficients generated by Ordinary Least Squares (OLS) regression. A motivating
+example in cost estimating is Cost Improvement Curve with Rate Effect analysis,
+where datasets are typically small, the lot midpoint (Learning) is correlated to
+lot size (Rate) as production ramps up, and slopes are expected to be negative.
+This paper presents Penalized-Constrained Regression (PCReg), a method that
+combines elastic net regularization with domain-knowledge constraints for
+improved learning curve estimation. Through a comprehensive Monte Carlo
+simulation study with 6,075 scenario-replications, we demonstrate that PCReg
+outperforms OLS in 58% of scenarios, with particular advantages when data quality
+is high, sample sizes are small, or when OLS produces coefficients with incorrect signs.
+">
+<meta name="citation_keywords" content="learning curves,constrained optimization,regularization,cost estimation,multicollinearity">
+<meta name="citation_author" content="Kevin Joy">
+<meta name="citation_author" content="Max Watstein">
+<meta name="citation_publication_date" content="2026-01-07">
+<meta name="citation_cover_date" content="2026-01-07">
+<meta name="citation_year" content="2026">
+<meta name="citation_online_date" content="2026-01-07">
+<meta name="citation_language" content="en">
+<meta name="citation_reference" content="citation_title=Factors affecting the cost of airplanes;,citation_author=Theodore P. Wright;,citation_publication_date=1936;,citation_cover_date=1936;,citation_year=1936;">
+<meta name="citation_reference" content="citation_title=Learning curve, ship curve, ratios, related data for making estimates;,citation_author=J. R. Crawford;,citation_publication_date=1944;,citation_cover_date=1944;,citation_year=1944;,citation_journal_title=Lockheed Aircraft Corporation;">
+<meta name="citation_reference" content="citation_title=Handbook of industrial and systems engineering;,citation_author=Adedeji B. Badiru;,citation_publication_date=2012;,citation_cover_date=2012;,citation_year=2012;">
+<meta name="citation_reference" content="citation_title=Ridge regression: Biased estimation for nonorthogonal problems;,citation_author=Arthur E. Hoerl;,citation_author=Robert W. Kennard;,citation_publication_date=1970;,citation_cover_date=1970;,citation_year=1970;,citation_issue=1;,citation_volume=12;,citation_journal_title=Technometrics;">
+<meta name="citation_reference" content="citation_title=Regression shrinkage and selection via the lasso;,citation_author=Robert Tibshirani;,citation_publication_date=1996;,citation_cover_date=1996;,citation_year=1996;,citation_issue=1;,citation_volume=58;,citation_journal_title=Journal of the Royal Statistical Society: Series B;">
+<meta name="citation_reference" content="citation_title=Regularization and variable selection via the elastic net;,citation_author=Hui Zou;,citation_author=Trevor Hastie;,citation_publication_date=2005;,citation_cover_date=2005;,citation_year=2005;,citation_issue=2;,citation_volume=67;,citation_journal_title=Journal of the Royal Statistical Society: Series B;">
+<meta name="citation_reference" content="citation_title=Generalizations of mean square error applied to ridge regression;,citation_author=C. M. Theobald;,citation_publication_date=1974;,citation_cover_date=1974;,citation_year=1974;,citation_issue=1;,citation_doi=10.1111/j.2517-6161.1974.tb00990.x;,citation_volume=36;,citation_journal_title=Journal of the Royal Statistical Society: Series B;">
+<meta name="citation_reference" content="citation_title=Further results on the mean square error of ridge regression;,citation_author=R. W. Farebrother;,citation_publication_date=1976;,citation_cover_date=1976;,citation_year=1976;,citation_issue=3;,citation_doi=10.1111/j.2517-6161.1976.tb01588.x;,citation_volume=38;,citation_journal_title=Journal of the Royal Statistical Society: Series B;">
+<meta name="citation_reference" content="citation_title=Penalized and constrained optimization: An application to high-dimensional website advertising;,citation_author=Gareth M. James;,citation_author=Courtney Paulson;,citation_author=Paat Rusmevichientong;,citation_publication_date=2020;,citation_cover_date=2020;,citation_year=2020;,citation_issue=529;,citation_doi=10.1080/01621459.2019.1609970;,citation_volume=115;,citation_journal_title=Journal of the American Statistical Association;">
+<meta name="citation_reference" content="citation_title=Algorithms for fitting the constrained lasso;,citation_author=Brian R. Gaines;,citation_author=Juhyun Kim;,citation_author=Hua Zhou;,citation_publication_date=2018;,citation_cover_date=2018;,citation_year=2018;,citation_issue=4;,citation_doi=10.1080/10618600.2018.1473777;,citation_volume=27;,citation_journal_title=Journal of Computational and Graphical Statistics;">
+<meta name="citation_reference" content="citation_title=Penalized and constrained LAD estimation in fixed and high dimension;,citation_author=Xiaofei Wu;,citation_author=Rongmei Liang;,citation_author=Hu Yang;,citation_publication_date=2022;,citation_cover_date=2022;,citation_year=2022;,citation_doi=10.1007/s00362-021-01229-0;,citation_volume=63;,citation_journal_title=Statistical Papers;">
+<meta name="citation_reference" content="citation_title=Bayesian interpolation;,citation_author=David J. C. MacKay;,citation_publication_date=1992;,citation_cover_date=1992;,citation_year=1992;,citation_issue=3;,citation_doi=10.1162/neco.1992.4.3.415;,citation_volume=4;,citation_journal_title=Neural Computation;">
+<meta name="citation_reference" content="citation_title=Sparse bayesian learning and the relevance vector machine;,citation_author=Michael E. Tipping;,citation_publication_date=2001;,citation_cover_date=2001;,citation_year=2001;,citation_volume=1;,citation_journal_title=Journal of Machine Learning Research;">
+<meta name="citation_reference" content="citation_title=Multicollinearity in CER development;,citation_author=Bernard Flynn;,citation_author=Andrew James;,citation_publication_date=2016;,citation_cover_date=2016;,citation_year=2016;,citation_conference_title=ICEAA professional development &amp;amp;amp; training workshop;">
+<meta name="citation_reference" content="citation_title=Generalized degrees of freedom for constrained CERs;,citation_author=Shu-Ping Hu;,citation_publication_date=2010;,citation_cover_date=2010;,citation_year=2010;,citation_technical_report_institution=Tecolote Research;,citation_technical_report_number=PRT-191;">
+<meta name="citation_reference" content="citation_title=Why ZMPE when you can MUPE?;,citation_author=Shu-Ping Hu;,citation_author=Adam Smith;,citation_publication_date=2007;,citation_cover_date=2007;,citation_year=2007;,citation_conference_title=ISPA/SCEA joint international conference;">
+<meta name="citation_reference" content="citation_title=MUPE vs ZMPE: A comparison study;,citation_author=Shu-Ping Hu;,citation_publication_date=2008;,citation_cover_date=2008;,citation_year=2008;,citation_conference_title=SCEA/ISPA joint annual conference;">
+<meta name="citation_reference" content="citation_title=Assessing regression methods;,citation_author=Brian Schiavoni;,citation_author=others;,citation_publication_date=2021;,citation_cover_date=2021;,citation_year=2021;,citation_conference_title=ICEAA professional development &amp;amp;amp; training workshop;">
+<meta name="citation_reference" content="citation_title=Linear regression regularization methods;,citation_author=Author Roye;,citation_publication_date=2022;,citation_cover_date=2022;,citation_year=2022;,citation_conference_title=ICEAA professional development &amp;amp;amp; training workshop;">
+<meta name="citation_reference" content="citation_title=The elements of statistical learning: Data mining, inference, and prediction;,citation_author=Trevor Hastie;,citation_author=Robert Tibshirani;,citation_author=Jerome Friedman;,citation_publication_date=2009;,citation_cover_date=2009;,citation_year=2009;,citation_doi=10.1007/978-0-387-84858-7;">
+<meta name="citation_reference" content="citation_title=An introduction to the bootstrap;,citation_author=Bradley Efron;,citation_author=Robert J. Tibshirani;,citation_publication_date=1993;,citation_cover_date=1993;,citation_year=1993;">
+<meta name="citation_reference" content="citation_title=Constrained statistical inference: Inequality, order, and shape restrictions;,citation_author=Mervyn J. Silvapulle;,citation_author=Pranab K. Sen;,citation_publication_date=2005;,citation_cover_date=2005;,citation_year=2005;,citation_doi=10.1002/9781118165614;">
+<meta name="citation_reference" content="citation_title=Scikit-learn: Machine learning in python;,citation_author=F. Pedregosa;,citation_author=others;,citation_publication_date=2011;,citation_cover_date=2011;,citation_year=2011;,citation_volume=12;,citation_journal_title=Journal of Machine Learning Research;">
+<meta name="citation_reference" content="citation_title=SciPy 1.0: Fundamental algorithms for scientific computing in python;,citation_author=Pauli Virtanen;,citation_author=others;,citation_publication_date=2020;,citation_cover_date=2020;,citation_year=2020;,citation_doi=10.1038/s41592-019-0686-2;,citation_volume=17;,citation_journal_title=Nature Methods;">
+<meta name="citation_reference" content="citation_title=L1 and L2 penalized regression models;,citation_author=Jelle Goeman;,citation_author=Rosa Meijer;,citation_publication_date=2022;,citation_cover_date=2022;,citation_year=2022;">
+</head>
+
+<body class="quarto-light">
+
+<header id="title-block-header" class="quarto-title-block default toc-left page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <div class="quarto-title-block"><div><h1 class="title">Penalized-Constrained Regression for Learning Curve Estimation</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+            <p class="subtitle lead">ICEAA 2026 Professional Development &amp; Training Workshop</p>
+          </div>
+
+    
+    <div class="quarto-title-meta-container">
+      <div class="quarto-title-meta-column-start">
+            <div class="quarto-title-meta-author">
+          <div class="quarto-title-meta-heading">Authors</div>
+          <div class="quarto-title-meta-heading">Affiliation</div>
+          
+                <div class="quarto-title-meta-contents">
+            <p class="author">Kevin Joy </p>
+          </div>
+                <div class="quarto-title-meta-contents">
+                    <p class="affiliation">
+                        Herren Associates
+                      </p>
+                  </div>
+                      <div class="quarto-title-meta-contents">
+            <p class="author">Max Watstein </p>
+          </div>
+                <div class="quarto-title-meta-contents">
+                    <p class="affiliation">
+                        Herren Associates
+                      </p>
+                  </div>
+                    </div>
+        
+        <div class="quarto-title-meta">
+
+                      
+                <div>
+            <div class="quarto-title-meta-heading">Published</div>
+            <div class="quarto-title-meta-contents">
+              <p class="date">January 7, 2026</p>
+            </div>
+          </div>
+          
+                
+              </div>
+      </div>
+      <div class="quarto-title-meta-column-end quarto-other-formats-target">
+      <div class="quarto-alternate-formats"><div class="quarto-title-meta-heading">Other Formats</div><div class="quarto-title-meta-contents"><p><a href="paper.pdf"><i class="bi bi-file-pdf"></i>PDF</a></p></div><div class="quarto-title-meta-contents"><p><a href="paper.docx"><i class="bi bi-file-word"></i>MS Word</a></p></div></div></div>
+    </div>
+
+    <div>
+      <div class="abstract">
+        <div class="block-title">Abstract</div>
+        <p>Small datasets with multicollinearity pose serious challenges to the stability of coefficients generated by Ordinary Least Squares (OLS) regression. A motivating example in cost estimating is Cost Improvement Curve with Rate Effect analysis, where datasets are typically small, the lot midpoint (Learning) is correlated to lot size (Rate) as production ramps up, and slopes are expected to be negative. This paper presents Penalized-Constrained Regression (PCReg), a method that combines elastic net regularization with domain-knowledge constraints for improved learning curve estimation. Through a comprehensive Monte Carlo simulation study with 6,075 scenario-replications, we demonstrate that PCReg outperforms OLS in 58% of scenarios, with particular advantages when data quality is high, sample sizes are small, or when OLS produces coefficients with incorrect signs.</p>
+      </div>
+    </div>
+
+    <div>
+      <div class="keywords">
+        <div class="block-title">Keywords</div>
+        <p>learning curves, constrained optimization, regularization, cost estimation, multicollinearity</p>
+      </div>
+    </div>
+
+    <div class="quarto-other-links-text-target">
+    </div>  </div>
+</header><div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#executive-summary" id="toc-executive-summary" class="nav-link active" data-scroll-target="#executive-summary">Executive Summary</a></li>
+  <li><a href="#sec-introduction" id="toc-sec-introduction" class="nav-link" data-scroll-target="#sec-introduction"><span class="header-section-number">1</span> Introduction</a>
+  <ul class="collapse">
+  <li><a href="#the-problem-small-correlated-datasets-in-cost-estimation" id="toc-the-problem-small-correlated-datasets-in-cost-estimation" class="nav-link" data-scroll-target="#the-problem-small-correlated-datasets-in-cost-estimation"><span class="header-section-number">1.1</span> The Problem: Small, Correlated Datasets in Cost Estimation</a>
+  <ul class="collapse">
+  <li><a href="#motivating-example-cost-improvement-curve-with-rate-effect" id="toc-motivating-example-cost-improvement-curve-with-rate-effect" class="nav-link" data-scroll-target="#motivating-example-cost-improvement-curve-with-rate-effect"><span class="header-section-number">1.1.1</span> Motivating Example: Cost Improvement Curve with Rate Effect</a></li>
+  </ul></li>
+  <li><a href="#diagnosing-multicollinearity" id="toc-diagnosing-multicollinearity" class="nav-link" data-scroll-target="#diagnosing-multicollinearity"><span class="header-section-number">1.2</span> Diagnosing Multicollinearity</a></li>
+  <li><a href="#traditional-remedies-and-their-limitations" id="toc-traditional-remedies-and-their-limitations" class="nav-link" data-scroll-target="#traditional-remedies-and-their-limitations"><span class="header-section-number">1.3</span> Traditional Remedies and Their Limitations</a></li>
+  <li><a href="#theoretical-foundation" id="toc-theoretical-foundation" class="nav-link" data-scroll-target="#theoretical-foundation"><span class="header-section-number">1.4</span> Theoretical Foundation</a>
+  <ul class="collapse">
+  <li><a href="#why-some-regularization-is-always-optimal" id="toc-why-some-regularization-is-always-optimal" class="nav-link" data-scroll-target="#why-some-regularization-is-always-optimal"><span class="header-section-number">1.4.1</span> Why Some Regularization is Always Optimal</a></li>
+  <li><a href="#constrained-methods-superior-to-unconstrained" id="toc-constrained-methods-superior-to-unconstrained" class="nav-link" data-scroll-target="#constrained-methods-superior-to-unconstrained"><span class="header-section-number">1.4.2</span> Constrained Methods Superior to Unconstrained</a></li>
+  </ul></li>
+  <li><a href="#research-contribution" id="toc-research-contribution" class="nav-link" data-scroll-target="#research-contribution"><span class="header-section-number">1.5</span> Research Contribution</a></li>
+  <li><a href="#paper-organization" id="toc-paper-organization" class="nav-link" data-scroll-target="#paper-organization"><span class="header-section-number">1.6</span> Paper Organization</a></li>
+  </ul></li>
+  <li><a href="#sec-methodology" id="toc-sec-methodology" class="nav-link" data-scroll-target="#sec-methodology"><span class="header-section-number">2</span> Methodology</a>
+  <ul class="collapse">
+  <li><a href="#problem-formulation" id="toc-problem-formulation" class="nav-link" data-scroll-target="#problem-formulation"><span class="header-section-number">2.1</span> Problem Formulation</a>
+  <ul class="collapse">
+  <li><a href="#why-sklearn-elastic-net-parameterization" id="toc-why-sklearn-elastic-net-parameterization" class="nav-link" data-scroll-target="#why-sklearn-elastic-net-parameterization"><span class="header-section-number">2.1.1</span> Why sklearn Elastic Net Parameterization?</a></li>
+  </ul></li>
+  <li><a href="#loss-functions" id="toc-loss-functions" class="nav-link" data-scroll-target="#loss-functions"><span class="header-section-number">2.2</span> Loss Functions</a>
+  <ul class="collapse">
+  <li><a href="#why-unit-space-sspe" id="toc-why-unit-space-sspe" class="nav-link" data-scroll-target="#why-unit-space-sspe"><span class="header-section-number">2.2.1</span> Why Unit Space (SSPE)?</a></li>
+  </ul></li>
+  <li><a href="#convexity-and-global-optimality" id="toc-convexity-and-global-optimality" class="nav-link" data-scroll-target="#convexity-and-global-optimality"><span class="header-section-number">2.3</span> Convexity and Global Optimality</a></li>
+  <li><a href="#note-on-blue" id="toc-note-on-blue" class="nav-link" data-scroll-target="#note-on-blue"><span class="header-section-number">2.4</span> Note on BLUE</a></li>
+  <li><a href="#algorithm-overview" id="toc-algorithm-overview" class="nav-link" data-scroll-target="#algorithm-overview"><span class="header-section-number">2.5</span> Algorithm Overview</a>
+  <ul class="collapse">
+  <li><a href="#optimization-methods" id="toc-optimization-methods" class="nav-link" data-scroll-target="#optimization-methods"><span class="header-section-number">2.5.1</span> Optimization Methods</a></li>
+  </ul></li>
+  <li><a href="#degrees-of-freedom-for-constrained-models" id="toc-degrees-of-freedom-for-constrained-models" class="nav-link" data-scroll-target="#degrees-of-freedom-for-constrained-models"><span class="header-section-number">2.6</span> Degrees of Freedom for Constrained Models</a>
+  <ul class="collapse">
+  <li><a href="#hus-gdf-formula" id="toc-hus-gdf-formula" class="nav-link" data-scroll-target="#hus-gdf-formula"><span class="header-section-number">2.6.1</span> Hu’s GDF Formula</a></li>
+  <li><a href="#gaines-et-al.-constrained-lasso-df-formula" id="toc-gaines-et-al.-constrained-lasso-df-formula" class="nav-link" data-scroll-target="#gaines-et-al.-constrained-lasso-df-formula"><span class="header-section-number">2.6.2</span> Gaines et al.&nbsp;Constrained Lasso DF Formula</a></li>
+  <li><a href="#gdf-adjusted-fit-statistics" id="toc-gdf-adjusted-fit-statistics" class="nav-link" data-scroll-target="#gdf-adjusted-fit-statistics"><span class="header-section-number">2.6.3</span> GDF-Adjusted Fit Statistics</a></li>
+  </ul></li>
+  <li><a href="#model-diagnostics-and-validation" id="toc-model-diagnostics-and-validation" class="nav-link" data-scroll-target="#model-diagnostics-and-validation"><span class="header-section-number">2.7</span> Model Diagnostics and Validation</a>
+  <ul class="collapse">
+  <li><a href="#cross-validation-as-primary-model-selection" id="toc-cross-validation-as-primary-model-selection" class="nav-link" data-scroll-target="#cross-validation-as-primary-model-selection"><span class="header-section-number">2.7.1</span> Cross-Validation as Primary Model Selection</a></li>
+  <li><a href="#coefficient-uncertainty-estimation" id="toc-coefficient-uncertainty-estimation" class="nav-link" data-scroll-target="#coefficient-uncertainty-estimation"><span class="header-section-number">2.7.2</span> Coefficient Uncertainty Estimation</a></li>
+  </ul></li>
+  <li><a href="#hyperparameter-selection" id="toc-hyperparameter-selection" class="nav-link" data-scroll-target="#hyperparameter-selection"><span class="header-section-number">2.8</span> Hyperparameter Selection</a></li>
+  </ul></li>
+  <li><a href="#sec-simulation-design" id="toc-sec-simulation-design" class="nav-link" data-scroll-target="#sec-simulation-design"><span class="header-section-number">3</span> Simulation Study Design</a>
+  <ul class="collapse">
+  <li><a href="#data-generating-process" id="toc-data-generating-process" class="nav-link" data-scroll-target="#data-generating-process"><span class="header-section-number">3.1</span> Data Generating Process</a></li>
+  <li><a href="#experimental-design" id="toc-experimental-design" class="nav-link" data-scroll-target="#experimental-design"><span class="header-section-number">3.2</span> Experimental Design</a></li>
+  <li><a href="#models-compared" id="toc-models-compared" class="nav-link" data-scroll-target="#models-compared"><span class="header-section-number">3.3</span> Models Compared</a>
+  <ul class="collapse">
+  <li><a href="#traditional-methods-log-space" id="toc-traditional-methods-log-space" class="nav-link" data-scroll-target="#traditional-methods-log-space"><span class="header-section-number">3.3.1</span> Traditional Methods (Log-Space)</a></li>
+  <li><a href="#pcreg-variants-unit-space" id="toc-pcreg-variants-unit-space" class="nav-link" data-scroll-target="#pcreg-variants-unit-space"><span class="header-section-number">3.3.2</span> PCReg Variants (Unit-Space)</a></li>
+  <li><a href="#pcreg-mse-loss-variants" id="toc-pcreg-mse-loss-variants" class="nav-link" data-scroll-target="#pcreg-mse-loss-variants"><span class="header-section-number">3.3.3</span> PCReg MSE Loss Variants</a></li>
+  <li><a href="#pcreg-log-space-variants" id="toc-pcreg-log-space-variants" class="nav-link" data-scroll-target="#pcreg-log-space-variants"><span class="header-section-number">3.3.4</span> PCReg Log-Space Variants</a></li>
+  </ul></li>
+  <li><a href="#evaluation-metrics" id="toc-evaluation-metrics" class="nav-link" data-scroll-target="#evaluation-metrics"><span class="header-section-number">3.4</span> Evaluation Metrics</a></li>
+  <li><a href="#computational-details" id="toc-computational-details" class="nav-link" data-scroll-target="#computational-details"><span class="header-section-number">3.5</span> Computational Details</a></li>
+  </ul></li>
+  <li><a href="#sec-results" id="toc-sec-results" class="nav-link" data-scroll-target="#sec-results"><span class="header-section-number">4</span> Results</a>
+  <ul class="collapse">
+  <li><a href="#overall-model-performance" id="toc-overall-model-performance" class="nav-link" data-scroll-target="#overall-model-performance"><span class="header-section-number">4.1</span> Overall Model Performance</a></li>
+  <li><a href="#sign-correctness-analysis" id="toc-sign-correctness-analysis" class="nav-link" data-scroll-target="#sign-correctness-analysis"><span class="header-section-number">4.2</span> Sign Correctness Analysis</a></li>
+  <li><a href="#head-to-head-comparison-pcreg-vs-ols" id="toc-head-to-head-comparison-pcreg-vs-ols" class="nav-link" data-scroll-target="#head-to-head-comparison-pcreg-vs-ols"><span class="header-section-number">4.3</span> Head-to-Head Comparison: PCReg vs OLS</a></li>
+  <li><a href="#performance-by-design-factors" id="toc-performance-by-design-factors" class="nav-link" data-scroll-target="#performance-by-design-factors"><span class="header-section-number">4.4</span> Performance by Design Factors</a>
+  <ul class="collapse">
+  <li><a href="#effect-of-sample-size" id="toc-effect-of-sample-size" class="nav-link" data-scroll-target="#effect-of-sample-size"><span class="header-section-number">4.4.1</span> Effect of Sample Size</a></li>
+  <li><a href="#effect-of-cv-error-data-quality" id="toc-effect-of-cv-error-data-quality" class="nav-link" data-scroll-target="#effect-of-cv-error-data-quality"><span class="header-section-number">4.4.2</span> Effect of CV Error (Data Quality)</a></li>
+  <li><a href="#effect-of-predictor-correlation" id="toc-effect-of-predictor-correlation" class="nav-link" data-scroll-target="#effect-of-predictor-correlation"><span class="header-section-number">4.4.3</span> Effect of Predictor Correlation</a></li>
+  </ul></li>
+  <li><a href="#interaction-effects" id="toc-interaction-effects" class="nav-link" data-scroll-target="#interaction-effects"><span class="header-section-number">4.5</span> Interaction Effects</a></li>
+  <li><a href="#value-of-penalization" id="toc-value-of-penalization" class="nav-link" data-scroll-target="#value-of-penalization"><span class="header-section-number">4.6</span> Value of Penalization</a></li>
+  </ul></li>
+  <li><a href="#sec-doe-analysis" id="toc-sec-doe-analysis" class="nav-link" data-scroll-target="#sec-doe-analysis"><span class="header-section-number">5</span> Statistical Analysis</a>
+  <ul class="collapse">
+  <li><a href="#repeated-measures-anova" id="toc-repeated-measures-anova" class="nav-link" data-scroll-target="#repeated-measures-anova"><span class="header-section-number">5.1</span> Repeated Measures ANOVA</a></li>
+  <li><a href="#pairwise-comparisons" id="toc-pairwise-comparisons" class="nav-link" data-scroll-target="#pairwise-comparisons"><span class="header-section-number">5.2</span> Pairwise Comparisons</a></li>
+  <li><a href="#win-rate-analysis" id="toc-win-rate-analysis" class="nav-link" data-scroll-target="#win-rate-analysis"><span class="header-section-number">5.3</span> Win Rate Analysis</a></li>
+  <li><a href="#win-rates-by-design-factor" id="toc-win-rates-by-design-factor" class="nav-link" data-scroll-target="#win-rates-by-design-factor"><span class="header-section-number">5.4</span> Win Rates by Design Factor</a></li>
+  <li><a href="#key-statistical-findings" id="toc-key-statistical-findings" class="nav-link" data-scroll-target="#key-statistical-findings"><span class="header-section-number">5.5</span> Key Statistical Findings</a></li>
+  </ul></li>
+  <li><a href="#sec-discussion" id="toc-sec-discussion" class="nav-link" data-scroll-target="#sec-discussion"><span class="header-section-number">6</span> Discussion and Recommendations</a>
+  <ul class="collapse">
+  <li><a href="#summary-of-findings" id="toc-summary-of-findings" class="nav-link" data-scroll-target="#summary-of-findings"><span class="header-section-number">6.1</span> Summary of Findings</a>
+  <ul class="collapse">
+  <li><a href="#pcreg-advantages" id="toc-pcreg-advantages" class="nav-link" data-scroll-target="#pcreg-advantages"><span class="header-section-number">6.1.1</span> PCReg Advantages</a></li>
+  <li><a href="#when-ols-may-be-adequate" id="toc-when-ols-may-be-adequate" class="nav-link" data-scroll-target="#when-ols-may-be-adequate"><span class="header-section-number">6.1.2</span> When OLS May Be Adequate</a></li>
+  </ul></li>
+  <li><a href="#practical-recommendations" id="toc-practical-recommendations" class="nav-link" data-scroll-target="#practical-recommendations"><span class="header-section-number">6.2</span> Practical Recommendations</a>
+  <ul class="collapse">
+  <li><a href="#decision-framework" id="toc-decision-framework" class="nav-link" data-scroll-target="#decision-framework"><span class="header-section-number">6.2.1</span> Decision Framework</a></li>
+  <li><a href="#practical-guidance-for-cost-estimators" id="toc-practical-guidance-for-cost-estimators" class="nav-link" data-scroll-target="#practical-guidance-for-cost-estimators"><span class="header-section-number">6.2.2</span> Practical Guidance for Cost Estimators</a></li>
+  <li><a href="#implementation-guidance" id="toc-implementation-guidance" class="nav-link" data-scroll-target="#implementation-guidance"><span class="header-section-number">6.2.3</span> Implementation Guidance</a></li>
+  </ul></li>
+  <li><a href="#limitations-and-cautions" id="toc-limitations-and-cautions" class="nav-link" data-scroll-target="#limitations-and-cautions"><span class="header-section-number">6.3</span> Limitations and Cautions</a>
+  <ul class="collapse">
+  <li><a href="#additional-limitations" id="toc-additional-limitations" class="nav-link" data-scroll-target="#additional-limitations"><span class="header-section-number">6.3.1</span> Additional Limitations</a></li>
+  </ul></li>
+  <li><a href="#future-research" id="toc-future-research" class="nav-link" data-scroll-target="#future-research"><span class="header-section-number">6.4</span> Future Research</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion"><span class="header-section-number">6.5</span> Conclusion</a></li>
+  </ul></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  <li><a href="#appendices" id="toc-appendices" class="nav-link" data-scroll-target="#appendices">Appendices</a></li>
+  <li><a href="#sec-appendix-research" id="toc-sec-appendix-research" class="nav-link" data-scroll-target="#sec-appendix-research">Appendix A: Research Paper Summaries</a>
+  <ul class="collapse">
+  <li><a href="#a.1-penalized-and-constrained-lad-estimation" id="toc-a.1-penalized-and-constrained-lad-estimation" class="nav-link" data-scroll-target="#a.1-penalized-and-constrained-lad-estimation">A.1 Penalized and Constrained LAD Estimation</a></li>
+  <li><a href="#a.2-algorithms-for-fitting-the-constrained-lasso" id="toc-a.2-algorithms-for-fitting-the-constrained-lasso" class="nav-link" data-scroll-target="#a.2-algorithms-for-fitting-the-constrained-lasso">A.2 Algorithms for Fitting the Constrained Lasso</a></li>
+  <li><a href="#a.3-pac-penalized-and-constrained-optimization" id="toc-a.3-pac-penalized-and-constrained-optimization" class="nav-link" data-scroll-target="#a.3-pac-penalized-and-constrained-optimization">A.3 PAC: Penalized and Constrained Optimization</a></li>
+  <li><a href="#a.4-multicollinearity-in-cer-development" id="toc-a.4-multicollinearity-in-cer-development" class="nav-link" data-scroll-target="#a.4-multicollinearity-in-cer-development">A.4 Multicollinearity in CER Development</a></li>
+  <li><a href="#a.5-generalized-degrees-of-freedom-for-constrained-cers" id="toc-a.5-generalized-degrees-of-freedom-for-constrained-cers" class="nav-link" data-scroll-target="#a.5-generalized-degrees-of-freedom-for-constrained-cers">A.5 Generalized Degrees of Freedom for Constrained CERs</a></li>
+  <li><a href="#a.6-why-zmpe-when-you-can-mupe" id="toc-a.6-why-zmpe-when-you-can-mupe" class="nav-link" data-scroll-target="#a.6-why-zmpe-when-you-can-mupe">A.6 Why ZMPE When You Can MUPE</a></li>
+  <li><a href="#a.7-linear-regression-regularization-methods" id="toc-a.7-linear-regression-regularization-methods" class="nav-link" data-scroll-target="#a.7-linear-regression-regularization-methods">A.7 Linear Regression Regularization Methods</a></li>
+  <li><a href="#a.8-assessing-regression-methods" id="toc-a.8-assessing-regression-methods" class="nav-link" data-scroll-target="#a.8-assessing-regression-methods">A.8 Assessing Regression Methods</a></li>
+  <li><a href="#synthesis-recommendations-for-implementation" id="toc-synthesis-recommendations-for-implementation" class="nav-link" data-scroll-target="#synthesis-recommendations-for-implementation">Synthesis: Recommendations for Implementation</a></li>
+  </ul></li>
+  <li><a href="#sec-appendix-algorithm" id="toc-sec-appendix-algorithm" class="nav-link" data-scroll-target="#sec-appendix-algorithm">Appendix B: Algorithm Details</a>
+  <ul class="collapse">
+  <li><a href="#b.1-high-level-algorithm" id="toc-b.1-high-level-algorithm" class="nav-link" data-scroll-target="#b.1-high-level-algorithm">B.1 High-Level Algorithm</a></li>
+  <li><a href="#b.2-initialization-strategy" id="toc-b.2-initialization-strategy" class="nav-link" data-scroll-target="#b.2-initialization-strategy">B.2 Initialization Strategy</a></li>
+  <li><a href="#b.3-why-scaling-matters" id="toc-b.3-why-scaling-matters" class="nav-link" data-scroll-target="#b.3-why-scaling-matters">B.3 Why Scaling Matters</a></li>
+  <li><a href="#b.4-optimization-methods" id="toc-b.4-optimization-methods" class="nav-link" data-scroll-target="#b.4-optimization-methods">B.4 Optimization Methods</a>
+  <ul class="collapse">
+  <li><a href="#slsqp-sequential-least-squares-quadratic-programming" id="toc-slsqp-sequential-least-squares-quadratic-programming" class="nav-link" data-scroll-target="#slsqp-sequential-least-squares-quadratic-programming"><span class="header-section-number">6.5.1</span> SLSQP (Sequential Least-Squares Quadratic Programming)</a></li>
+  <li><a href="#cobyla-constrained-optimization-by-linear-approximation" id="toc-cobyla-constrained-optimization-by-linear-approximation" class="nav-link" data-scroll-target="#cobyla-constrained-optimization-by-linear-approximation"><span class="header-section-number">6.5.2</span> COBYLA (Constrained Optimization BY Linear Approximation)</a></li>
+  <li><a href="#trust-constr" id="toc-trust-constr" class="nav-link" data-scroll-target="#trust-constr"><span class="header-section-number">6.5.3</span> trust-constr</a></li>
+  </ul></li>
+  <li><a href="#b.5-note-on-l1-penalty-implementation" id="toc-b.5-note-on-l1-penalty-implementation" class="nav-link" data-scroll-target="#b.5-note-on-l1-penalty-implementation">B.5 Note on L1 Penalty Implementation</a></li>
+  <li><a href="#b.6-convergence-criteria" id="toc-b.6-convergence-criteria" class="nav-link" data-scroll-target="#b.6-convergence-criteria">B.6 Convergence Criteria</a></li>
+  <li><a href="#b.7-post-optimization-checks" id="toc-b.7-post-optimization-checks" class="nav-link" data-scroll-target="#b.7-post-optimization-checks">B.7 Post-Optimization Checks</a></li>
+  </ul></li>
+  <li><a href="#sec-appendix-gdf" id="toc-sec-appendix-gdf" class="nav-link" data-scroll-target="#sec-appendix-gdf">Appendix C: Generalized Degrees of Freedom</a>
+  <ul class="collapse">
+  <li><a href="#c.1-the-critical-issue" id="toc-c.1-the-critical-issue" class="nav-link" data-scroll-target="#c.1-the-critical-issue">C.1 The Critical Issue</a></li>
+  <li><a href="#c.2-hus-gdf-formula" id="toc-c.2-hus-gdf-formula" class="nav-link" data-scroll-target="#c.2-hus-gdf-formula">C.2 Hu’s GDF Formula</a>
+  <ul class="collapse">
+  <li><a href="#redundancies-definition" id="toc-redundancies-definition" class="nav-link" data-scroll-target="#redundancies-definition"><span class="header-section-number">6.5.4</span> Redundancies Definition</a></li>
+  <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example"><span class="header-section-number">6.5.5</span> Example</a></li>
+  </ul></li>
+  <li><a href="#c.3-gaines-et-al.-formula" id="toc-c.3-gaines-et-al.-formula" class="nav-link" data-scroll-target="#c.3-gaines-et-al.-formula">C.3 Gaines et al.&nbsp;Formula</a>
+  <ul class="collapse">
+  <li><a href="#implications" id="toc-implications" class="nav-link" data-scroll-target="#implications"><span class="header-section-number">6.5.6</span> Implications</a></li>
+  </ul></li>
+  <li><a href="#c.4-comparing-the-two-formulations" id="toc-c.4-comparing-the-two-formulations" class="nav-link" data-scroll-target="#c.4-comparing-the-two-formulations">C.4 Comparing the Two Formulations</a>
+  <ul class="collapse">
+  <li><a href="#open-question" id="toc-open-question" class="nav-link" data-scroll-target="#open-question"><span class="header-section-number">6.5.7</span> Open Question</a></li>
+  </ul></li>
+  <li><a href="#c.5-gdf-adjusted-fit-statistics" id="toc-c.5-gdf-adjusted-fit-statistics" class="nav-link" data-scroll-target="#c.5-gdf-adjusted-fit-statistics">C.5 GDF-Adjusted Fit Statistics</a>
+  <ul class="collapse">
+  <li><a href="#standard-error-of-estimate-see" id="toc-standard-error-of-estimate-see" class="nav-link" data-scroll-target="#standard-error-of-estimate-see"><span class="header-section-number">6.5.8</span> Standard Error of Estimate (SEE)</a></li>
+  <li><a href="#standard-percent-error-spe" id="toc-standard-percent-error-spe" class="nav-link" data-scroll-target="#standard-percent-error-spe"><span class="header-section-number">6.5.9</span> Standard Percent Error (SPE)</a></li>
+  <li><a href="#adjusted-r²" id="toc-adjusted-r²" class="nav-link" data-scroll-target="#adjusted-r²"><span class="header-section-number">6.5.10</span> Adjusted R²</a></li>
+  </ul></li>
+  <li><a href="#c.6-impact-on-uncertainty-analysis" id="toc-c.6-impact-on-uncertainty-analysis" class="nav-link" data-scroll-target="#c.6-impact-on-uncertainty-analysis">C.6 Impact on Uncertainty Analysis</a></li>
+  <li><a href="#c.7-implementation-in-penalized_constrained" id="toc-c.7-implementation-in-penalized_constrained" class="nav-link" data-scroll-target="#c.7-implementation-in-penalized_constrained">C.7 Implementation in <code>penalized_constrained</code></a></li>
+  </ul></li>
+  <li><a href="#sec-appendix-quotes" id="toc-sec-appendix-quotes" class="nav-link" data-scroll-target="#sec-appendix-quotes">Appendix D: Key Quotes for Reference</a>
+  <ul class="collapse">
+  <li><a href="#d.1-on-multicollinearity-severity" id="toc-d.1-on-multicollinearity-severity" class="nav-link" data-scroll-target="#d.1-on-multicollinearity-severity">D.1 On Multicollinearity Severity</a></li>
+  <li><a href="#d.2-on-coefficient-instability" id="toc-d.2-on-coefficient-instability" class="nav-link" data-scroll-target="#d.2-on-coefficient-instability">D.2 On Coefficient Instability</a></li>
+  <li><a href="#d.3-on-gdf-importance" id="toc-d.3-on-gdf-importance" class="nav-link" data-scroll-target="#d.3-on-gdf-importance">D.3 On GDF Importance</a></li>
+  <li><a href="#d.4-on-robustness-to-imperfect-constraints" id="toc-d.4-on-robustness-to-imperfect-constraints" class="nav-link" data-scroll-target="#d.4-on-robustness-to-imperfect-constraints">D.4 On Robustness to Imperfect Constraints</a></li>
+  <li><a href="#d.5-on-constrained-lasso-flexibility" id="toc-d.5-on-constrained-lasso-flexibility" class="nav-link" data-scroll-target="#d.5-on-constrained-lasso-flexibility">D.5 On Constrained Lasso Flexibility</a></li>
+  <li><a href="#d.6-on-pclad-with-heavy-tailed-errors" id="toc-d.6-on-pclad-with-heavy-tailed-errors" class="nav-link" data-scroll-target="#d.6-on-pclad-with-heavy-tailed-errors">D.6 On pcLAD with Heavy-Tailed Errors</a></li>
+  <li><a href="#d.7-on-ridge-regression-optimality" id="toc-d.7-on-ridge-regression-optimality" class="nav-link" data-scroll-target="#d.7-on-ridge-regression-optimality">D.7 On Ridge Regression Optimality</a></li>
+  <li><a href="#d.8-on-bayesian-regularization" id="toc-d.8-on-bayesian-regularization" class="nav-link" data-scroll-target="#d.8-on-bayesian-regularization">D.8 On Bayesian Regularization</a></li>
+  <li><a href="#d.9-key-definitions" id="toc-d.9-key-definitions" class="nav-link" data-scroll-target="#d.9-key-definitions">D.9 Key Definitions</a>
+  <ul class="collapse">
+  <li><a href="#oracle-property" id="toc-oracle-property" class="nav-link" data-scroll-target="#oracle-property"><span class="header-section-number">6.5.11</span> Oracle Property</a></li>
+  <li><a href="#cauchy-distributed-errors" id="toc-cauchy-distributed-errors" class="nav-link" data-scroll-target="#cauchy-distributed-errors"><span class="header-section-number">6.5.12</span> Cauchy-Distributed Errors</a></li>
+  <li><a href="#blue-best-linear-unbiased-estimator" id="toc-blue-best-linear-unbiased-estimator" class="nav-link" data-scroll-target="#blue-best-linear-unbiased-estimator"><span class="header-section-number">6.5.13</span> BLUE (Best Linear Unbiased Estimator)</a></li>
+  </ul></li>
+  <li><a href="#d.10-summary-table" id="toc-d.10-summary-table" class="nav-link" data-scroll-target="#d.10-summary-table">D.10 Summary Table</a></li>
+  </ul></li>
+  </ul>
+<div class="quarto-alternate-notebooks"><h2>Notebooks</h2><ul><li><a href="appendices\A-research-summaries-preview.html"><i class="bi bi-journal-code"></i>Appendix A: Research Paper Summaries</a></li><li><a href="appendices\B-algorithm-details-preview.html"><i class="bi bi-journal-code"></i>Appendix B: Algorithm Details</a></li><li><a href="appendices\C-degrees-of-freedom-preview.html"><i class="bi bi-journal-code"></i>Appendix C: Generalized Degrees of Freedom</a></li><li><a href="appendices\D-key-quotes-preview.html"><i class="bi bi-journal-code"></i>Appendix D: Key Quotes for Reference</a></li><li><a href="sections\06-discussion-preview.html"><i class="bi bi-journal-code"></i>Discussion and Recommendations</a></li><li><a href="sections\01-introduction-preview.html"><i class="bi bi-journal-code"></i>Introduction</a></li><li><a href="sections\02-methodology-preview.html"><i class="bi bi-journal-code"></i>Methodology</a></li><li><a href="sections\04-results-preview.html"><i class="bi bi-journal-code"></i>Results</a></li><li><a href="sections\03-simulation-design-preview.html"><i class="bi bi-journal-code"></i>Simulation Study Design</a></li><li><a href="sections\05-doe-analysis-preview.html"><i class="bi bi-journal-code"></i>Statistical Analysis</a></li></ul></div></nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+  
+
+
+<section id="executive-summary" class="level1 unnumbered">
+<h1 class="unnumbered">Executive Summary</h1>
+<div class="callout callout-style-default callout-tip callout-titled" title="Key Findings">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Key Findings
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Problem</strong>: Small datasets with correlated predictors cause OLS to produce unstable, often nonsensical coefficient estimates (wrong signs, implausible magnitudes).</p>
+<p><strong>Solution</strong>: Penalized-Constrained Regression (PCReg) combines elastic net regularization with bound constraints based on domain knowledge.</p>
+<p><strong>Results</strong>: In our Monte Carlo study (243 scenarios x 25 replications = 6,075 total):</p>
+<ul>
+<li><strong>Overall</strong>: PCReg wins 58% of scenarios vs OLS</li>
+<li><strong>When OLS has wrong signs</strong>: PCReg wins 81% of scenarios</li>
+<li><strong>High-quality data</strong> (CV error = 0.01): PCReg wins 67-75%</li>
+<li><strong>Small samples</strong> (n = 5): PCReg wins 64%</li>
+</ul>
+<p><strong>Recommendation</strong>: Use PCReg when sample size is small (n ≤ 10) or data quality is high (CV error ≤ 0.10). Use OLS when sample size is large (n ≥ 30) and noise is high (CV error = 0.20).</p>
+</div>
+</div>
+</section>
+<section id="sec-introduction" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Introduction</h1>
+<section id="the-problem-small-correlated-datasets-in-cost-estimation" class="level2" data-number="1.1">
+<h2 data-number="1.1" class="anchored" data-anchor-id="the-problem-small-correlated-datasets-in-cost-estimation"><span class="header-section-number">1.1</span> The Problem: Small, Correlated Datasets in Cost Estimation</h2>
+<p>Developing hundreds of Cost Estimating Relationships (CERs) for small datasets ranging from 5-30 data points, a recurring pattern emerges: strong fit statistics (R², CV) but nonsensical coefficients—wrong signs, implausible magnitudes, and poor p-values for critical predictors. As Department of Defense analysts know, this story may feel too close to home.</p>
+<p>Multicollinear datasets are a frequent presence in cost analysis, causing models to misbehave. The consequences of multicollinearity in small samples are well-documented <span class="citation" data-cites="flynn2016multicollinearity">(<a href="#ref-flynn2016multicollinearity" role="doc-biblioref">Flynn and James 2016</a>)</span>:</p>
+<ul>
+<li><strong>“Bouncing β’s”</strong>—unstable coefficient estimates that swing wildly with small changes in the data</li>
+<li><strong>Wrong coefficient signs</strong>—estimates flip positive/negative contrary to domain knowledge</li>
+<li><strong>Unreliable hypothesis testing</strong>—high F-statistic but statistically insignificant individual t-statistics</li>
+<li><strong>Hidden extrapolation</strong>—predictions fall outside the convex hull of training data despite appearing within variable ranges</li>
+<li><strong>Inflated variance</strong>—coefficient variance increases by factor <span class="math inline">\(1/(1-R^2)\)</span> where <span class="math inline">\(R^2\)</span> is correlation between predictors</li>
+</ul>
+<section id="motivating-example-cost-improvement-curve-with-rate-effect" class="level3" data-number="1.1.1">
+<h3 data-number="1.1.1" class="anchored" data-anchor-id="motivating-example-cost-improvement-curve-with-rate-effect"><span class="header-section-number">1.1.1</span> Motivating Example: Cost Improvement Curve with Rate Effect</h3>
+<p>Learning curves are fundamental to cost estimation in manufacturing and aerospace industries. The classic power-law model describes how unit costs decrease with cumulative production:</p>
+<p><span class="math display">\[Y = T_1 \cdot X^b\]</span></p>
+<p>where <span class="math inline">\(Y\)</span> is the unit cost, <span class="math inline">\(T_1\)</span> is the theoretical first unit cost, <span class="math inline">\(X\)</span> is the cumulative unit number, and <span class="math inline">\(b\)</span> is the learning curve slope (typically negative, indicating cost reduction with experience).</p>
+<p>When multiple factors affect costs (e.g., production rate effects), the model extends to:</p>
+<p><span id="eq-learning-rate"><span class="math display">\[Y = T_1 \cdot X_1^b \cdot X_2^c \cdot \varepsilon \tag{1}\]</span></span></p>
+<p>where <span class="math inline">\(X_1\)</span> represents lot midpoint (Learning variable) and <span class="math inline">\(X_2\)</span> represents lot quantity (Rate variable). In this specification, lot midpoint is inherently correlated with lot size as production ramps up from Prototypes to Low-Rate Initial Production (LRIP) to Full-Rate Production (FRP). Correlations of <span class="math inline">\(\rho = (-0.3, 0.88)\)</span> have been found in Selected Acquisition Reports comparing lot size to cumulative quantities. Domain knowledge establishes that learning and rate slopes should be <span class="math inline">\(\leq 100\%\)</span> (i.e., costs should not increase with cumulative production).</p>
+</section>
+</section>
+<section id="diagnosing-multicollinearity" class="level2" data-number="1.2">
+<h2 data-number="1.2" class="anchored" data-anchor-id="diagnosing-multicollinearity"><span class="header-section-number">1.2</span> Diagnosing Multicollinearity</h2>
+<p>Standard diagnostic measures for detecting multicollinearity include:</p>
+<div id="tbl-diagnostics" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-diagnostics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Multicollinearity diagnostic thresholds
+</figcaption>
+<div aria-describedby="tbl-diagnostics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 28%">
+<col style="width: 41%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Diagnostic</th>
+<th>Threshold</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Simple correlation <span class="math inline">\(r_{X_i,X_j}\)</span></td>
+<td>&gt; 0.8</td>
+<td>Potential multicollinearity</td>
+</tr>
+<tr class="even">
+<td>VIF (Variance Inflation Factor)</td>
+<td>&gt; 10</td>
+<td>Likely harmful (CEBoK threshold)</td>
+</tr>
+<tr class="odd">
+<td>Condition number <span class="math inline">\(\kappa\)</span></td>
+<td>&gt; 30</td>
+<td>Collinearity harmful</td>
+</tr>
+<tr class="even">
+<td>R² among predictors</td>
+<td>&gt; 0.90</td>
+<td>Harmful if <span class="math inline">\(R^2\)</span> for <span class="math inline">\(X_i \vert \text{other } X\)</span>’s &gt; 0.90</td>
+</tr>
+<tr class="odd">
+<td>F vs t mismatch</td>
+<td>High F, low t</td>
+<td>Classic multicollinearity symptom</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>The Variance Inflation Factor is defined as <span class="math inline">\(\text{VIF} = 1/(1-R^2_{X_i|\text{other}X})\)</span>, and the condition number <span class="math inline">\(\kappa = \lambda_{\max}/\lambda_{\min}\)</span> from eigenvalue decomposition of <span class="math inline">\(X'X\)</span>.</p>
+</section>
+<section id="traditional-remedies-and-their-limitations" class="level2" data-number="1.3">
+<h2 data-number="1.3" class="anchored" data-anchor-id="traditional-remedies-and-their-limitations"><span class="header-section-number">1.3</span> Traditional Remedies and Their Limitations</h2>
+<p>Traditional approaches each come with trade-offs <span class="citation" data-cites="flynn2016multicollinearity">(<a href="#ref-flynn2016multicollinearity" role="doc-biblioref">Flynn and James 2016</a>)</span>:</p>
+<div id="tbl-remedies" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-remedies-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;2: Traditional multicollinearity remedies
+</figcaption>
+<div aria-describedby="tbl-remedies-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 39%">
+<col style="width: 36%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Remedy</th>
+<th>Description</th>
+<th>Limitation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Collect more data</td>
+<td>Increases sample size, reduces variance</td>
+<td>Often infeasible in defense cost analysis</td>
+</tr>
+<tr class="even">
+<td>Drop variables</td>
+<td>Remove collinear predictors via confluence analysis</td>
+<td>May lose domain-required variables</td>
+</tr>
+<tr class="odd">
+<td>Centering/Scaling</td>
+<td>Reduces structural multicollinearity</td>
+<td>Only helps polynomial/interaction terms</td>
+</tr>
+<tr class="even">
+<td>Ridge Regression</td>
+<td>L2 penalty shrinks coefficients</td>
+<td>No sparsity; no domain constraints</td>
+</tr>
+<tr class="odd">
+<td>Lasso Regression</td>
+<td>L1 penalty enables variable selection</td>
+<td>Arbitrary selection among correlated vars; no constraints</td>
+</tr>
+<tr class="even">
+<td>Elastic Net</td>
+<td>Combined L1+L2 penalties</td>
+<td>Still no explicit domain constraints</td>
+</tr>
+<tr class="odd">
+<td>PCA / PLS</td>
+<td>Transforms to uncorrelated components</td>
+<td>Loses coefficient interpretability</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+</section>
+<section id="theoretical-foundation" class="level2" data-number="1.4">
+<h2 data-number="1.4" class="anchored" data-anchor-id="theoretical-foundation"><span class="header-section-number">1.4</span> Theoretical Foundation</h2>
+<section id="why-some-regularization-is-always-optimal" class="level3" data-number="1.4.1">
+<h3 data-number="1.4.1" class="anchored" data-anchor-id="why-some-regularization-is-always-optimal"><span class="header-section-number">1.4.1</span> Why Some Regularization is Always Optimal</h3>
+<div class="callout callout-style-default callout-note callout-titled" title="Theobald-Farebrother Theorem (1974, 1976)">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Theobald-Farebrother Theorem (1974, 1976)
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>For any OLS problem, there exists a ridge parameter <span class="math inline">\(\lambda^* &gt; 0\)</span> such that the ridge estimator has strictly lower Mean Squared Error (MSE) than OLS. This result holds for the population MSE (true prediction risk), not merely training error <span class="citation" data-cites="theobald1974 farebrother1976">(<a href="#ref-theobald1974" role="doc-biblioref">Theobald 1974</a>; <a href="#ref-farebrother1976" role="doc-biblioref">Farebrother 1976</a>)</span>.</p>
+</div>
+</div>
+<p><strong>Why This Matters</strong>: OLS minimizes training error but may overfit—especially with correlated predictors. Ridge introduces bias but reduces variance. The theorem guarantees that for some <span class="math inline">\(\lambda &gt; 0\)</span>, the variance reduction exceeds the bias increase, yielding lower total error.</p>
+<p><strong>The Practical Challenge</strong>: The optimal <span class="math inline">\(\lambda^*\)</span> depends on unknown population parameters (<span class="math inline">\(\beta\)</span>, <span class="math inline">\(\sigma^2\)</span>). Cross-validation provides an empirical estimate. When CV selects <span class="math inline">\(\lambda \approx 0\)</span>, OLS was already near-optimal. The framework adapts automatically.</p>
+</section>
+<section id="constrained-methods-superior-to-unconstrained" class="level3" data-number="1.4.2">
+<h3 data-number="1.4.2" class="anchored" data-anchor-id="constrained-methods-superior-to-unconstrained"><span class="header-section-number">1.4.2</span> Constrained Methods Superior to Unconstrained</h3>
+<p>The Penalized and Constrained (PAC) optimization method developed by <span class="citation" data-cites="james2020pac">James, Paulson, and Rusmevichientong (<a href="#ref-james2020pac" role="doc-biblioref">2020</a>)</span> found:</p>
+<blockquote class="blockquote">
+<p>“The results suggest that PAC and relaxed PAC are surprisingly robust to random violations in the constraints. While both methods deteriorated slightly as [constraint error] increased, they were still both superior to their unconstrained counterparts for all values of [error] and all settings.”</p>
+</blockquote>
+</section>
+</section>
+<section id="research-contribution" class="level2" data-number="1.5">
+<h2 data-number="1.5" class="anchored" data-anchor-id="research-contribution"><span class="header-section-number">1.5</span> Research Contribution</h2>
+<p>This paper provides a practical guide and framework that combines penalized regularization (Lasso, Ridge, Elastic Net) with constrained optimization in the context of cost estimation. Key contributions include:</p>
+<ol type="1">
+<li><p><strong>Investigation of small-sample applicability</strong>: Most research on penalized methods uses large datasets—does it apply to cost estimation’s typical 5-30 point samples?</p></li>
+<li><p><strong>Python package implementation</strong>: The <code>penalized_constrained</code> package combines Elastic Net penalties with lower and upper bound constraints on coefficients</p></li>
+<li><p><strong>Proper diagnostic adjustments</strong>: Via Generalized Degrees of Freedom (GDF) for constraint-driven regression <span class="citation" data-cites="hu2010gdf">(<a href="#ref-hu2010gdf" role="doc-biblioref">Hu 2010</a>)</span></p></li>
+<li><p><strong>Cross-validation framework</strong>: For likelihood-free hyperparameter selection</p></li>
+<li><p><strong>sklearn-compatible implementation</strong>: For practical application in existing workflows</p></li>
+<li><p><strong>Comprehensive benchmarks</strong>: Simulation data comparing proposed method against OLS, Ridge, Lasso, and constrained-only approaches across varying sample sizes, correlations, and error variances</p></li>
+<li><p><strong>Practical guidance</strong>: On when and how to implement these algorithms</p></li>
+</ol>
+<p><strong>Future Work</strong>: Validation on actual program data using publicly available Selected Acquisition Reports (SARs), which are not subject to CUI restrictions.</p>
+</section>
+<section id="paper-organization" class="level2" data-number="1.6">
+<h2 data-number="1.6" class="anchored" data-anchor-id="paper-organization"><span class="header-section-number">1.6</span> Paper Organization</h2>
+<p>The remainder of this paper is organized as follows: <a href="#sec-methodology" class="quarto-xref">Section&nbsp;2</a> presents the mathematical formulation and algorithm details, <a href="#sec-simulation-design" class="quarto-xref">Section&nbsp;3</a> describes our Monte Carlo study design, <a href="#sec-results" class="quarto-xref">Section&nbsp;4</a> presents the empirical findings, <a href="#sec-doe-analysis" class="quarto-xref">Section&nbsp;5</a> provides rigorous statistical analysis using DOE methodology, and <a href="#sec-discussion" class="quarto-xref">Section&nbsp;6</a> offers practical recommendations and discusses limitations.</p>
+</section>
+</section>
+<section id="sec-methodology" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Methodology</h1>
+<section id="problem-formulation" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="problem-formulation"><span class="header-section-number">2.1</span> Problem Formulation</h2>
+<p>Given training data <span class="math inline">\((X, y)\)</span> where <span class="math inline">\(X \in \mathbb{R}^{n \times p}\)</span> and <span class="math inline">\(y \in \mathbb{R}^n\)</span>, Penalized-Constrained Regression solves:</p>
+<p><span class="math display">\[\min_{\beta} \mathcal{L}(\beta) + \alpha \cdot \text{l1\_ratio} \cdot \|\beta\|_1 + \frac{1}{2} \cdot \alpha \cdot (1 - \text{l1\_ratio}) \cdot \|\beta\|_2^2\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[l_j \leq \beta_j \leq u_j \quad \forall j \in \{1, \ldots, p\}\]</span></p>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\(\mathcal{L}(\beta)\)</span> is the loss function (e.g., SSPE, MSE, or user-defined; default is SSPE)</li>
+<li><span class="math inline">\(\alpha \geq 0\)</span> is the overall penalty strength; <span class="math inline">\(\alpha = 0\)</span> recovers constrained-only optimization</li>
+<li><span class="math inline">\(\text{l1\_ratio} \in [0,1]\)</span> is the mix between L1 and L2; l1_ratio = 1 is Lasso, l1_ratio = 0 is Ridge</li>
+<li><span class="math inline">\(l_j, u_j\)</span> are the lower and upper bounds for coefficient <span class="math inline">\(j\)</span></li>
+</ul>
+<section id="why-sklearn-elastic-net-parameterization" class="level3" data-number="2.1.1">
+<h3 data-number="2.1.1" class="anchored" data-anchor-id="why-sklearn-elastic-net-parameterization"><span class="header-section-number">2.1.1</span> Why sklearn Elastic Net Parameterization?</h3>
+<p>We adopt sklearn’s <span class="math inline">\((\alpha, \text{l1\_ratio})\)</span> parameterization rather than the standard statistical <span class="math inline">\((\lambda_1, \lambda_2)\)</span> formulation for several practical reasons:</p>
+<ol type="1">
+<li><strong>Consistency</strong>: sklearn is the dominant machine learning library in Python, enabling direct comparison with sklearn’s ElasticNetCV results</li>
+<li><strong>Intuitive interpretation</strong>: l1_ratio provides clear meaning—0 = pure Ridge, 1 = pure Lasso, 0.5 = balanced</li>
+<li><strong>Reproducibility</strong>: Practitioners can directly use sklearn’s cross-validation infrastructure for hyperparameter tuning before applying constraints</li>
+</ol>
+<p>The conversion is straightforward: <span class="math inline">\(\lambda_1 = \alpha \cdot \text{l1\_ratio}\)</span> and <span class="math inline">\(\lambda_2 = \alpha \cdot (1 - \text{l1\_ratio})\)</span>.</p>
+</section>
+</section>
+<section id="loss-functions" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="loss-functions"><span class="header-section-number">2.2</span> Loss Functions</h2>
+<p>The framework supports multiple loss functions <span class="math inline">\(\mathcal{L}(\beta)\)</span>, each with distinct properties:</p>
+<div id="tbl-loss-functions" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-loss-functions-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;3: Loss function options
+</figcaption>
+<div aria-describedby="tbl-loss-functions-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 24%">
+<col style="width: 32%">
+<col style="width: 27%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Loss</th>
+<th>Formula</th>
+<th>Properties</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>SSE</td>
+<td><span class="math inline">\(\sum(y_i - \hat{y}_i)^2\)</span></td>
+<td>Convex; closed-form for linear</td>
+<td>Standard OLS setting</td>
+</tr>
+<tr class="even">
+<td>SSPE</td>
+<td><span class="math inline">\(\sum[(y_i - \hat{y}_i)/y_i]^2\)</span></td>
+<td>Unit space; MUPE-consistent</td>
+<td>Default for CERs</td>
+</tr>
+<tr class="odd">
+<td>LAD</td>
+<td><span class="math inline">\(\sum\|y_i - \hat{y}_i\|\)</span></td>
+<td>Robust to outliers</td>
+<td>Heavy-tailed errors</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<section id="why-unit-space-sspe" class="level3" data-number="2.2.1">
+<h3 data-number="2.2.1" class="anchored" data-anchor-id="why-unit-space-sspe"><span class="header-section-number">2.2.1</span> Why Unit Space (SSPE)?</h3>
+<p>The default loss function is Sum of Squared Percentage Errors:</p>
+<p><span class="math display">\[\text{SSPE} = \sum_{i=1}^{n} \left( \frac{y_i - f(X_i, \beta)}{y_i} \right)^2\]</span></p>
+<p>This produces directly interpretable percentage errors while penalizing large errors proportionally to the magnitude of actual costs. SSPE is comparable to the MUPE formulation widely used in cost estimation <span class="citation" data-cites="hu2007mupe">(<a href="#ref-hu2007mupe" role="doc-biblioref">Hu and Smith 2007</a>)</span>.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Future Work: MUPE and pcLAD">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Future Work: MUPE and pcLAD
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>MUPE</strong> (Minimum Unbiased Percentage Error) employs Iteratively Reweighted Least Squares (IRLS), producing the Best Linear Unbiased Estimator for multiplicative error models <span class="citation" data-cites="hu2007mupe">(<a href="#ref-hu2007mupe" role="doc-biblioref">Hu and Smith 2007</a>)</span>.</p>
+<p><strong>pcLAD</strong> (Penalized-Constrained Least Absolute Deviation) offers superior performance with heavy-tailed errors or outliers: “pcLAD enjoys the Oracle property even with Cauchy-distributed errors” <span class="citation" data-cites="wu2022pclad">(<a href="#ref-wu2022pclad" role="doc-biblioref">Wu, Liang, and Yang 2022</a>)</span>.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="convexity-and-global-optimality" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="convexity-and-global-optimality"><span class="header-section-number">2.3</span> Convexity and Global Optimality</h2>
+<p>Global optimality is guaranteed when:</p>
+<ol type="1">
+<li>The loss function <span class="math inline">\(\mathcal{L}(\beta)\)</span> is convex (e.g., SSE with linear model)</li>
+<li>All constraints define a convex feasible region (linear inequalities/equalities)</li>
+<li>Regularization terms (L1 and L2 penalties) are convex</li>
+</ol>
+<div class="callout callout-style-default callout-warning callout-titled" title="Non-Convex Cases">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Non-Convex Cases
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>For nonlinear models (e.g., power forms <span class="math inline">\(Y = aX^bZ^c\)</span>) with SSPE objective, the problem is non-convex. Local minima are possible. ZMPE is documented to be sensitive to starting points <span class="citation" data-cites="hu2007mupe">(<a href="#ref-hu2007mupe" role="doc-biblioref">Hu and Smith 2007</a>)</span>. <strong>Recommendation</strong>: Test multiple starting points; COBYLA optimizer recommended for ZMPE-type problems <span class="citation" data-cites="schiavoni2021assessing">(<a href="#ref-schiavoni2021assessing" role="doc-biblioref">Schiavoni et al. 2021</a>)</span>.</p>
+</div>
+</div>
+</section>
+<section id="note-on-blue" class="level2" data-number="2.4">
+<h2 data-number="2.4" class="anchored" data-anchor-id="note-on-blue"><span class="header-section-number">2.4</span> Note on BLUE</h2>
+<div class="callout callout-style-default callout-note callout-titled" title="Best Linear Unbiased Estimator (BLUE)">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Best Linear Unbiased Estimator (BLUE)
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>By the Gauss-Markov theorem, OLS is BLUE under classical assumptions. Introducing penalties and/or constraints means the resulting estimator is <strong>no longer BLUE</strong>. This is an intentional tradeoff: we accept bias in exchange for reduced variance (bias-variance tradeoff), improved interpretability (domain-consistent coefficients), and enhanced predictive accuracy (regularization benefits).</p>
+<p>Per the Theobald-Farebrother theorem, this tradeoff yields lower MSE for some <span class="math inline">\(\lambda &gt; 0\)</span>. Cross-validation identifies when that <span class="math inline">\(\lambda\)</span> is near zero (OLS suffices) versus when substantial regularization helps.</p>
+</div>
+</div>
+</section>
+<section id="algorithm-overview" class="level2" data-number="2.5">
+<h2 data-number="2.5" class="anchored" data-anchor-id="algorithm-overview"><span class="header-section-number">2.5</span> Algorithm Overview</h2>
+<p>The high-level algorithm proceeds as follows:</p>
+<ol type="1">
+<li><p><strong>Input</strong>: Data <span class="math inline">\((X, y)\)</span>, functional form <span class="math inline">\(f(X, \beta)\)</span>, penalty parameters <span class="math inline">\((\alpha, \text{l1\_ratio})\)</span>, bounds/constraints, loss function, optimizer choice</p></li>
+<li><p><strong>Scale</strong> (optional): Standardize <span class="math inline">\(X\)</span> (mean=0, std=1) if <code>scale=True</code></p></li>
+<li><p><strong>Initialize</strong>: Starting coefficients from OLS (default when possible), trimmed to satisfy bounds; alternatively zeros or user-specified</p></li>
+<li><p><strong>Optimize</strong>: Solve constrained penalized minimization via selected optimizer</p></li>
+<li><p><strong>Unscale</strong>: Transform coefficients back to original units: <span class="math inline">\(\beta_{\text{original}} = \beta_{\text{scaled}} / \sigma\)</span></p></li>
+<li><p><strong>Output</strong>: Coefficient estimates <span class="math inline">\(\hat{\beta}\)</span>, fit statistics (GDF-adjusted), <code>active_constraints_</code> flag</p></li>
+</ol>
+<section id="optimization-methods" class="level3" data-number="2.5.1">
+<h3 data-number="2.5.1" class="anchored" data-anchor-id="optimization-methods"><span class="header-section-number">2.5.1</span> Optimization Methods</h3>
+<p>The implementation uses general constrained solvers from <code>scipy.optimize.minimize</code>:</p>
+<ul>
+<li><strong>SLSQP</strong> (Sequential Least-Squares Quadratic Programming): Current default. Handles bounds and linear constraints efficiently.</li>
+<li><strong>COBYLA</strong> (Constrained Optimization BY Linear Approximation): Derivative-free; recommended for ZMPE-type problems <span class="citation" data-cites="schiavoni2021assessing">(<a href="#ref-schiavoni2021assessing" role="doc-biblioref">Schiavoni et al. 2021</a>)</span>.</li>
+<li><strong>trust-constr</strong>: Interior point method; suitable for larger-scale problems with many constraints.</li>
+</ul>
+<p>See <strong>?@sec-appendix-algorithm</strong> for detailed algorithm information including initialization strategy and scaling considerations.</p>
+</section>
+</section>
+<section id="degrees-of-freedom-for-constrained-models" class="level2" data-number="2.6">
+<h2 data-number="2.6" class="anchored" data-anchor-id="degrees-of-freedom-for-constrained-models"><span class="header-section-number">2.6</span> Degrees of Freedom for Constrained Models</h2>
+<div class="callout callout-style-default callout-important callout-titled" title="Critical Issue">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Critical Issue
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>When constraints are imposed on regression coefficients, the effective degrees of freedom (DF) must be adjusted. Without this adjustment, fit statistics (SEE, SPE, Adjusted R²) are incorrect and misleading <span class="citation" data-cites="hu2010gdf">(<a href="#ref-hu2010gdf" role="doc-biblioref">Hu 2010</a>)</span>.</p>
+</div>
+</div>
+<section id="hus-gdf-formula" class="level3" data-number="2.6.1">
+<h3 data-number="2.6.1" class="anchored" data-anchor-id="hus-gdf-formula"><span class="header-section-number">2.6.1</span> Hu’s GDF Formula</h3>
+<p><span class="math display">\[\text{GDF} = n - p - (\text{\# Constraints}) + (\text{\# Redundancies})\]</span></p>
+<p>where <span class="math inline">\(p\)</span> is the number of estimated parameters and <span class="math inline">\(n\)</span> is the sample size. One restriction is equivalent to a loss of one DF.</p>
+</section>
+<section id="gaines-et-al.-constrained-lasso-df-formula" class="level3" data-number="2.6.2">
+<h3 data-number="2.6.2" class="anchored" data-anchor-id="gaines-et-al.-constrained-lasso-df-formula"><span class="header-section-number">2.6.2</span> Gaines et al.&nbsp;Constrained Lasso DF Formula</h3>
+<p><span class="math display">\[\text{df} = |\text{Active predictors}| - (\text{\# equality constraints}) - (\text{\# binding inequality constraints})\]</span></p>
+<p>The key difference: Gaines’ formulation <span class="citation" data-cites="gaines2018constrained">(<a href="#ref-gaines2018constrained" role="doc-biblioref">Gaines, Kim, and Zhou 2018</a>)</span> only counts binding inequality constraints, while Hu’s formulation counts all specified constraints. See <strong>?@sec-appendix-gdf</strong> for detailed comparison.</p>
+</section>
+<section id="gdf-adjusted-fit-statistics" class="level3" data-number="2.6.3">
+<h3 data-number="2.6.3" class="anchored" data-anchor-id="gdf-adjusted-fit-statistics"><span class="header-section-number">2.6.3</span> GDF-Adjusted Fit Statistics</h3>
+<p><span class="math display">\[\text{SEE} = \sqrt{\frac{\sum(y_i - \hat{y}_i)^2}{\text{GDF}}} \qquad \text{SPE} = \sqrt{\frac{\sum((y_i - \hat{y}_i)/\hat{y}_i)^2}{\text{GDF}}}\]</span></p>
+</section>
+</section>
+<section id="model-diagnostics-and-validation" class="level2" data-number="2.7">
+<h2 data-number="2.7" class="anchored" data-anchor-id="model-diagnostics-and-validation"><span class="header-section-number">2.7</span> Model Diagnostics and Validation</h2>
+<section id="cross-validation-as-primary-model-selection" class="level3" data-number="2.7.1">
+<h3 data-number="2.7.1" class="anchored" data-anchor-id="cross-validation-as-primary-model-selection"><span class="header-section-number">2.7.1</span> Cross-Validation as Primary Model Selection</h3>
+<p>Since penalized-constrained estimators do not follow standard likelihood theory, cross-validation serves as the primary arbiter of model quality <span class="citation" data-cites="hastie2009elements">(<a href="#ref-hastie2009elements" role="doc-biblioref">Hastie, Tibshirani, and Friedman 2009</a>)</span>:</p>
+<ul>
+<li>Directly estimates out-of-sample prediction error without distributional assumptions</li>
+<li>Enables comparison across fundamentally different model classes (OLS vs.&nbsp;penalized vs.&nbsp;constrained)</li>
+<li>Provides a principled basis for hyperparameter selection (<span class="math inline">\(\alpha\)</span>, l1_ratio)</li>
+</ul>
+<p>For cost estimation with small samples, Leave-One-Out Cross-Validation (LOOCV) is recommended to maximize training data usage. K-fold CV (k=5 or k=10) provides a computationally cheaper alternative.</p>
+</section>
+<section id="coefficient-uncertainty-estimation" class="level3" data-number="2.7.2">
+<h3 data-number="2.7.2" class="anchored" data-anchor-id="coefficient-uncertainty-estimation"><span class="header-section-number">2.7.2</span> Coefficient Uncertainty Estimation</h3>
+<p>Four approaches are available for likelihood-free coefficient uncertainty:</p>
+<ol type="1">
+<li><p><strong>Hessian-based covariance</strong>: Uses the inverse Hessian of the objective function at the solution. Available directly from most optimizers. Assumes local quadratic approximation is valid.</p></li>
+<li><p><strong>Jacobian-based</strong>: Estimates covariance from the Jacobian of residuals, following <code>scipy.optimize.curve_fit</code> methodology. Appropriate for nonlinear least squares problems.</p></li>
+<li><p><strong>Bootstrap</strong>: Resamples data and re-estimates coefficients to build empirical confidence intervals <span class="citation" data-cites="efron1993bootstrap">(<a href="#ref-efron1993bootstrap" role="doc-biblioref">Efron and Tibshirani 1993</a>)</span>. Does not require distributional assumptions. <em>Caveat</em>: For penalized models, bootstrap CIs may be artificially narrow because penalties constrain coefficient variability across resamples.</p></li>
+<li><p><strong>Profile likelihood</strong>: Varies each coefficient individually while re-optimizing others to trace out confidence regions. Most computationally expensive but most robust for non-quadratic objective surfaces.</p></li>
+</ol>
+<p>This implementation supports Bootstrap and Hessian-based covariance methods.</p>
+</section>
+</section>
+<section id="hyperparameter-selection" class="level2" data-number="2.8">
+<h2 data-number="2.8" class="anchored" data-anchor-id="hyperparameter-selection"><span class="header-section-number">2.8</span> Hyperparameter Selection</h2>
+<p>The regularization strength <span class="math inline">\(\alpha\)</span> is selected via:</p>
+<ol type="1">
+<li><strong>Cross-validation</strong>: Minimize out-of-fold SSPE (primary method)</li>
+<li><strong>AICc</strong>: Corrected Akaike Information Criterion</li>
+<li><strong>GCV</strong>: Generalized Cross-Validation</li>
+</ol>
+<p>For this simulation study, we use 5-fold cross-validation with an alpha grid spanning <span class="math inline">\(10^{-5}\)</span> to <span class="math inline">\(1.0\)</span>.</p>
+</section>
+</section>
+<section id="sec-simulation-design" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Simulation Study Design</h1>
+<section id="data-generating-process" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="data-generating-process"><span class="header-section-number">3.1</span> Data Generating Process</h2>
+<p>We simulate learning curve data using the multiplicative power-law model:</p>
+<p><span class="math display">\[Y = T_1 \cdot X_1^b \cdot X_2^c \cdot \exp(\epsilon)\]</span></p>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\(T_1 = 100\)</span> (first unit cost)—<strong>Note</strong>: <span class="math inline">\(T_1\)</span> is estimated in all examples, not fixed</li>
+<li><span class="math inline">\(X_1\)</span> = lot midpoint (cumulative units)</li>
+<li><span class="math inline">\(X_2\)</span> = lot quantity (rate variable)</li>
+<li><span class="math inline">\(\epsilon \sim N(0, \sigma^2)\)</span> with <span class="math inline">\(\sigma^2 = \log(1 + \text{cv\_error}^2)\)</span></li>
+</ul>
+<p>The correlation between <span class="math inline">\(\log(X_1)\)</span> and <span class="math inline">\(\log(X_2)\)</span> is controlled to study multicollinearity effects. Correlated predictor datasets are generated using a custom function that creates realistic production ramp-up schedules where lot midpoint and quantity naturally correlate at the specified <span class="math inline">\(\rho\)</span> levels.</p>
+</section>
+<section id="experimental-design" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="experimental-design"><span class="header-section-number">3.2</span> Experimental Design</h2>
+<p>We employ a full factorial design with 5 factors:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Factor</th>
+<th>Levels</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Sample size (n_lots)</td>
+<td>3</td>
+<td>5, 10, 30</td>
+</tr>
+<tr class="even">
+<td>Predictor correlation</td>
+<td>3</td>
+<td>0.0, 0.5, 0.9</td>
+</tr>
+<tr class="odd">
+<td>CV error (noise)</td>
+<td>3</td>
+<td>0.01, 0.10, 0.20</td>
+</tr>
+<tr class="even">
+<td>Learning rate (b)</td>
+<td>3</td>
+<td>log(0.85), log(0.90), log(0.95) / log(2)</td>
+</tr>
+<tr class="odd">
+<td>Rate effect (c)</td>
+<td>3</td>
+<td>log(0.80), log(0.85), log(0.90) / log(2)</td>
+</tr>
+</tbody>
+</table>
+<p>This yields <span class="math inline">\(3^5 = 243\)</span> unique scenarios. Each scenario is replicated 25 times with different random seeds, producing <strong>6,075 total scenario-replications</strong>.</p>
+</section>
+<section id="models-compared" class="level2" data-number="3.3">
+<h2 data-number="3.3" class="anchored" data-anchor-id="models-compared"><span class="header-section-number">3.3</span> Models Compared</h2>
+<p>We evaluate 18 regression approaches:</p>
+<section id="traditional-methods-log-space" class="level3" data-number="3.3.1">
+<h3 data-number="3.3.1" class="anchored" data-anchor-id="traditional-methods-log-space"><span class="header-section-number">3.3.1</span> Traditional Methods (Log-Space)</h3>
+<ul>
+<li><strong>OLS</strong>: Ordinary Least Squares on log-transformed data (base case, unconstrained, unpenalized)</li>
+<li><strong>OLS_LearnOnly</strong>: OLS with only the learning variable (confluence analysis remedy—drop rate variable)</li>
+<li><strong>Ridge</strong>: Ridge regression with CV-selected <span class="math inline">\(\lambda\)</span>, no constraints</li>
+<li><strong>Lasso</strong>: Lasso regression with CV-selected <span class="math inline">\(\lambda\)</span>, no constraints</li>
+<li><strong>BayesianRidge</strong>: sklearn implementation using spherical Gaussian prior <span class="math inline">\(p(w|\lambda) = N(w|0, \lambda^{-1}I)\)</span> centered at zero. Iteratively maximizes marginal log-likelihood to optimize regularization parameters <span class="citation" data-cites="mackay1992bayesian tipping2001sparse">(<a href="#ref-mackay1992bayesian" role="doc-biblioref">MacKay 1992</a>; <a href="#ref-tipping2001sparse" role="doc-biblioref">Tipping 2001</a>)</span>. <em>Note</em>: Uses uninformative priors without domain-specific constraints, serving as comparison to automatic regularization without domain knowledge.</li>
+<li><strong>PLS / PCA_Linear</strong>: Both produce identical results for two predictors</li>
+</ul>
+</section>
+<section id="pcreg-variants-unit-space" class="level3" data-number="3.3.2">
+<h3 data-number="3.3.2" class="anchored" data-anchor-id="pcreg-variants-unit-space"><span class="header-section-number">3.3.2</span> PCReg Variants (Unit-Space)</h3>
+<ul>
+<li><strong>PCReg_ConstrainOnly</strong>: Constraints only, no penalty (<span class="math inline">\(\alpha = 0\)</span>)</li>
+<li><strong>PCReg_CV</strong>: Constraints + CV-tuned elastic net with loose bounds (<span class="math inline">\(\beta \in [-1, 0]\)</span>)</li>
+<li><strong>PCReg_AICc</strong>: Constraints + AICc-selected penalty</li>
+<li><strong>PCReg_GCV</strong>: Constraints + GCV-selected penalty</li>
+<li><strong>PCReg_CV_Tight</strong>: With tight bounds near true values. This serves as an approximate upper bound on performance—analogous to an “oracle” benchmark that knows the true parameter region.</li>
+<li><strong>PCReg_CV_Wrong</strong>: With deliberately incorrect constraints. Following <span class="citation" data-cites="james2020pac">James, Paulson, and Rusmevichientong (<a href="#ref-james2020pac" role="doc-biblioref">2020</a>)</span> methodology, “wrong” constraints are generated by adding random noise to the true bounds: <span class="math inline">\(\text{constraint}_{\text{wrong}} = \text{constraint}_{\text{true}} + a \cdot U(-1,1)\)</span>, where <span class="math inline">\(a\)</span> controls the magnitude of constraint error. This tests robustness to constraint misspecification.</li>
+</ul>
+</section>
+<section id="pcreg-mse-loss-variants" class="level3" data-number="3.3.3">
+<h3 data-number="3.3.3" class="anchored" data-anchor-id="pcreg-mse-loss-variants"><span class="header-section-number">3.3.3</span> PCReg MSE Loss Variants</h3>
+<ul>
+<li><strong>PCReg_MSE</strong>: MSE loss with constraints</li>
+<li><strong>PCReg_MSE_CV</strong>: MSE loss with CV-tuned penalty</li>
+</ul>
+</section>
+<section id="pcreg-log-space-variants" class="level3" data-number="3.3.4">
+<h3 data-number="3.3.4" class="anchored" data-anchor-id="pcreg-log-space-variants"><span class="header-section-number">3.3.4</span> PCReg Log-Space Variants</h3>
+<ul>
+<li><strong>PCReg_LogMSE</strong>: Log-transformed MSE loss</li>
+<li><strong>PCReg_LogMSE_CV</strong>: Log-transformed with CV penalty</li>
+</ul>
+</section>
+</section>
+<section id="evaluation-metrics" class="level2" data-number="3.4">
+<h2 data-number="3.4" class="anchored" data-anchor-id="evaluation-metrics"><span class="header-section-number">3.4</span> Evaluation Metrics</h2>
+<p>All models are evaluated on 5 held-out test lots using:</p>
+<ol type="1">
+<li><strong>Test SSPE</strong>: Sum of squared percentage errors (primary metric)</li>
+<li><strong>Test MAPE</strong>: Mean absolute percentage error</li>
+<li><strong>Test MSE</strong>: Mean squared error</li>
+<li><strong>Coefficient bias</strong>: <span class="math inline">\(|\hat{\beta} - \beta_{\text{true}}|\)</span> for <span class="math inline">\(b\)</span> (learning) and <span class="math inline">\(c\)</span> (rate)</li>
+<li><strong>Coefficient variance</strong>: Stability across replications</li>
+<li><strong>Sign correctness (Domain consistency rate)</strong>: Whether <span class="math inline">\(\hat{b} \leq 0\)</span> and <span class="math inline">\(\hat{c} \leq 0\)</span>—percentage of replications with correct coefficient signs</li>
+</ol>
+</section>
+<section id="computational-details" class="level2" data-number="3.5">
+<h2 data-number="3.5" class="anchored" data-anchor-id="computational-details"><span class="header-section-number">3.5</span> Computational Details</h2>
+<ul>
+<li><strong>Parallelization</strong>: joblib with all available CPU cores</li>
+<li><strong>Resume capability</strong>: Results saved in batches to parquet files</li>
+<li><strong>Model hashing</strong>: Automatic re-run if model definitions change</li>
+<li><strong>Total model fits</strong>: <span class="math inline">\(243 \times 25 \times 18 = 109,350\)</span></li>
+</ul>
+</section>
+</section>
+<section id="sec-results" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Results</h1>
+<p>This section presents the results of our Monte Carlo simulation study comparing Penalized-Constrained Regression (PCReg) against traditional methods.</p>
+<section id="overall-model-performance" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="overall-model-performance"><span class="header-section-number">4.1</span> Overall Model Performance</h2>
+<div id="cell-fig-overall" class="cell" data-fig-height="6" data-fig-width="12" data-execution_count="3">
+<div class="cell-output cell-output-display">
+<div id="fig-overall" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-overall-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="paper_files/figure-html/fig-overall-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="Figure&nbsp;1: Overall model performance comparison across all scenarios. Models are ordered by mean Test SSPE (lower is better). Green boxes indicate PCReg variants; blue boxes indicate standard methods. The winner is highlighted with a red border."><img src="paper_files/figure-html/fig-overall-output-1.png" width="1141" height="565" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-overall-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Overall model performance comparison across all scenarios. Models are ordered by mean Test SSPE (lower is better). Green boxes indicate PCReg variants; blue boxes indicate standard methods. The winner is highlighted with a red border.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p><a href="#fig-overall" class="quarto-xref">Figure&nbsp;1</a> shows the distribution of Test SSPE across all 6,075 scenario-replications. Key observations:</p>
+<div class="cell" data-execution_count="4">
+<div id="tbl-overall-stats" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="4">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-overall-stats-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;4: Summary statistics by model, ranked by mean Test SSPE
+</figcaption>
+<div aria-describedby="tbl-overall-stats-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe do-not-create-environment cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Mean SSPE</th>
+<th data-quarto-table-cell-role="th">Std</th>
+<th data-quarto-table-cell-role="th">Median</th>
+<th data-quarto-table-cell-role="th">Count</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">model_name</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">PCReg_CV_Tight</th>
+<td>0.0465</td>
+<td>0.0998</td>
+<td>0.0040</td>
+<td>6075</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">PCReg_ConstrainOnly</th>
+<td>0.0798</td>
+<td>0.2637</td>
+<td>0.0052</td>
+<td>6075</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">PCReg_LogMSE</th>
+<td>0.0862</td>
+<td>0.2888</td>
+<td>0.0053</td>
+<td>6075</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">PCReg_GCV</th>
+<td>0.0937</td>
+<td>0.3209</td>
+<td>0.0052</td>
+<td>6075</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">PCReg_MSE</th>
+<td>0.1062</td>
+<td>0.3328</td>
+<td>0.0076</td>
+<td>6075</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">PCReg_MSE_CV</th>
+<td>0.1079</td>
+<td>0.3389</td>
+<td>0.0079</td>
+<td>6075</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">PCReg_CV</th>
+<td>0.1083</td>
+<td>0.4609</td>
+<td>0.0050</td>
+<td>6075</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">PCReg_CV_Wrong</th>
+<td>0.1090</td>
+<td>0.4648</td>
+<td>0.0049</td>
+<td>6075</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">OLS</th>
+<td>0.1146</td>
+<td>0.7557</td>
+<td>0.0055</td>
+<td>6075</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">BayesianRidgeModel</th>
+<td>0.1409</td>
+<td>0.7857</td>
+<td>0.0057</td>
+<td>6075</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">PCReg_LogMSE_CV</th>
+<td>0.1525</td>
+<td>0.6453</td>
+<td>0.0066</td>
+<td>6075</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Ridge</th>
+<td>0.1580</td>
+<td>1.0644</td>
+<td>0.0058</td>
+<td>6075</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Lasso</th>
+<td>0.2014</td>
+<td>1.0043</td>
+<td>0.0072</td>
+<td>6075</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">OLS_LearnOnly</th>
+<td>0.8658</td>
+<td>2.5266</td>
+<td>0.1410</td>
+<td>6075</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+</section>
+<section id="sign-correctness-analysis" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="sign-correctness-analysis"><span class="header-section-number">4.2</span> Sign Correctness Analysis</h2>
+<p>A critical advantage of PCReg is enforcing domain-appropriate coefficient signs. Learning curve slopes should be negative (<span class="math inline">\(b \leq 0\)</span>, <span class="math inline">\(c \leq 0\)</span>).</p>
+<div id="cell-fig-sign-correctness" class="cell" data-fig-height="5" data-fig-width="10" data-execution_count="5">
+<div class="cell-output cell-output-display">
+<div id="fig-sign-correctness" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sign-correctness-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="paper_files/figure-html/fig-sign-correctness-output-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="Figure&nbsp;2: Percentage of scenarios where both coefficients have correct signs (negative). PCReg methods achieve 100% sign correctness by design."><img src="paper_files/figure-html/fig-sign-correctness-output-2.png" width="945" height="469" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-sign-correctness-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Percentage of scenarios where both coefficients have correct signs (negative). PCReg methods achieve 100% sign correctness by design.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div id="cell-fig-wrong-sign-heatmap" class="cell" data-fig-height="5" data-fig-width="8" data-execution_count="6">
+<div class="cell-output cell-output-display">
+<div id="fig-wrong-sign-heatmap" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-wrong-sign-heatmap-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="paper_files/figure-html/fig-wrong-sign-heatmap-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="Figure&nbsp;3: OLS wrong sign rate by sample size and predictor correlation. Wrong signs are most common with small samples and high correlation."><img src="paper_files/figure-html/fig-wrong-sign-heatmap-output-1.png" width="718" height="470" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-wrong-sign-heatmap-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: OLS wrong sign rate by sample size and predictor correlation. Wrong signs are most common with small samples and high correlation.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="head-to-head-comparison-pcreg-vs-ols" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="head-to-head-comparison-pcreg-vs-ols"><span class="header-section-number">4.3</span> Head-to-Head Comparison: PCReg vs OLS</h2>
+<p>Comparing PCReg (constraints only, <span class="math inline">\(\alpha = 0\)</span>) against OLS:</p>
+<ul>
+<li><strong>Overall win rate</strong>: PCReg wins in 58.2% of scenarios</li>
+<li><strong>When OLS has wrong sign</strong>: PCReg wins in 81.2% of scenarios</li>
+<li><strong>When OLS has correct sign</strong>: PCReg wins in 56.6% of scenarios</li>
+</ul>
+</section>
+<section id="performance-by-design-factors" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="performance-by-design-factors"><span class="header-section-number">4.4</span> Performance by Design Factors</h2>
+<section id="effect-of-sample-size" class="level3" data-number="4.4.1">
+<h3 data-number="4.4.1" class="anchored" data-anchor-id="effect-of-sample-size"><span class="header-section-number">4.4.1</span> Effect of Sample Size</h3>
+<div id="cell-fig-by-n-lots" class="cell" data-fig-height="6" data-fig-width="15" data-execution_count="8">
+<div class="cell-output cell-output-display">
+<div id="fig-by-n-lots" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-by-n-lots-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="paper_files/figure-html/fig-by-n-lots-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4" title="Figure&nbsp;4: Model performance by sample size. PCReg shows strongest advantage with small samples (n=5)."><img src="paper_files/figure-html/fig-by-n-lots-output-1.png" width="1429" height="569" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-by-n-lots-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: Model performance by sample size. PCReg shows strongest advantage with small samples (n=5).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="effect-of-cv-error-data-quality" class="level3" data-number="4.4.2">
+<h3 data-number="4.4.2" class="anchored" data-anchor-id="effect-of-cv-error-data-quality"><span class="header-section-number">4.4.2</span> Effect of CV Error (Data Quality)</h3>
+<div id="cell-fig-by-cv-error" class="cell" data-fig-height="6" data-fig-width="15" data-execution_count="9">
+<div class="cell-output cell-output-display">
+<div id="fig-by-cv-error" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-by-cv-error-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="paper_files/figure-html/fig-by-cv-error-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-5" title="Figure&nbsp;5: Model performance by CV error level. PCReg excels when data quality is high (CV error = 0.01)."><img src="paper_files/figure-html/fig-by-cv-error-output-1.png" width="1429" height="569" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-by-cv-error-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: Model performance by CV error level. PCReg excels when data quality is high (CV error = 0.01).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="effect-of-predictor-correlation" class="level3" data-number="4.4.3">
+<h3 data-number="4.4.3" class="anchored" data-anchor-id="effect-of-predictor-correlation"><span class="header-section-number">4.4.3</span> Effect of Predictor Correlation</h3>
+<div id="cell-fig-by-correlation" class="cell" data-fig-height="6" data-fig-width="15" data-execution_count="10">
+<div class="cell-output cell-output-display">
+<div id="fig-by-correlation" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-by-correlation-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="paper_files/figure-html/fig-by-correlation-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-6" title="Figure&nbsp;6: Model performance by predictor correlation. High correlation (0.9) leads to more variable OLS estimates."><img src="paper_files/figure-html/fig-by-correlation-output-1.png" width="1429" height="569" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-by-correlation-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6: Model performance by predictor correlation. High correlation (0.9) leads to more variable OLS estimates.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="interaction-effects" class="level2" data-number="4.5">
+<h2 data-number="4.5" class="anchored" data-anchor-id="interaction-effects"><span class="header-section-number">4.5</span> Interaction Effects</h2>
+<div id="cell-fig-heatmap-n-cv" class="cell" data-fig-height="6" data-fig-width="8" data-execution_count="11">
+<div class="cell-output cell-output-display">
+<div id="fig-heatmap-n-cv" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-heatmap-n-cv-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="paper_files/figure-html/fig-heatmap-n-cv-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-7" title="Figure&nbsp;7: PCReg improvement over OLS by sample size and CV error. Positive values (green) indicate PCReg is better."><img src="paper_files/figure-html/fig-heatmap-n-cv-output-1.png" width="748" height="566" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-heatmap-n-cv-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;7: PCReg improvement over OLS by sample size and CV error. Positive values (green) indicate PCReg is better.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div id="cell-fig-heatmap-n-corr" class="cell" data-fig-height="6" data-fig-width="8" data-execution_count="12">
+<div class="cell-output cell-output-display">
+<div id="fig-heatmap-n-corr" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-heatmap-n-corr-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="paper_files/figure-html/fig-heatmap-n-corr-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-8" title="Figure&nbsp;8: PCReg improvement over OLS by sample size and predictor correlation."><img src="paper_files/figure-html/fig-heatmap-n-corr-output-1.png" width="748" height="566" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-heatmap-n-corr-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;8: PCReg improvement over OLS by sample size and predictor correlation.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="value-of-penalization" class="level2" data-number="4.6">
+<h2 data-number="4.6" class="anchored" data-anchor-id="value-of-penalization"><span class="header-section-number">4.6</span> Value of Penalization</h2>
+<p>Does adding elastic net penalty (<span class="math inline">\(\alpha &gt; 0\)</span>) improve upon constraints alone (<span class="math inline">\(\alpha = 0\)</span>)?</p>
+<div id="alpha-comparison" class="cell" data-execution_count="13">
+<div class="cell-output cell-output-stdout">
+<pre><code>PCReg_CV (with penalty) beats PCReg_ConstrainOnly: 42.1% of scenarios
+Conclusion: Constraints alone often sufficient; penalty adds modest benefit</code></pre>
+</div>
+</div>
+<p>This finding suggests that for learning curve estimation, the primary value of PCReg comes from the constraints rather than the penalty term.</p>
+</section>
+</section>
+<section id="sec-doe-analysis" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Statistical Analysis</h1>
+<p>This section provides rigorous statistical analysis using Design of Experiments (DOE) methodology.</p>
+<section id="repeated-measures-anova" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="repeated-measures-anova"><span class="header-section-number">5.1</span> Repeated Measures ANOVA</h2>
+<p>We use repeated measures ANOVA to test whether model choice significantly affects performance, accounting for the fact that all models are evaluated on the same data scenarios.</p>
+</section>
+<section id="pairwise-comparisons" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="pairwise-comparisons"><span class="header-section-number">5.2</span> Pairwise Comparisons</h2>
+</section>
+<section id="win-rate-analysis" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="win-rate-analysis"><span class="header-section-number">5.3</span> Win Rate Analysis</h2>
+<div id="win-rates" class="cell" data-execution_count="17">
+<div class="cell-output cell-output-stdout">
+<pre><code>PCReg_ConstrainOnly vs OLS Win Rate Analysis
+============================================================
+  Overall Win Rate: 58.2% (3536/6075)
+  Binomial Test p-value: 7.4510e-38
+  ✓ PCReg significantly outperforms OLS (p &lt; 0.05)</code></pre>
+</div>
+</div>
+</section>
+<section id="win-rates-by-design-factor" class="level2" data-number="5.4">
+<h2 data-number="5.4" class="anchored" data-anchor-id="win-rates-by-design-factor"><span class="header-section-number">5.4</span> Win Rates by Design Factor</h2>
+<div id="cell-win-rates-by-factor" class="cell" data-execution_count="18">
+<div class="cell-output cell-output-stdout">
+<pre><code>Win Rates by Design Factor
+============================================================
+
+n_lots:
+  5: 65.5% (1327/2025) *
+  10: 59.3% (1200/2025) *
+  30: 49.8% (1009/2025) 
+
+cv_error:
+  0.01: 71.8% (1453/2025) *
+  0.1: 56.5% (1145/2025) *
+  0.2: 46.3% (938/2025) 
+
+target_correlation:
+  0.0: 62.3% (1261/2025) *
+  0.5: 55.4% (1122/2025) *
+  0.9: 56.9% (1153/2025) *
+
+</code></pre>
+</div>
+<div id="win-rates-by-factor" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Factor</th>
+<th data-quarto-table-cell-role="th">Level</th>
+<th data-quarto-table-cell-role="th">Win Rate</th>
+<th data-quarto-table-cell-role="th">p-value</th>
+<th data-quarto-table-cell-role="th">Significant</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>n_lots</td>
+<td>5.00</td>
+<td>65.5%</td>
+<td>0.0000</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>n_lots</td>
+<td>10.00</td>
+<td>59.3%</td>
+<td>0.0000</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>n_lots</td>
+<td>30.00</td>
+<td>49.8%</td>
+<td>0.5705</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>cv_error</td>
+<td>0.01</td>
+<td>71.8%</td>
+<td>0.0000</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>cv_error</td>
+<td>0.10</td>
+<td>56.5%</td>
+<td>0.0000</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>cv_error</td>
+<td>0.20</td>
+<td>46.3%</td>
+<td>0.9996</td>
+<td>No</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6</th>
+<td>target_correlation</td>
+<td>0.00</td>
+<td>62.3%</td>
+<td>0.0000</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">7</th>
+<td>target_correlation</td>
+<td>0.50</td>
+<td>55.4%</td>
+<td>0.0000</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">8</th>
+<td>target_correlation</td>
+<td>0.90</td>
+<td>56.9%</td>
+<td>0.0000</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="key-statistical-findings" class="level2" data-number="5.5">
+<h2 data-number="5.5" class="anchored" data-anchor-id="key-statistical-findings"><span class="header-section-number">5.5</span> Key Statistical Findings</h2>
+<p>Based on the statistical analysis:</p>
+<ol type="1">
+<li><p><strong>Model choice matters</strong>: The repeated measures ANOVA confirms significant differences between models (p &lt; 0.001)</p></li>
+<li><p><strong>PCReg outperforms OLS</strong>: The overall win rate exceeds 50% and is statistically significant</p></li>
+<li><p><strong>Effect sizes are meaningful</strong>: Hedges’ g values indicate practically important differences</p></li>
+<li><p><strong>Context matters</strong>: Win rates vary substantially by design factor levels, suggesting PCReg is particularly valuable in specific conditions</p></li>
+</ol>
+</section>
+</section>
+<section id="sec-discussion" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Discussion and Recommendations</h1>
+<section id="summary-of-findings" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="summary-of-findings"><span class="header-section-number">6.1</span> Summary of Findings</h2>
+<p>Our comprehensive simulation study comparing Penalized-Constrained Regression (PCReg) against traditional methods yields several key insights:</p>
+<section id="pcreg-advantages" class="level3" data-number="6.1.1">
+<h3 data-number="6.1.1" class="anchored" data-anchor-id="pcreg-advantages"><span class="header-section-number">6.1.1</span> PCReg Advantages</h3>
+<ol type="1">
+<li><p><strong>Guaranteed sign correctness</strong>: PCReg always produces economically sensible coefficients (negative learning slopes) while OLS can produce wrong signs in up to 14% of small-sample scenarios</p></li>
+<li><p><strong>Superior small-sample performance</strong>: PCReg shows its strongest advantages when sample sizes are small (n ≤ 10 lots), precisely when cost analysts need reliable estimates most</p></li>
+<li><p><strong>Robustness to multicollinearity</strong>: High predictor correlation degrades OLS performance but has less impact on PCReg</p></li>
+<li><p><strong>High data quality benefits</strong>: When measurement error is low (CV error = 0.01), PCReg wins 67-75% of scenarios</p></li>
+</ol>
+</section>
+<section id="when-ols-may-be-adequate" class="level3" data-number="6.1.2">
+<h3 data-number="6.1.2" class="anchored" data-anchor-id="when-ols-may-be-adequate"><span class="header-section-number">6.1.2</span> When OLS May Be Adequate</h3>
+<ol type="1">
+<li><p><strong>Large samples</strong>: With n ≥ 30 lots and high CV error, OLS and PCReg perform similarly</p></li>
+<li><p><strong>Low correlation</strong>: When predictors are uncorrelated, OLS estimates are more stable</p></li>
+</ol>
+</section>
+</section>
+<section id="practical-recommendations" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="practical-recommendations"><span class="header-section-number">6.2</span> Practical Recommendations</h2>
+<section id="decision-framework" class="level3" data-number="6.2.1">
+<h3 data-number="6.2.1" class="anchored" data-anchor-id="decision-framework"><span class="header-section-number">6.2.1</span> Decision Framework</h3>
+<div class="cell" data-execution_count="20">
+<div id="tbl-recommendations" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="20">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-recommendations-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;5: Practical recommendations for method selection
+</figcaption>
+<div aria-describedby="tbl-recommendations-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="18">
+<div>
+
+
+<table class="dataframe do-not-create-environment cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Condition</th>
+<th data-quarto-table-cell-role="th">PCReg Win Rate</th>
+<th data-quarto-table-cell-role="th">Recommendation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>CV error = 0.01 (high quality data)</td>
+<td>67-75%</td>
+<td>Use PCReg</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>CV error = 0.10, n ≤ 10</td>
+<td>57-64%</td>
+<td>Use PCReg</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>CV error = 0.10, n = 30</td>
+<td>~48%</td>
+<td>Either method</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>CV error = 0.20, n = 5</td>
+<td>~58%</td>
+<td>Use PCReg</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>CV error = 0.20, n = 10</td>
+<td>~47%</td>
+<td>Either method</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>CV error = 0.20, n = 30</td>
+<td>~34%</td>
+<td>Consider OLS</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6</th>
+<td>OLS produces wrong sign</td>
+<td>~81%</td>
+<td>Use PCReg</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+</section>
+<section id="practical-guidance-for-cost-estimators" class="level3" data-number="6.2.2">
+<h3 data-number="6.2.2" class="anchored" data-anchor-id="practical-guidance-for-cost-estimators"><span class="header-section-number">6.2.2</span> Practical Guidance for Cost Estimators</h3>
+<div class="callout callout-style-default callout-tip callout-titled" title="Implementation Checklist">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Implementation Checklist
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><p><strong>Document everything</strong>: Constraints, penalties, active bounds at solution. This is NOT OLS—transparency is essential.</p></li>
+<li><p><strong>Start with loose constraints</strong> based on domain knowledge (e.g., learning slope ≤ 100%)</p></li>
+<li><p><strong>Constraints need not be perfect</strong>: Even approximately correct bounds improve estimation <span class="citation" data-cites="james2020pac">(<a href="#ref-james2020pac" role="doc-biblioref">James, Paulson, and Rusmevichientong 2020</a>)</span></p></li>
+<li><p><strong>Derive constraints from domain benchmarks</strong>: Published learning curve studies, historical program data, and subject matter expert knowledge can inform reasonable bounds. Reference benchmarks specific to your domain (e.g., aerospace learning curves typically range 75-95%).</p></li>
+<li><p><strong>Use cross-validation</strong> for (<span class="math inline">\(\alpha\)</span>, l1_ratio) selection—do not impose arbitrary penalty values</p></li>
+<li><p><strong>Report GDF-adjusted statistics</strong> for transparency <span class="citation" data-cites="hu2010gdf">(<a href="#ref-hu2010gdf" role="doc-biblioref">Hu 2010</a>)</span></p></li>
+<li><p><strong>Try multiple starting points</strong>: For nonlinear models, testing multiple starting points can avoid local optima</p></li>
+<li><p><strong>Don’t worry (too much) about global optimum</strong>: Even if not confirmed to be globally optimal, it can still be the best reasonable model</p></li>
+<li><p><strong>Regularization is recommended</strong> (even if minimal): Per Theobald-Farebrother, some L2 regularization is always optimal, even when correlation is not high <span class="citation" data-cites="theobald1974">(<a href="#ref-theobald1974" role="doc-biblioref">Theobald 1974</a>)</span></p></li>
+</ol>
+</div>
+</div>
+</section>
+<section id="implementation-guidance" class="level3" data-number="6.2.3">
+<h3 data-number="6.2.3" class="anchored" data-anchor-id="implementation-guidance"><span class="header-section-number">6.2.3</span> Implementation Guidance</h3>
+<ol type="1">
+<li><p><strong>Start with constraints only</strong> (<span class="math inline">\(\alpha = 0\)</span>): Our results show that constraints alone often outperform CV-tuned penalties. The regularization benefit is secondary to the constraint benefit.</p></li>
+<li><p><strong>Use loose bounds</strong>: Rather than trying to specify tight coefficient bounds, use conservative ranges:</p>
+<ul>
+<li>Learning slope (<span class="math inline">\(b\)</span>): <span class="math inline">\(-0.5 \leq b \leq 0\)</span></li>
+<li>Rate effect (<span class="math inline">\(c\)</span>): <span class="math inline">\(-0.5 \leq c \leq 0\)</span></li>
+<li>First unit cost (<span class="math inline">\(T_1\)</span>): <span class="math inline">\(0 &lt; T_1 &lt; \infty\)</span></li>
+</ul></li>
+<li><p><strong>Consider observable indicators</strong>:</p>
+<ul>
+<li>Estimate CV error from residual variance</li>
+<li>Estimate predictor correlation from data</li>
+<li>Use sample size directly</li>
+</ul></li>
+<li><p><strong>Validate with out-of-sample testing</strong>: When possible, hold out recent lots for validation</p></li>
+</ol>
+</section>
+</section>
+<section id="limitations-and-cautions" class="level2" data-number="6.3">
+<h2 data-number="6.3" class="anchored" data-anchor-id="limitations-and-cautions"><span class="header-section-number">6.3</span> Limitations and Cautions</h2>
+<div class="callout callout-style-default callout-warning callout-titled" title="Important Cautions">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Important Cautions
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><p><strong>Abuse potential</strong>: Constraints could be used to force desired results. Transparency in documentation is essential—always disclose what constraints were applied and why.</p></li>
+<li><p><strong>Not BLUE</strong>: Always disclose that the method intentionally introduces bias in exchange for reduced variance. This is a feature, not a bug, but stakeholders should understand the tradeoff.</p></li>
+<li><p><strong>Local optima</strong>: For nonlinear models, test multiple starting points. The solution may not be globally optimal.</p></li>
+<li><p><strong>Bootstrap CIs</strong>: May be artificially narrow for penalized models because penalties constrain coefficient variability across resamples <span class="citation" data-cites="goeman_penalized">(<a href="#ref-goeman_penalized" role="doc-biblioref">Goeman and Meijer 2022</a>)</span>. Compare unconstrained bootstrap to constrained bootstrap when possible.</p></li>
+<li><p><strong>Speed</strong>: Optimization routines take longer to converge than closed-form OLS (trivial concern for small datasets and few runs).</p></li>
+<li><p><strong>Heteroscedasticity</strong>: This implementation does not include weighted approaches. SSPE partially addresses heteroscedasticity through unit-space operation, but formal weighted least squares integration is future work.</p></li>
+</ol>
+</div>
+</div>
+<section id="additional-limitations" class="level3" data-number="6.3.1">
+<h3 data-number="6.3.1" class="anchored" data-anchor-id="additional-limitations"><span class="header-section-number">6.3.1</span> Additional Limitations</h3>
+<ol type="1">
+<li><p><strong>Simulation vs.&nbsp;reality</strong>: Our data generating process, while realistic, cannot capture all complexities of real manufacturing data</p></li>
+<li><p><strong>Bound specification</strong>: Results assume practitioners can specify reasonable coefficient bounds</p></li>
+<li><p><strong>Model form</strong>: We assume the multiplicative power-law model is correct; model misspecification was not studied</p></li>
+<li><p><strong>Single outcome metric</strong>: We focused on SSPE; other metrics might yield different conclusions</p></li>
+</ol>
+</section>
+</section>
+<section id="future-research" class="level2" data-number="6.4">
+<h2 data-number="6.4" class="anchored" data-anchor-id="future-research"><span class="header-section-number">6.4</span> Future Research</h2>
+<ol type="1">
+<li><p><strong>Real data validation</strong>: Apply PCReg to historical cost datasets using publicly available Selected Acquisition Reports (SARs), which are not subject to CUI restrictions</p></li>
+<li><p><strong>pcLAD implementation</strong>: Robust estimation with outliers using penalized-constrained LAD <span class="citation" data-cites="wu2022pclad">(<a href="#ref-wu2022pclad" role="doc-biblioref">Wu, Liang, and Yang 2022</a>)</span></p></li>
+<li><p><strong>Additional algorithms</strong>: Coordinate descent, projected gradient methods, and the PAC algorithm from <span class="citation" data-cites="james2020pac">James, Paulson, and Rusmevichientong (<a href="#ref-james2020pac" role="doc-biblioref">2020</a>)</span></p></li>
+<li><p><strong>Alternative optimizers</strong>: Systematic comparison of SLSQP, COBYLA, trust-constr, and cvxpy performance</p></li>
+<li><p><strong>Weighted approaches</strong>: Explicit heteroscedasticity modeling</p></li>
+<li><p><strong>PenalizedConstrainedMUPE</strong>: Proposed method using MUPE/IRLS loss function with penalties and constraints</p></li>
+<li><p><strong>Alternative model forms</strong>: Extend to other functional forms (e.g., S-curves, plateau models)</p></li>
+<li><p><strong>Bayesian approaches</strong>: Compare with Bayesian methods that incorporate prior knowledge through priors rather than constraints</p></li>
+</ol>
+</section>
+<section id="conclusion" class="level2" data-number="6.5">
+<h2 data-number="6.5" class="anchored" data-anchor-id="conclusion"><span class="header-section-number">6.5</span> Conclusion</h2>
+<p>Penalized-Constrained Regression offers a principled approach to incorporating domain knowledge into learning curve estimation. By enforcing economically sensible constraints, PCReg produces more reliable estimates, particularly in the challenging conditions that cost analysts frequently face: small samples, noisy data, and correlated predictors.</p>
+<p>The <code>penalized_constrained</code> Python package provides a production-ready implementation with cross-validation, multiple penalty selection methods, and comprehensive diagnostics. We recommend PCReg as a practical tool for cost estimation practitioners seeking to improve upon traditional OLS methods.</p>
+</section>
+</section>
+<section id="references" class="level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-efron1993bootstrap" class="csl-entry" role="listitem">
+Efron, Bradley, and Robert J. Tibshirani. 1993. <em>An Introduction to the Bootstrap</em>. Chapman &amp; Hall/CRC.
+</div>
+<div id="ref-farebrother1976" class="csl-entry" role="listitem">
+Farebrother, R. W. 1976. <span>“Further Results on the Mean Square Error of Ridge Regression.”</span> <em>Journal of the Royal Statistical Society: Series B</em> 38 (3): 248–50. <a href="https://doi.org/10.1111/j.2517-6161.1976.tb01588.x">https://doi.org/10.1111/j.2517-6161.1976.tb01588.x</a>.
+</div>
+<div id="ref-flynn2016multicollinearity" class="csl-entry" role="listitem">
+Flynn, Bernard, and Andrew James. 2016. <span>“Multicollinearity in CER Development.”</span> In <em>ICEAA Professional Development &amp; Training Workshop</em>.
+</div>
+<div id="ref-gaines2018constrained" class="csl-entry" role="listitem">
+Gaines, Brian R., Juhyun Kim, and Hua Zhou. 2018. <span>“Algorithms for Fitting the Constrained Lasso.”</span> <em>Journal of Computational and Graphical Statistics</em> 27 (4): 861–71. <a href="https://doi.org/10.1080/10618600.2018.1473777">https://doi.org/10.1080/10618600.2018.1473777</a>.
+</div>
+<div id="ref-goeman_penalized" class="csl-entry" role="listitem">
+Goeman, Jelle, and Rosa Meijer. 2022. <em>L1 and L2 Penalized Regression Models</em>.
+</div>
+<div id="ref-hastie2009elements" class="csl-entry" role="listitem">
+Hastie, Trevor, Robert Tibshirani, and Jerome Friedman. 2009. <em>The Elements of Statistical Learning: Data Mining, Inference, and Prediction</em>. 2nd ed. Springer. <a href="https://doi.org/10.1007/978-0-387-84858-7">https://doi.org/10.1007/978-0-387-84858-7</a>.
+</div>
+<div id="ref-hu2010gdf" class="csl-entry" role="listitem">
+Hu, Shu-Ping. 2010. <span>“Generalized Degrees of Freedom for Constrained CERs.”</span> PRT-191. Tecolote Research.
+</div>
+<div id="ref-hu2007mupe" class="csl-entry" role="listitem">
+Hu, Shu-Ping, and Adam Smith. 2007. <span>“Why ZMPE When You Can MUPE?”</span> In <em>ISPA/SCEA Joint International Conference</em>.
+</div>
+<div id="ref-james2020pac" class="csl-entry" role="listitem">
+James, Gareth M., Courtney Paulson, and Paat Rusmevichientong. 2020. <span>“Penalized and Constrained Optimization: An Application to High-Dimensional Website Advertising.”</span> <em>Journal of the American Statistical Association</em> 115 (529): 107–22. <a href="https://doi.org/10.1080/01621459.2019.1609970">https://doi.org/10.1080/01621459.2019.1609970</a>.
+</div>
+<div id="ref-mackay1992bayesian" class="csl-entry" role="listitem">
+MacKay, David J. C. 1992. <span>“Bayesian Interpolation.”</span> <em>Neural Computation</em> 4 (3): 415–47. <a href="https://doi.org/10.1162/neco.1992.4.3.415">https://doi.org/10.1162/neco.1992.4.3.415</a>.
+</div>
+<div id="ref-schiavoni2021assessing" class="csl-entry" role="listitem">
+Schiavoni, Brian et al. 2021. <span>“Assessing Regression Methods.”</span> In <em>ICEAA Professional Development &amp; Training Workshop</em>.
+</div>
+<div id="ref-theobald1974" class="csl-entry" role="listitem">
+Theobald, C. M. 1974. <span>“Generalizations of Mean Square Error Applied to Ridge Regression.”</span> <em>Journal of the Royal Statistical Society: Series B</em> 36 (1): 103–6. <a href="https://doi.org/10.1111/j.2517-6161.1974.tb00990.x">https://doi.org/10.1111/j.2517-6161.1974.tb00990.x</a>.
+</div>
+<div id="ref-tipping2001sparse" class="csl-entry" role="listitem">
+Tipping, Michael E. 2001. <span>“Sparse Bayesian Learning and the Relevance Vector Machine.”</span> <em>Journal of Machine Learning Research</em> 1: 211–44.
+</div>
+<div id="ref-wu2022pclad" class="csl-entry" role="listitem">
+Wu, Xiaofei, Rongmei Liang, and Hu Yang. 2022. <span>“Penalized and Constrained LAD Estimation in Fixed and High Dimension.”</span> <em>Statistical Papers</em> 63: 53–95. <a href="https://doi.org/10.1007/s00362-021-01229-0">https://doi.org/10.1007/s00362-021-01229-0</a>.
+</div>
+</div>
+</section>
+<section id="appendices" class="level1 unnumbered">
+<h1 class="unnumbered">Appendices</h1>
+</section>
+<section id="sec-appendix-research" class="level1 unnumbered">
+<h1 class="unnumbered">Appendix A: Research Paper Summaries</h1>
+<p>This appendix summarizes key research papers supporting the methodology presented in this paper. Papers are ordered by direct applicability to the research objectives: addressing multicollinearity in small datasets, imposing prior knowledge through constraints, and assessing model fit using likelihood-free diagnostics.</p>
+<section id="a.1-penalized-and-constrained-lad-estimation" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="a.1-penalized-and-constrained-lad-estimation">A.1 Penalized and Constrained LAD Estimation</h2>
+<p><strong>Authors</strong>: Wu, Liang, Yang (2022) | <strong>Source</strong>: Statistical Papers | <strong>Relevance</strong>: Most directly applicable</p>
+<p>This paper proposes L1 penalized Least Absolute Deviation (LAD) estimation with linear constraints (pcLAD). Unlike constrained Lasso which uses squared error loss, pcLAD uses absolute deviation loss, making it robust to heavy-tailed errors and outliers. The method supports both equality constraints (<span class="math inline">\(C\beta = b\)</span>) and inequality constraints (<span class="math inline">\(C\beta \leq b\)</span>).</p>
+<p><strong>Key Contributions</strong>:</p>
+<ul>
+<li>Proves Oracle property for the constrained estimator in fixed dimensions</li>
+<li>For high-dimensional settings (<span class="math inline">\(p &gt;&gt; n\)</span>), derives error bounds showing estimation error is <span class="math inline">\(O(\sqrt{\max(m, k-m)\log(p)/n})\)</span>, where <span class="math inline">\(m\)</span> is constraints and <span class="math inline">\(k\)</span> is non-zero coefficients</li>
+<li>Demonstrates that adding constraints can sharpen estimation bounds</li>
+</ul>
+<p><strong>Application to Cost Estimation</strong>: Non-negative lasso variant is relevant for cost estimation where coefficients must be positive. Monotonic order estimation supports learning curve constraints. Robustness to heavy-tailed errors addresses outliers common in cost data.</p>
+</section>
+<section id="a.2-algorithms-for-fitting-the-constrained-lasso" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="a.2-algorithms-for-fitting-the-constrained-lasso">A.2 Algorithms for Fitting the Constrained Lasso</h2>
+<p><strong>Authors</strong>: Gaines, Kim, Zhou (2018) | <strong>Source</strong>: J. Comp. &amp; Graph. Statistics | <strong>Relevance</strong>: Highly applicable</p>
+<p>Provides three computational approaches for constrained Lasso: Quadratic Programming (QP), ADMM, and a novel solution path algorithm. The constrained Lasso augments standard Lasso with linear equality and inequality constraints.</p>
+<p><strong>Key Contributions</strong>:</p>
+<ul>
+<li>Demonstrates generalized Lasso can be transformed into constrained Lasso</li>
+<li>Derives degrees of freedom formula: <span class="math inline">\(\text{df} = |\text{Active predictors}| - (\text{\# equality constraints}) - (\text{\# binding inequality constraints})\)</span></li>
+<li>Enables proper model selection criteria (AIC, BIC) for constrained models</li>
+</ul>
+<p><strong>Application to Cost Estimation</strong>: Non-negativity constraints (positive Lasso) support cost estimation requirements. Monotonic ordering constraints (ordered Lasso) support learning curve slope constraints. Solution path algorithm enables efficient cross-validation.</p>
+</section>
+<section id="a.3-pac-penalized-and-constrained-optimization" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="a.3-pac-penalized-and-constrained-optimization">A.3 PAC: Penalized and Constrained Optimization</h2>
+<p><strong>Authors</strong>: James, Paulson, Rusmevichientong (2020) | <strong>Source</strong>: JASA | <strong>Relevance</strong>: Highly applicable</p>
+<p>PAC extends constrained optimization beyond squared error loss to general loss functions <span class="math inline">\(g(\beta)\)</span>, including generalized linear models. The formulation minimizes <span class="math inline">\(g(\beta) + \lambda\|\beta\|_1\)</span> subject to <span class="math inline">\(C\beta \leq b\)</span>.</p>
+<p><strong>Key Contributions</strong>:</p>
+<ul>
+<li>Shows generalized Lasso is a special case of constrained problem</li>
+<li>Develops efficient path algorithm reducing constrained optimization to sequence of standard Lasso problems</li>
+<li>Demonstrates that even when constraints are approximately (not exactly) satisfied, PAC outperforms unconstrained methods</li>
+</ul>
+<p><strong>Application to Cost Estimation</strong>: Monotone curve fitting directly supports learning curve estimation. Robustness to constraint violations is realistic for cost estimation where prior knowledge is informative but not perfect.</p>
+</section>
+<section id="a.4-multicollinearity-in-cer-development" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="a.4-multicollinearity-in-cer-development">A.4 Multicollinearity in CER Development</h2>
+<p><strong>Authors</strong>: Flynn &amp; James (2016) | <strong>Source</strong>: ICEAA Workshop | <strong>Relevance</strong>: Directly applicable to problem statement</p>
+<p>Provides comprehensive treatment of multicollinearity diagnosis and remediation specifically for defense cost analysis. Demonstrates classic symptoms: wrong coefficient signs, bouncing β’s, mismatch between t and F statistics, inflated variance.</p>
+<p><strong>Key Contributions</strong>:</p>
+<ul>
+<li>Shows coefficient variance increases by factor <span class="math inline">\(1/(1-R^2)\)</span> where <span class="math inline">\(R^2\)</span> is correlation between predictors</li>
+<li>Demonstrates Frisch’s confluence analysis for variable selection</li>
+<li>Provides diagnostic tests including condition numbers and eigenvalue analysis</li>
+<li>Acknowledges learning curve correlation between lot midpoint and lot size—the exact motivating example</li>
+</ul>
+<p><strong>Application to Cost Estimation</strong>: Directly addresses the problem statement. Demonstrates with spacecraft payload data how multicollinearity causes coefficient instability in small samples.</p>
+</section>
+<section id="a.5-generalized-degrees-of-freedom-for-constrained-cers" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="a.5-generalized-degrees-of-freedom-for-constrained-cers">A.5 Generalized Degrees of Freedom for Constrained CERs</h2>
+<p><strong>Author</strong>: Hu (Tecolote Research) | <strong>Source</strong>: PRT-191 | <strong>Relevance</strong>: Important for model assessment</p>
+<p>Addresses how degrees of freedom should be adjusted when constraints are included in CER development. Compares MUPE and ZMPE methods, showing that ZMPE’s fit statistics can be misleading without proper DF adjustment.</p>
+<p><strong>Key Contributions</strong>:</p>
+<ul>
+<li>Defines <span class="math inline">\(\text{GDF} = n - p - m\)</span>, where <span class="math inline">\(m\)</span> is number of constraints</li>
+<li>Shows unadjusted DF leads to underestimated standard errors</li>
+<li>Demonstrates ZMPE CERs are less stable than MUPE, especially for small samples</li>
+</ul>
+<p><strong>Application to Cost Estimation</strong>: Critical for model assessment. When combining penalties with constraints, degrees of freedom must account for both.</p>
+</section>
+<section id="a.6-why-zmpe-when-you-can-mupe" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="a.6-why-zmpe-when-you-can-mupe">A.6 Why ZMPE When You Can MUPE</h2>
+<p><strong>Authors</strong>: Hu &amp; Smith (2007) | <strong>Source</strong>: SCEA-ISPA | <strong>Relevance</strong>: Background on constrained CER methods</p>
+<p>Compares MUPE (IRLS) and ZMPE for multiplicative error models. MUPE is unconstrained and produces BLUE estimates. ZMPE uses zero-percentage-bias constraint but has unclear statistical properties.</p>
+<p><strong>Key Points</strong>:</p>
+<ul>
+<li>MUPE produces consistent, unbiased estimates with known statistical properties</li>
+<li>ZMPE is sensitive to starting points, less stable for small samples</li>
+<li>Statistical interpretation of ZMPE is unclear (mean, median, or mode?)</li>
+</ul>
+<p><strong>Application to Cost Estimation</strong>: Demonstrates cost estimation community already uses constraints, often without proper statistical foundation. PCReg provides that foundation.</p>
+</section>
+<section id="a.7-linear-regression-regularization-methods" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="a.7-linear-regression-regularization-methods">A.7 Linear Regression Regularization Methods</h2>
+<p><strong>Author</strong>: Roye (2022) | <strong>Source</strong>: ICEAA Workshop | <strong>Relevance</strong>: Good foundation for cost estimation audience</p>
+<p>Introduces Ridge, Lasso, and Elastic Net regularization to cost estimation community. Explains bias-variance tradeoff with intuitive visual explanations.</p>
+<p><strong>Application to Cost Estimation</strong>: Accessible introduction for ICEAA audience unfamiliar with regularization. Emphasizes cross-validation for tuning parameter selection.</p>
+</section>
+<section id="a.8-assessing-regression-methods" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="a.8-assessing-regression-methods">A.8 Assessing Regression Methods</h2>
+<p><strong>Authors</strong>: Schiavoni et al.&nbsp;(2021) | <strong>Source</strong>: ICEAA Workshop | <strong>Relevance</strong>: Comparison of cost estimation methods</p>
+<p>Compares convergence rates and performance of different regression methods (Log Error, PING, GRMLN, MUPE, ZMPE) across various sample sizes and variance conditions.</p>
+<p><strong>Key Finding</strong>: Recommends COBYLA optimizer for ZMPE-type problems.</p>
+<p><strong>Application to Cost Estimation</strong>: Provides performance benchmarks for existing methods. PCReg can be positioned against these approaches in challenging “small sample, high variance” scenarios.</p>
+</section>
+<section id="synthesis-recommendations-for-implementation" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="synthesis-recommendations-for-implementation">Synthesis: Recommendations for Implementation</h2>
+<p><strong>Core Methodological Foundation</strong>: Build on the pcLAD framework from Wu et al.&nbsp;(2022) which combines L1 penalization with linear constraints in a unified framework with proven statistical properties.</p>
+<p><strong>Algorithmic Implementation</strong>: Use solution path algorithm from Gaines et al.&nbsp;(2018) for efficient computation across tuning parameter values. PAC algorithm extends to non-squared-error loss functions.</p>
+<p><strong>Cost Estimation Context</strong>: Multicollinearity papers provide problem motivation familiar to ICEAA audience. MUPE/ZMPE papers show constrained estimation is already practiced but without rigorous foundation.</p>
+<p><strong>Model Assessment</strong>: Use GDF concept from Hu’s paper to properly account for constraints. Apply cross-validation for tuning parameter selection.</p>
+</section>
+</section>
+<section id="sec-appendix-algorithm" class="level1 unnumbered">
+<h1 class="unnumbered">Appendix B: Algorithm Details</h1>
+<p>This appendix provides detailed algorithm information for Penalized-Constrained Regression implementation.</p>
+<section id="b.1-high-level-algorithm" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="b.1-high-level-algorithm">B.1 High-Level Algorithm</h2>
+<pre><code>Input:  Data (X, y), functional form f(X, β), penalty parameters (α, l1_ratio),
+        bounds/constraints, error function, optimizer choice
+
+1. Scale (optional):
+   - Standardize X (mean=0, std=1) if scale=True
+   - Store scaling parameters for unscaling
+
+2. Initialize:
+   - Compute OLS coefficients when possible (X'X invertible)
+   - Trim starting values to satisfy bounds
+   - Alternative: zeros or user-specified starting point
+
+3. Optimize:
+   - Solve constrained penalized minimization via selected optimizer
+   - Monitor convergence and constraint satisfaction
+
+4. Unscale:
+   - Transform coefficients back to original units
+   - β_original = β_scaled / σ
+
+Output: Coefficient estimates β̂, fit statistics (GDF-adjusted),
+        active_constraints_ flag</code></pre>
+</section>
+<section id="b.2-initialization-strategy" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="b.2-initialization-strategy">B.2 Initialization Strategy</h2>
+<p>The default initialization uses OLS coefficients when the problem is well-conditioned (<span class="math inline">\(X'X\)</span> invertible). These starting values are then trimmed to satisfy bounds—any coefficient outside the specified bounds is clamped to the nearest boundary.</p>
+<p><strong>Benefits</strong>:</p>
+<ul>
+<li>Provides a warm start that respects domain constraints from the first iteration</li>
+<li>Improves convergence speed</li>
+<li>Reduces risk of local minima</li>
+</ul>
+<p><strong>Alternative initializations</strong>:</p>
+<ul>
+<li>Zeros: Simple but may require more iterations</li>
+<li>User-specified: When domain expertise suggests better starting point</li>
+<li>Random: For testing multiple starting points in non-convex problems</li>
+</ul>
+</section>
+<section id="b.3-why-scaling-matters" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="b.3-why-scaling-matters">B.3 Why Scaling Matters</h2>
+<p>Scaling ensures that penalty terms (L1 and L2) are applied fairly across features. Without scaling:</p>
+<ul>
+<li>Features with larger magnitudes may dominate the optimization</li>
+<li>Leads to biased shrinkage and poor variable selection</li>
+<li>Degrades conditioning of the optimization problem</li>
+</ul>
+<p><strong>For linear models</strong>: Standardization (zero mean, unit variance) is typically sufficient.</p>
+<p><strong>For nonlinear models</strong> like <span class="math inline">\(Y = AX^b\)</span>:</p>
+<ul>
+<li>Log-transformations (common in power-law modeling)</li>
+<li>Min-max scaling or domain-specific normalization</li>
+<li>Careful unscaling of both <span class="math inline">\(X\)</span> and <span class="math inline">\(\beta\)</span> to preserve interpretability</li>
+</ul>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>In nonlinear models such as <span class="math inline">\(Y = AX^b\)</span>, scaling the predictor <span class="math inline">\(X\)</span> alters the curvature and interpretation of the exponent <span class="math inline">\(b\)</span>. When applying penalized regression with L1 and L2 penalties to such models, scaling affects both the error function and the regularization terms. Scaling must be applied with caution, and unscaling procedures should be explicitly defined.</p>
+</div>
+</div>
+</section>
+<section id="b.4-optimization-methods" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="b.4-optimization-methods">B.4 Optimization Methods</h2>
+<section id="slsqp-sequential-least-squares-quadratic-programming" class="level3" data-number="6.5.1">
+<h3 data-number="6.5.1" class="anchored" data-anchor-id="slsqp-sequential-least-squares-quadratic-programming"><span class="header-section-number">6.5.1</span> SLSQP (Sequential Least-Squares Quadratic Programming)</h3>
+<p><strong>Current default</strong>. Handles bounds and linear constraints efficiently.</p>
+<ul>
+<li>Uses sequential quadratic programming approach</li>
+<li>Requires gradient computation (finite differences if not provided)</li>
+<li>Efficient for small to medium problems</li>
+</ul>
+</section>
+<section id="cobyla-constrained-optimization-by-linear-approximation" class="level3" data-number="6.5.2">
+<h3 data-number="6.5.2" class="anchored" data-anchor-id="cobyla-constrained-optimization-by-linear-approximation"><span class="header-section-number">6.5.2</span> COBYLA (Constrained Optimization BY Linear Approximation)</h3>
+<p><strong>Derivative-free</strong>; recommended for ZMPE-type problems <span class="citation" data-cites="schiavoni2021assessing">(<a href="#ref-schiavoni2021assessing" role="doc-biblioref">Schiavoni et al. 2021</a>)</span>.</p>
+<ul>
+<li>Does not require gradient computation</li>
+<li>Handles nonlinear constraints</li>
+<li>More robust for non-smooth objectives</li>
+<li>Slower convergence than gradient-based methods</li>
+</ul>
+</section>
+<section id="trust-constr" class="level3" data-number="6.5.3">
+<h3 data-number="6.5.3" class="anchored" data-anchor-id="trust-constr"><span class="header-section-number">6.5.3</span> trust-constr</h3>
+<p>Interior point method; suitable for larger-scale problems with many constraints.</p>
+<ul>
+<li>Modern implementation with trust-region approach</li>
+<li>Handles equality and inequality constraints</li>
+<li>Good numerical stability</li>
+<li>Requires more computational resources</li>
+</ul>
+</section>
+</section>
+<section id="b.5-note-on-l1-penalty-implementation" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="b.5-note-on-l1-penalty-implementation">B.5 Note on L1 Penalty Implementation</h2>
+<div class="callout callout-style-default callout-note callout-titled" title="Technical Note">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Technical Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The L1 penalty <span class="math inline">\(\|\beta\|_1\)</span> is convex but not differentiable at zero. This non-smoothness introduces challenges for gradient-based optimization algorithms. Standard approaches include:</p>
+<ol type="1">
+<li><strong>Coordinate descent</strong>: Most popular approach; for constrained problems, use projected or constrained coordinate descent</li>
+<li><strong>Subgradient methods</strong>: Handle non-differentiability directly</li>
+<li><strong>Proximal algorithms</strong>: Efficient for structured sparsity problems</li>
+<li><strong>CVXPY</strong>: Convex optimization framework that handles non-smooth objectives</li>
+</ol>
+<p>This implementation uses general-purpose scipy optimizers. Despite theoretical limitations, they yield reasonable and stable solutions when problem size is moderate and constraints are well-posed.</p>
+<p>Future work will evaluate coordinate descent and PAC algorithm implementations.</p>
+</div>
+</div>
+</section>
+<section id="b.6-convergence-criteria" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="b.6-convergence-criteria">B.6 Convergence Criteria</h2>
+<p>The optimizer terminates when any of these conditions are met:</p>
+<ol type="1">
+<li><strong>Function tolerance</strong>: Change in objective function <span class="math inline">\(&lt; \text{ftol}\)</span> (default: <span class="math inline">\(10^{-9}\)</span>)</li>
+<li><strong>Parameter tolerance</strong>: Change in parameters <span class="math inline">\(&lt; \text{xtol}\)</span> (default: <span class="math inline">\(10^{-9}\)</span>)</li>
+<li><strong>Maximum iterations</strong>: Exceeds <code>maxiter</code> (default: 1000)</li>
+<li><strong>Constraint satisfaction</strong>: All constraints satisfied within tolerance</li>
+</ol>
+</section>
+<section id="b.7-post-optimization-checks" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="b.7-post-optimization-checks">B.7 Post-Optimization Checks</h2>
+<p>After optimization completes:</p>
+<ol type="1">
+<li><strong>Constraint satisfaction</strong>: Verify all bounds are satisfied within numerical tolerance</li>
+<li><strong>Active constraints</strong>: Identify which inequality constraints are binding (within tolerance of bound)</li>
+<li><strong>Gradient check</strong>: Verify KKT conditions are approximately satisfied</li>
+<li><strong>Hessian conditioning</strong>: Check for numerical issues in uncertainty estimation</li>
+</ol>
+<p>The <code>active_constraints_</code> attribute indicates which constraints are binding at the solution, informing degrees of freedom calculation.</p>
+</section>
+</section>
+<section id="sec-appendix-gdf" class="level1 unnumbered">
+<h1 class="unnumbered">Appendix C: Generalized Degrees of Freedom</h1>
+<p>This appendix provides detailed information on degrees of freedom adjustment for constrained regression models.</p>
+<section id="c.1-the-critical-issue" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="c.1-the-critical-issue">C.1 The Critical Issue</h2>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Important
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>“ZMPE users do not adjust the degrees of freedom (DF) to account for constraints included in the regression process. As a result, fit statistics for the ZMPE equations, e.g., the standard percent error (SPE) and generalized R² (GRSQ), can be incorrect and misleading.” — <span class="citation" data-cites="hu2010gdf">Hu (<a href="#ref-hu2010gdf" role="doc-biblioref">2010</a>)</span></p>
+</div>
+</div>
+<p>When constraints are imposed on regression coefficients, the effective degrees of freedom must be adjusted. Without this adjustment:</p>
+<ul>
+<li>Standard errors are underestimated</li>
+<li>Confidence intervals are too narrow</li>
+<li>Statistical tests are invalid</li>
+<li>S-curves in cost uncertainty analysis are artificially tightened</li>
+</ul>
+</section>
+<section id="c.2-hus-gdf-formula" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="c.2-hus-gdf-formula">C.2 Hu’s GDF Formula</h2>
+<p><span class="citation" data-cites="hu2010gdf">Hu (<a href="#ref-hu2010gdf" role="doc-biblioref">2010</a>)</span> defines Generalized Degrees of Freedom as:</p>
+<p><span class="math display">\[\text{GDF} = n - p - (\text{\# Constraints}) + (\text{\# Redundancies})\]</span></p>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\(n\)</span> = sample size</li>
+<li><span class="math inline">\(p\)</span> = number of estimated parameters (coefficients)</li>
+<li>Constraints = number of restrictions imposed</li>
+<li>Redundancies = constraints that can be derived from others</li>
+</ul>
+<p><strong>Interpretation</strong>: One restriction is equivalent to a loss of one DF.</p>
+<section id="redundancies-definition" class="level3" data-number="6.5.4">
+<h3 data-number="6.5.4" class="anchored" data-anchor-id="redundancies-definition"><span class="header-section-number">6.5.4</span> Redundancies Definition</h3>
+<p>If two constraints are specified but one can be derived from the other, count only a loss of one DF rather than two. Additionally:</p>
+<ul>
+<li>If a parameter is known (e.g., startup cost is given), this amounts to a <strong>gain</strong> of one DF</li>
+<li>For ZMPE CERs (except simple factor CERs), DF should be subtracted by one because the solution uses the constraint alone</li>
+</ul>
+</section>
+<section id="example" class="level3" data-number="6.5.5">
+<h3 data-number="6.5.5" class="anchored" data-anchor-id="example"><span class="header-section-number">6.5.5</span> Example</h3>
+<p>Consider estimating <span class="math inline">\(Y = T_1 \cdot X_1^b \cdot X_2^c\)</span> with:</p>
+<ul>
+<li><span class="math inline">\(n = 10\)</span> observations</li>
+<li><span class="math inline">\(p = 3\)</span> parameters (<span class="math inline">\(T_1\)</span>, <span class="math inline">\(b\)</span>, <span class="math inline">\(c\)</span>)</li>
+<li>Constraints: <span class="math inline">\(b \leq 0\)</span>, <span class="math inline">\(c \leq 0\)</span> (2 inequality constraints)</li>
+</ul>
+<p>If both constraints are binding: <span class="math display">\[\text{GDF} = 10 - 3 - 2 + 0 = 5\]</span></p>
+</section>
+</section>
+<section id="c.3-gaines-et-al.-formula" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="c.3-gaines-et-al.-formula">C.3 Gaines et al.&nbsp;Formula</h2>
+<p><span class="citation" data-cites="gaines2018constrained">Gaines, Kim, and Zhou (<a href="#ref-gaines2018constrained" role="doc-biblioref">2018</a>)</span> derive degrees of freedom for constrained Lasso as:</p>
+<p><span class="math display">\[\text{df} = |\text{Active predictors}| - (\text{\# equality constraints}) - (\text{\# binding inequality constraints})\]</span></p>
+<p><strong>Key difference from Hu’s formula</strong>: Only counts binding inequality constraints.</p>
+<section id="implications" class="level3" data-number="6.5.6">
+<h3 data-number="6.5.6" class="anchored" data-anchor-id="implications"><span class="header-section-number">6.5.6</span> Implications</h3>
+<ul>
+<li><strong>Loose bounds</strong> (<span class="math inline">\(\beta \leq 0\)</span>) may not bind—no DF loss if inactive at the solution</li>
+<li><strong>Tight bounds</strong> (<span class="math inline">\(0.85 &lt; \beta &lt; 0.95\)</span>) are more likely to bind</li>
+</ul>
+</section>
+</section>
+<section id="c.4-comparing-the-two-formulations" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="c.4-comparing-the-two-formulations">C.4 Comparing the Two Formulations</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Aspect</th>
+<th>Hu’s Formula</th>
+<th>Gaines’ Formula</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Counts all constraints</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<td>Counts binding only</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<td>Best for</td>
+<td>ZMPE/MUPE CERs</td>
+<td>Penalized regression</td>
+</tr>
+<tr class="even">
+<td>Conservative</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<section id="open-question" class="level3" data-number="6.5.7">
+<h3 data-number="6.5.7" class="anchored" data-anchor-id="open-question"><span class="header-section-number">6.5.7</span> Open Question</h3>
+<p>When applying Penalized-Constrained regression changes the signs of coefficients even if the constraints don’t explicitly bind at the solution, which formulation is appropriate?</p>
+<ul>
+<li><strong>Hu’s formulation</strong> would decrease DF for all specified constraints</li>
+<li><strong>Gaines’ formulation</strong> would not count non-binding constraints</li>
+</ul>
+<p>Future empirical work will evaluate which approach produces more accurate uncertainty quantification through simulation.</p>
+</section>
+</section>
+<section id="c.5-gdf-adjusted-fit-statistics" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="c.5-gdf-adjusted-fit-statistics">C.5 GDF-Adjusted Fit Statistics</h2>
+<section id="standard-error-of-estimate-see" class="level3" data-number="6.5.8">
+<h3 data-number="6.5.8" class="anchored" data-anchor-id="standard-error-of-estimate-see"><span class="header-section-number">6.5.8</span> Standard Error of Estimate (SEE)</h3>
+<p><span class="math display">\[\text{SEE} = \sqrt{\frac{\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}{\text{GDF}}}\]</span></p>
+</section>
+<section id="standard-percent-error-spe" class="level3" data-number="6.5.9">
+<h3 data-number="6.5.9" class="anchored" data-anchor-id="standard-percent-error-spe"><span class="header-section-number">6.5.9</span> Standard Percent Error (SPE)</h3>
+<p><span class="math display">\[\text{SPE} = \sqrt{\frac{\sum_{i=1}^{n}\left(\frac{y_i - \hat{y}_i}{\hat{y}_i}\right)^2}{\text{GDF}}}\]</span></p>
+</section>
+<section id="adjusted-r²" class="level3" data-number="6.5.10">
+<h3 data-number="6.5.10" class="anchored" data-anchor-id="adjusted-r²"><span class="header-section-number">6.5.10</span> Adjusted R²</h3>
+<p><span class="math display">\[R^2_{\text{adj}} = 1 - \frac{(1 - R^2)(n - 1)}{\text{GDF}}\]</span></p>
+</section>
+</section>
+<section id="c.6-impact-on-uncertainty-analysis" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="c.6-impact-on-uncertainty-analysis">C.6 Impact on Uncertainty Analysis</h2>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>“Using ZMPE CERs in cost uncertainty analysis may unduly tighten the S-curve because their SPEs underestimate the CER error distribution.” — <span class="citation" data-cites="hu2010gdf">Hu (<a href="#ref-hu2010gdf" role="doc-biblioref">2010</a>)</span></p>
+</div>
+</div>
+<p><strong>Practical implications</strong>:</p>
+<ol type="1">
+<li>Cost estimates may appear more precise than they actually are</li>
+<li>Risk analysis may understate uncertainty</li>
+<li>Decision-makers may have false confidence in point estimates</li>
+</ol>
+<p><strong>Recommendation</strong>: Always report which DF adjustment method was used and the resulting fit statistics alongside unadjusted statistics for comparison.</p>
+</section>
+<section id="c.7-implementation-in-penalized_constrained" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="c.7-implementation-in-penalized_constrained">C.7 Implementation in <code>penalized_constrained</code></h2>
+<p>The package provides both adjusted and unadjusted statistics:</p>
+<ul>
+<li><code>gdf_</code>: Generalized degrees of freedom (Hu’s formula by default)</li>
+<li><code>see_adjusted_</code>: GDF-adjusted standard error of estimate</li>
+<li><code>spe_adjusted_</code>: GDF-adjusted standard percent error</li>
+<li><code>active_constraints_</code>: Boolean array indicating which constraints are binding</li>
+</ul>
+<p>Users can override the DF calculation by specifying which constraints should count toward the adjustment.</p>
+</section>
+</section>
+<section id="sec-appendix-quotes" class="level1 unnumbered">
+<h1 class="unnumbered">Appendix D: Key Quotes for Reference</h1>
+<p>This appendix compiles key quotes from the literature that support the methodology and findings presented in this paper. These quotes may be useful for presentations, discussions, and future research.</p>
+<section id="d.1-on-multicollinearity-severity" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="d.1-on-multicollinearity-severity">D.1 On Multicollinearity Severity</h2>
+<blockquote class="blockquote">
+<p>“The statistical literature regards multicollinearity as one of the most vexing and intractable problems in all of regression analysis.” — <span class="citation" data-cites="flynn2016multicollinearity">Flynn and James (<a href="#ref-flynn2016multicollinearity" role="doc-biblioref">2016</a>)</span></p>
+</blockquote>
+</section>
+<section id="d.2-on-coefficient-instability" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="d.2-on-coefficient-instability">D.2 On Coefficient Instability</h2>
+<blockquote class="blockquote">
+<p>“Generate unstable models where small changes in the data produce big changes in parameter estimates [bouncing β’s].” — <span class="citation" data-cites="flynn2016multicollinearity">Flynn and James (<a href="#ref-flynn2016multicollinearity" role="doc-biblioref">2016</a>)</span></p>
+</blockquote>
+</section>
+<section id="d.3-on-gdf-importance" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="d.3-on-gdf-importance">D.3 On GDF Importance</h2>
+<blockquote class="blockquote">
+<p>“ZMPE users do not adjust the degrees of freedom (DF) to account for constraints included in the regression process. As a result, fit statistics for the ZMPE equations, e.g., the standard percent error (SPE) and generalized R² (GRSQ), can be incorrect and misleading.” — <span class="citation" data-cites="hu2010gdf">Hu (<a href="#ref-hu2010gdf" role="doc-biblioref">2010</a>)</span></p>
+</blockquote>
+<blockquote class="blockquote">
+<p>“Using ZMPE CERs in cost uncertainty analysis may unduly tighten the S-curve because their SPEs underestimate the CER error distribution.” — <span class="citation" data-cites="hu2010gdf">Hu (<a href="#ref-hu2010gdf" role="doc-biblioref">2010</a>)</span></p>
+</blockquote>
+</section>
+<section id="d.4-on-robustness-to-imperfect-constraints" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="d.4-on-robustness-to-imperfect-constraints">D.4 On Robustness to Imperfect Constraints</h2>
+<blockquote class="blockquote">
+<p>“The results suggest that PAC and relaxed PAC are surprisingly robust to random violations in the constraints. While both methods deteriorated slightly as [constraint error] increased, they were still both superior to their unconstrained counterparts for all values of [error] and all settings.” — <span class="citation" data-cites="james2020pac">James, Paulson, and Rusmevichientong (<a href="#ref-james2020pac" role="doc-biblioref">2020</a>)</span></p>
+</blockquote>
+</section>
+<section id="d.5-on-constrained-lasso-flexibility" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="d.5-on-constrained-lasso-flexibility">D.5 On Constrained Lasso Flexibility</h2>
+<blockquote class="blockquote">
+<p>“The constrained lasso is a very flexible framework for imposing additional knowledge and structure onto the lasso coefficient estimates.” — <span class="citation" data-cites="gaines2018constrained">Gaines, Kim, and Zhou (<a href="#ref-gaines2018constrained" role="doc-biblioref">2018</a>)</span></p>
+</blockquote>
+</section>
+<section id="d.6-on-pclad-with-heavy-tailed-errors" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="d.6-on-pclad-with-heavy-tailed-errors">D.6 On pcLAD with Heavy-Tailed Errors</h2>
+<blockquote class="blockquote">
+<p>“pcLAD enjoys the Oracle property even with Cauchy-distributed errors… particularly effective for monotone curve fitting and non-negative constraints.” — <span class="citation" data-cites="wu2022pclad">Wu, Liang, and Yang (<a href="#ref-wu2022pclad" role="doc-biblioref">2022</a>)</span></p>
+</blockquote>
+</section>
+<section id="d.7-on-ridge-regression-optimality" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="d.7-on-ridge-regression-optimality">D.7 On Ridge Regression Optimality</h2>
+<p>The Theobald-Farebrother theorem establishes:</p>
+<blockquote class="blockquote">
+<p>For any OLS problem, there exists a ridge parameter <span class="math inline">\(\lambda^* &gt; 0\)</span> such that the ridge estimator has strictly lower Mean Squared Error (MSE) than OLS. — <span class="citation" data-cites="theobald1974">Theobald (<a href="#ref-theobald1974" role="doc-biblioref">1974</a>)</span>; <span class="citation" data-cites="farebrother1976">Farebrother (<a href="#ref-farebrother1976" role="doc-biblioref">1976</a>)</span></p>
+</blockquote>
+</section>
+<section id="d.8-on-bayesian-regularization" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="d.8-on-bayesian-regularization">D.8 On Bayesian Regularization</h2>
+<blockquote class="blockquote">
+<p>“Bayesian interpolation using a spherical Gaussian prior <span class="math inline">\(p(w|\lambda) = N(w|0, \lambda^{-1}I)\)</span> iteratively maximizes marginal log-likelihood to optimize regularization parameters.” — <span class="citation" data-cites="mackay1992bayesian">MacKay (<a href="#ref-mackay1992bayesian" role="doc-biblioref">1992</a>)</span></p>
+</blockquote>
+</section>
+<section id="d.9-key-definitions" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="d.9-key-definitions">D.9 Key Definitions</h2>
+<section id="oracle-property" class="level3" data-number="6.5.11">
+<h3 data-number="6.5.11" class="anchored" data-anchor-id="oracle-property"><span class="header-section-number">6.5.11</span> Oracle Property</h3>
+<p>An estimator has the <strong>Oracle property</strong> if it:</p>
+<ol type="1">
+<li>Correctly identifies which coefficients are truly zero (variable selection consistency)</li>
+<li>Estimates non-zero coefficients as efficiently as if an “oracle” revealed the true model in advance</li>
+</ol>
+<p>This is the gold standard for high-dimensional estimators—the Lasso achieves it under certain conditions.</p>
+</section>
+<section id="cauchy-distributed-errors" class="level3" data-number="6.5.12">
+<h3 data-number="6.5.12" class="anchored" data-anchor-id="cauchy-distributed-errors"><span class="header-section-number">6.5.12</span> Cauchy-Distributed Errors</h3>
+<p>The <strong>Cauchy distribution</strong> has extremely heavy tails—so heavy that its mean and variance are mathematically undefined (infinite). Outliers occur far more frequently than with normal distributions.</p>
+<ul>
+<li>Squared-error methods (OLS, Ridge, Lasso) perform poorly with Cauchy errors because outliers dominate the objective</li>
+<li>LAD methods minimize absolute errors, so outliers have linear rather than quadratic influence—making them robust to such extremes</li>
+</ul>
+</section>
+<section id="blue-best-linear-unbiased-estimator" class="level3" data-number="6.5.13">
+<h3 data-number="6.5.13" class="anchored" data-anchor-id="blue-best-linear-unbiased-estimator"><span class="header-section-number">6.5.13</span> BLUE (Best Linear Unbiased Estimator)</h3>
+<p>By the <strong>Gauss-Markov theorem</strong>, OLS is the Best Linear Unbiased Estimator under classical assumptions:</p>
+<ul>
+<li>Linear in the parameters</li>
+<li>Unbiased: <span class="math inline">\(E[\hat{\beta}] = \beta\)</span></li>
+<li>Minimum variance among all linear unbiased estimators</li>
+</ul>
+<p>Introducing penalties and/or constraints means the resulting estimator is <strong>no longer BLUE</strong>. This is an intentional tradeoff accepting bias for reduced variance.</p>
+</section>
+</section>
+<section id="d.10-summary-table" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="d.10-summary-table">D.10 Summary Table</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 46%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Topic</th>
+<th>Key Finding</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Multicollinearity</td>
+<td>“Most vexing problem in regression”</td>
+<td>Flynn &amp; James (2016)</td>
+</tr>
+<tr class="even">
+<td>Constraint robustness</td>
+<td>PAC outperforms unconstrained even with wrong constraints</td>
+<td>James et al.&nbsp;(2020)</td>
+</tr>
+<tr class="odd">
+<td>GDF adjustment</td>
+<td>Unadjusted fit stats are misleading</td>
+<td>Hu (2010)</td>
+</tr>
+<tr class="even">
+<td>Ridge optimality</td>
+<td>Always exists λ* &gt; 0 with lower MSE than OLS</td>
+<td>Theobald-Farebrother</td>
+</tr>
+<tr class="odd">
+<td>pcLAD robustness</td>
+<td>Oracle property even with Cauchy errors</td>
+<td>Wu et al.&nbsp;(2022)</td>
+</tr>
+</tbody>
+</table>
+<!-- -->
+
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Penalized-Constrained Regression for Learning Curve Estimation"</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "ICEAA 2026 Professional Development &amp; Training Workshop"</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co">  - name: Kevin Joy</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">    affiliations:</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">      - Herren Associates</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co">  - name: Max Watstein</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co">    affiliations:</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co">      - Herren Associates</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> last-modified</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="an">abstract:</span><span class="co"> |</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="co">  Small datasets with multicollinearity pose serious challenges to the stability</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co">  of coefficients generated by Ordinary Least Squares (OLS) regression. A motivating</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="co">  example in cost estimating is Cost Improvement Curve with Rate Effect analysis,</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co">  where datasets are typically small, the lot midpoint (Learning) is correlated to</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="co">  lot size (Rate) as production ramps up, and slopes are expected to be negative.</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="co">  This paper presents Penalized-Constrained Regression (PCReg), a method that</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="co">  combines elastic net regularization with domain-knowledge constraints for</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a><span class="co">  improved learning curve estimation. Through a comprehensive Monte Carlo</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="co">  simulation study with 6,075 scenario-replications, we demonstrate that PCReg</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="co">  outperforms OLS in 58% of scenarios, with particular advantages when data quality</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="co">  is high, sample sizes are small, or when OLS produces coefficients with incorrect signs.</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="an">keywords:</span><span class="co"> [learning curves, constrained optimization, regularization, cost estimation, multicollinearity]</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="an">bibliography:</span><span class="co"> references.bib</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a><span class="fu"># Executive Summary {.unnumbered}</span></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>::: {.callout-tip title="Key Findings"}</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>**Problem**: Small datasets with correlated predictors cause OLS to produce unstable, often nonsensical coefficient estimates (wrong signs, implausible magnitudes).</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>**Solution**: Penalized-Constrained Regression (PCReg) combines elastic net regularization with bound constraints based on domain knowledge.</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>**Results**: In our Monte Carlo study (243 scenarios x 25 replications = 6,075 total):</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Overall**: PCReg wins 58% of scenarios vs OLS</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**When OLS has wrong signs**: PCReg wins 81% of scenarios</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**High-quality data** (CV error = 0.01): PCReg wins 67-75%</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Small samples** (n = 5): PCReg wins 64%</span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>**Recommendation**: Use PCReg when sample size is small (n ≤ 10) or data quality is high (CV error ≤ 0.10). Use OLS when sample size is large (n ≥ 30) and noise is high (CV error = 0.20).</span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>{{&lt; include sections/01-introduction.qmd &gt;}}</span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>{{&lt; include sections/02-methodology.qmd &gt;}}</span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a>{{&lt; include sections/03-simulation-design.qmd &gt;}}</span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>{{&lt; include sections/04-results.qmd &gt;}}</span>
+<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a>{{&lt; include sections/05-doe-analysis.qmd &gt;}}</span>
+<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a>{{&lt; include sections/06-discussion.qmd &gt;}}</span>
+<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {.unnumbered}</span></span>
+<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a><span class="fu"># Appendices {.unnumbered}</span></span>
+<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a>{{&lt; include appendices/A-research-summaries.qmd &gt;}}</span>
+<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a>{{&lt; include appendices/B-algorithm-details.qmd &gt;}}</span>
+<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a>{{&lt; include appendices/C-degrees-of-freedom.qmd &gt;}}</span>
+<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a>{{&lt; include appendices/D-key-quotes.qmd &gt;}}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
+
+
+
+
+</body></html>

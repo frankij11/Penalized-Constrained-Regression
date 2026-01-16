@@ -32,7 +32,7 @@ Kevin Joy, Max Watstein, Herren Associates
 """
 
 from .regression import PenalizedConstrainedRegression, PCRegression
-from .cv import PenalizedConstrainedCV, PCCV
+from .cv import PenalizedConstrainedCV
 from .diagnostics import (
     ModelDiagnostics,
     compute_gdf_hu,
@@ -62,8 +62,6 @@ from .diagnostics import (
     summarize_alpha_trace,
 )
 from .utils import (
-    generate_correlated_learning_data,
-    generate_test_data,
     calculate_lot_midpoint,
     learning_rate_to_slope,
     slope_to_learning_rate,
@@ -114,8 +112,6 @@ __all__ = [
     'summarize_alpha_trace',
 
     # Utilities
-    'generate_correlated_learning_data',
-    'generate_test_data',
     'calculate_lot_midpoint',
     'learning_rate_to_slope',
     'slope_to_learning_rate',

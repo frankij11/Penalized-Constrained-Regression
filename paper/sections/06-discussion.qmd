@@ -1,0 +1,165 @@
+# Discussion and Recommendations {#sec-discussion}
+
+```{python}
+#| label: setup-discussion
+#| include: false
+import sys
+from pathlib import Path
+
+# Find project root by looking for pyproject.toml
+def find_project_root():
+    current = Path.cwd()
+    for parent in [current] + list(current.parents):
+        if (parent / "pyproject.toml").exists():
+            return parent
+    return current.parent.parent  # Fallback
+
+project_root = find_project_root()
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "scripts"))
+
+import pandas as pd
+from scripts.ICEAA.analysis import load_simulation_results
+
+df = load_simulation_results()
+```
+
+## Summary of Findings
+
+Our comprehensive simulation study comparing Penalized-Constrained Regression (PCReg) against traditional methods yields several key insights:
+
+### PCReg Advantages
+
+1. **Guaranteed sign correctness**: PCReg always produces economically sensible coefficients (negative learning slopes) while OLS can produce wrong signs in up to 14% of small-sample scenarios
+
+2. **Superior small-sample performance**: PCReg shows its strongest advantages when sample sizes are small (n ≤ 10 lots), precisely when cost analysts need reliable estimates most
+
+3. **Robustness to multicollinearity**: High predictor correlation degrades OLS performance but has less impact on PCReg
+
+4. **High data quality benefits**: When measurement error is low (CV error = 0.01), PCReg wins 67-75% of scenarios
+
+### When OLS May Be Adequate
+
+1. **Large samples**: With n ≥ 30 lots and high CV error, OLS and PCReg perform similarly
+
+2. **Low correlation**: When predictors are uncorrelated, OLS estimates are more stable
+
+## Practical Recommendations
+
+### Decision Framework
+
+```{python}
+#| label: tbl-recommendations
+#| tbl-cap: "Practical recommendations for method selection"
+
+recommendations = pd.DataFrame({
+    'Condition': [
+        'CV error = 0.01 (high quality data)',
+        'CV error = 0.10, n ≤ 10',
+        'CV error = 0.10, n = 30',
+        'CV error = 0.20, n = 5',
+        'CV error = 0.20, n = 10',
+        'CV error = 0.20, n = 30',
+        'OLS produces wrong sign'
+    ],
+    'PCReg Win Rate': ['67-75%', '57-64%', '~48%', '~58%', '~47%', '~34%', '~81%'],
+    'Recommendation': [
+        'Use PCReg',
+        'Use PCReg',
+        'Either method',
+        'Use PCReg',
+        'Either method',
+        'Consider OLS',
+        'Use PCReg'
+    ]
+})
+recommendations
+```
+
+### Practical Guidance for Cost Estimators
+
+::: {.callout-tip title="Implementation Checklist"}
+1. **Document everything**: Constraints, penalties, active bounds at solution. This is NOT OLS---transparency is essential.
+
+2. **Start with loose constraints** based on domain knowledge (e.g., learning slope ≤ 100%)
+
+3. **Constraints need not be perfect**: Even approximately correct bounds improve estimation [@james2020pac]
+
+4. **Derive constraints from domain benchmarks**: Published learning curve studies, historical program data, and subject matter expert knowledge can inform reasonable bounds. Reference benchmarks specific to your domain (e.g., aerospace learning curves typically range 75-95%).
+
+5. **Use cross-validation** for ($\alpha$, l1\_ratio) selection---do not impose arbitrary penalty values
+
+6. **Report GDF-adjusted statistics** for transparency [@hu2010gdf]
+
+7. **Try multiple starting points**: For nonlinear models, testing multiple starting points can avoid local optima
+
+8. **Don't worry (too much) about global optimum**: Even if not confirmed to be globally optimal, it can still be the best reasonable model
+
+9. **Regularization is recommended** (even if minimal): Per Theobald-Farebrother, some L2 regularization is always optimal, even when correlation is not high [@theobald1974]
+:::
+
+### Implementation Guidance
+
+1. **Start with constraints only** ($\alpha = 0$): Our results show that constraints alone often outperform CV-tuned penalties. The regularization benefit is secondary to the constraint benefit.
+
+2. **Use loose bounds**: Rather than trying to specify tight coefficient bounds, use conservative ranges:
+   - Learning slope ($b$): $-0.5 \leq b \leq 0$
+   - Rate effect ($c$): $-0.5 \leq c \leq 0$
+   - First unit cost ($T_1$): $0 < T_1 < \infty$
+
+3. **Consider observable indicators**:
+   - Estimate CV error from residual variance
+   - Estimate predictor correlation from data
+   - Use sample size directly
+
+4. **Validate with out-of-sample testing**: When possible, hold out recent lots for validation
+
+## Limitations and Cautions
+
+::: {.callout-warning title="Important Cautions"}
+1. **Abuse potential**: Constraints could be used to force desired results. Transparency in documentation is essential---always disclose what constraints were applied and why.
+
+2. **Not BLUE**: Always disclose that the method intentionally introduces bias in exchange for reduced variance. This is a feature, not a bug, but stakeholders should understand the tradeoff.
+
+3. **Local optima**: For nonlinear models, test multiple starting points. The solution may not be globally optimal.
+
+4. **Bootstrap CIs**: May be artificially narrow for penalized models because penalties constrain coefficient variability across resamples [@goeman_penalized]. Compare unconstrained bootstrap to constrained bootstrap when possible.
+
+5. **Speed**: Optimization routines take longer to converge than closed-form OLS (trivial concern for small datasets and few runs).
+
+6. **Heteroscedasticity**: This implementation does not include weighted approaches. SSPE partially addresses heteroscedasticity through unit-space operation, but formal weighted least squares integration is future work.
+:::
+
+### Additional Limitations
+
+1. **Simulation vs. reality**: Our data generating process, while realistic, cannot capture all complexities of real manufacturing data
+
+2. **Bound specification**: Results assume practitioners can specify reasonable coefficient bounds
+
+3. **Model form**: We assume the multiplicative power-law model is correct; model misspecification was not studied
+
+4. **Single outcome metric**: We focused on SSPE; other metrics might yield different conclusions
+
+## Future Research
+
+1. **Real data validation**: Apply PCReg to historical cost datasets using publicly available Selected Acquisition Reports (SARs), which are not subject to CUI restrictions
+
+2. **pcLAD implementation**: Robust estimation with outliers using penalized-constrained LAD [@wu2022pclad]
+
+3. **Additional algorithms**: Coordinate descent, projected gradient methods, and the PAC algorithm from @james2020pac
+
+4. **Alternative optimizers**: Systematic comparison of SLSQP, COBYLA, trust-constr, and cvxpy performance
+
+5. **Weighted approaches**: Explicit heteroscedasticity modeling
+
+6. **PenalizedConstrainedMUPE**: Proposed method using MUPE/IRLS loss function with penalties and constraints
+
+7. **Alternative model forms**: Extend to other functional forms (e.g., S-curves, plateau models)
+
+8. **Bayesian approaches**: Compare with Bayesian methods that incorporate prior knowledge through priors rather than constraints
+
+## Conclusion
+
+Penalized-Constrained Regression offers a principled approach to incorporating domain knowledge into learning curve estimation. By enforcing economically sensible constraints, PCReg produces more reliable estimates, particularly in the challenging conditions that cost analysts frequently face: small samples, noisy data, and correlated predictors.
+
+The `penalized_constrained` Python package provides a production-ready implementation with cross-validation, multiple penalty selection methods, and comprehensive diagnostics. We recommend PCReg as a practical tool for cost estimation practitioners seeking to improve upon traditional OLS methods.

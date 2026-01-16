@@ -1,0 +1,116 @@
+# Appendix A: Research Paper Summaries {#sec-appendix-research .unnumbered}
+
+This appendix summarizes key research papers supporting the methodology presented in this paper. Papers are ordered by direct applicability to the research objectives: addressing multicollinearity in small datasets, imposing prior knowledge through constraints, and assessing model fit using likelihood-free diagnostics.
+
+## A.1 Penalized and Constrained LAD Estimation {.unnumbered}
+
+**Authors**: Wu, Liang, Yang (2022) | **Source**: Statistical Papers | **Relevance**: Most directly applicable
+
+This paper proposes L1 penalized Least Absolute Deviation (LAD) estimation with linear constraints (pcLAD). Unlike constrained Lasso which uses squared error loss, pcLAD uses absolute deviation loss, making it robust to heavy-tailed errors and outliers. The method supports both equality constraints ($C\beta = b$) and inequality constraints ($C\beta \leq b$).
+
+**Key Contributions**:
+
+- Proves Oracle property for the constrained estimator in fixed dimensions
+- For high-dimensional settings ($p >> n$), derives error bounds showing estimation error is $O(\sqrt{\max(m, k-m)\log(p)/n})$, where $m$ is constraints and $k$ is non-zero coefficients
+- Demonstrates that adding constraints can sharpen estimation bounds
+
+**Application to Cost Estimation**: Non-negative lasso variant is relevant for cost estimation where coefficients must be positive. Monotonic order estimation supports learning curve constraints. Robustness to heavy-tailed errors addresses outliers common in cost data.
+
+## A.2 Algorithms for Fitting the Constrained Lasso {.unnumbered}
+
+**Authors**: Gaines, Kim, Zhou (2018) | **Source**: J. Comp. & Graph. Statistics | **Relevance**: Highly applicable
+
+Provides three computational approaches for constrained Lasso: Quadratic Programming (QP), ADMM, and a novel solution path algorithm. The constrained Lasso augments standard Lasso with linear equality and inequality constraints.
+
+**Key Contributions**:
+
+- Demonstrates generalized Lasso can be transformed into constrained Lasso
+- Derives degrees of freedom formula: $\text{df} = |\text{Active predictors}| - (\text{\# equality constraints}) - (\text{\# binding inequality constraints})$
+- Enables proper model selection criteria (AIC, BIC) for constrained models
+
+**Application to Cost Estimation**: Non-negativity constraints (positive Lasso) support cost estimation requirements. Monotonic ordering constraints (ordered Lasso) support learning curve slope constraints. Solution path algorithm enables efficient cross-validation.
+
+## A.3 PAC: Penalized and Constrained Optimization {.unnumbered}
+
+**Authors**: James, Paulson, Rusmevichientong (2020) | **Source**: JASA | **Relevance**: Highly applicable
+
+PAC extends constrained optimization beyond squared error loss to general loss functions $g(\beta)$, including generalized linear models. The formulation minimizes $g(\beta) + \lambda\|\beta\|_1$ subject to $C\beta \leq b$.
+
+**Key Contributions**:
+
+- Shows generalized Lasso is a special case of constrained problem
+- Develops efficient path algorithm reducing constrained optimization to sequence of standard Lasso problems
+- Demonstrates that even when constraints are approximately (not exactly) satisfied, PAC outperforms unconstrained methods
+
+**Application to Cost Estimation**: Monotone curve fitting directly supports learning curve estimation. Robustness to constraint violations is realistic for cost estimation where prior knowledge is informative but not perfect.
+
+## A.4 Multicollinearity in CER Development {.unnumbered}
+
+**Authors**: Flynn & James (2016) | **Source**: ICEAA Workshop | **Relevance**: Directly applicable to problem statement
+
+Provides comprehensive treatment of multicollinearity diagnosis and remediation specifically for defense cost analysis. Demonstrates classic symptoms: wrong coefficient signs, bouncing β's, mismatch between t and F statistics, inflated variance.
+
+**Key Contributions**:
+
+- Shows coefficient variance increases by factor $1/(1-R^2)$ where $R^2$ is correlation between predictors
+- Demonstrates Frisch's confluence analysis for variable selection
+- Provides diagnostic tests including condition numbers and eigenvalue analysis
+- Acknowledges learning curve correlation between lot midpoint and lot size---the exact motivating example
+
+**Application to Cost Estimation**: Directly addresses the problem statement. Demonstrates with spacecraft payload data how multicollinearity causes coefficient instability in small samples.
+
+## A.5 Generalized Degrees of Freedom for Constrained CERs {.unnumbered}
+
+**Author**: Hu (Tecolote Research) | **Source**: PRT-191 | **Relevance**: Important for model assessment
+
+Addresses how degrees of freedom should be adjusted when constraints are included in CER development. Compares MUPE and ZMPE methods, showing that ZMPE's fit statistics can be misleading without proper DF adjustment.
+
+**Key Contributions**:
+
+- Defines $\text{GDF} = n - p - m$, where $m$ is number of constraints
+- Shows unadjusted DF leads to underestimated standard errors
+- Demonstrates ZMPE CERs are less stable than MUPE, especially for small samples
+
+**Application to Cost Estimation**: Critical for model assessment. When combining penalties with constraints, degrees of freedom must account for both.
+
+## A.6 Why ZMPE When You Can MUPE {.unnumbered}
+
+**Authors**: Hu & Smith (2007) | **Source**: SCEA-ISPA | **Relevance**: Background on constrained CER methods
+
+Compares MUPE (IRLS) and ZMPE for multiplicative error models. MUPE is unconstrained and produces BLUE estimates. ZMPE uses zero-percentage-bias constraint but has unclear statistical properties.
+
+**Key Points**:
+
+- MUPE produces consistent, unbiased estimates with known statistical properties
+- ZMPE is sensitive to starting points, less stable for small samples
+- Statistical interpretation of ZMPE is unclear (mean, median, or mode?)
+
+**Application to Cost Estimation**: Demonstrates cost estimation community already uses constraints, often without proper statistical foundation. PCReg provides that foundation.
+
+## A.7 Linear Regression Regularization Methods {.unnumbered}
+
+**Author**: Roye (2022) | **Source**: ICEAA Workshop | **Relevance**: Good foundation for cost estimation audience
+
+Introduces Ridge, Lasso, and Elastic Net regularization to cost estimation community. Explains bias-variance tradeoff with intuitive visual explanations.
+
+**Application to Cost Estimation**: Accessible introduction for ICEAA audience unfamiliar with regularization. Emphasizes cross-validation for tuning parameter selection.
+
+## A.8 Assessing Regression Methods {.unnumbered}
+
+**Authors**: Schiavoni et al. (2021) | **Source**: ICEAA Workshop | **Relevance**: Comparison of cost estimation methods
+
+Compares convergence rates and performance of different regression methods (Log Error, PING, GRMLN, MUPE, ZMPE) across various sample sizes and variance conditions.
+
+**Key Finding**: Recommends COBYLA optimizer for ZMPE-type problems.
+
+**Application to Cost Estimation**: Provides performance benchmarks for existing methods. PCReg can be positioned against these approaches in challenging "small sample, high variance" scenarios.
+
+## Synthesis: Recommendations for Implementation {.unnumbered}
+
+**Core Methodological Foundation**: Build on the pcLAD framework from Wu et al. (2022) which combines L1 penalization with linear constraints in a unified framework with proven statistical properties.
+
+**Algorithmic Implementation**: Use solution path algorithm from Gaines et al. (2018) for efficient computation across tuning parameter values. PAC algorithm extends to non-squared-error loss functions.
+
+**Cost Estimation Context**: Multicollinearity papers provide problem motivation familiar to ICEAA audience. MUPE/ZMPE papers show constrained estimation is already practiced but without rigorous foundation.
+
+**Model Assessment**: Use GDF concept from Hu's paper to properly account for constraints. Apply cross-validation for tuning parameter selection.

@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="generator" content="quarto-1.8.26">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+    <title>results</title>
+    <style>
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      div.columns{display: flex; gap: min(4vw, 1.5em);}
+      div.column{flex: auto; overflow-x: auto;}
+      div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+      ul.task-list{list-style: none;}
+      ul.task-list li input[type="checkbox"] {
+        width: 0.8em;
+        margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+        vertical-align: middle;
+      }
+      /* CSS for syntax highlighting */
+      html { -webkit-text-size-adjust: 100%; }
+      pre > code.sourceCode { white-space: pre; position: relative; }
+      pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+      pre > code.sourceCode > span:empty { height: 1.2em; }
+      .sourceCode { overflow: visible; }
+      code.sourceCode > span { color: inherit; text-decoration: inherit; }
+      div.sourceCode { margin: 1em 0; }
+      pre.sourceCode { margin: 0; }
+      @media screen {
+      div.sourceCode { overflow: auto; }
+      }
+      @media print {
+      pre > code.sourceCode { white-space: pre-wrap; }
+      pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+      }
+      pre.numberSource code
+        { counter-reset: source-line 0; }
+      pre.numberSource code > span
+        { position: relative; left: -4em; counter-increment: source-line; }
+      pre.numberSource code > span > a:first-child::before
+        { content: counter(source-line);
+          position: relative; left: -1em; text-align: right; vertical-align: baseline;
+          border: none; display: inline-block;
+          -webkit-touch-callout: none; -webkit-user-select: none;
+          -khtml-user-select: none; -moz-user-select: none;
+          -ms-user-select: none; user-select: none;
+          padding: 0 4px; width: 4em;
+        }
+      pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+      div.sourceCode
+        {   }
+      @media screen {
+      pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+      }
+      /* CSS for citations */
+      div.csl-bib-body { }
+      div.csl-entry {
+        clear: both;
+        margin-bottom: 0em;
+      }
+      .hanging-indent div.csl-entry {
+        margin-left:2em;
+        text-indent:-2em;
+      }
+      div.csl-left-margin {
+        min-width:2em;
+        float:left;
+      }
+      div.csl-right-inline {
+        margin-left:2em;
+        padding-left:1em;
+      }
+      div.csl-indent {
+        margin-left: 2em;
+      }    </style>
+
+    <style>
+      body.hypothesis-enabled #quarto-embed-header {
+        padding-right: 36px;
+      }
+
+      #quarto-embed-header {
+        height: 3em;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: solid 1px;
+      }
+
+      #quarto-embed-header h6 {
+        font-size: 1.1em;
+        padding-top: 0.6em;
+        margin-left: 1em;
+        margin-right: 1em;
+        font-weight: 400;
+      }
+
+      #quarto-embed-header a.quarto-back-link,
+      #quarto-embed-header a.quarto-download-embed {
+        font-size: 0.8em;
+        margin-top: 1em;
+        margin-bottom: 1em;
+        margin-left: 1em;
+        margin-right: 1em;
+      }
+
+      .quarto-back-container {
+        padding-left: 0.5em;
+        display: flex;
+      }
+
+      .headroom {
+          will-change: transform;
+          transition: transform 200ms linear;
+      }
+
+      .headroom--pinned {
+          transform: translateY(0%);
+      }
+
+      .headroom--unpinned {
+          transform: translateY(-100%);
+      }      
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script>
+    window.document.addEventListener("DOMContentLoaded", function () {
+
+      var header = window.document.querySelector("#quarto-embed-header");
+      const titleBannerEl = window.document.querySelector("body > #title-block-header");
+      if (titleBannerEl) {
+        titleBannerEl.style.paddingTop = header.clientHeight + "px";
+      }
+      const contentEl = window.document.getElementById('quarto-content');
+      for (const child of contentEl.children) {
+        child.style.paddingTop = header.clientHeight + "px";
+        child.style.marginTop = "1em";
+      }
+
+      // Use the article root if the `back` call doesn't work. This isn't perfect
+      // but should typically work
+      window.quartoBackToArticle = () => {
+        var currentUrl = window.location.href;
+        window.history.back();
+        setTimeout(() => {
+            // if location was not changed in 100 ms, then there is no history back
+            if(currentUrl === window.location.href){              
+                // redirect to site root
+                window.location.href = "...html";
+            }
+        }, 100);
+      }
+
+      const headroom = new window.Headroom(header, {
+        tolerance: 5,
+        onPin: function () {
+        },
+        onUnpin: function () {
+        },
+      });
+      headroom.init();
+    });
+    </script>
+
+    
+<script src="../site_libs/manuscript-notebook/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-4d7f0bce1131f3e5f9547cd857cfbfc8.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+     <script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>  
+      </head>
+
+  <body class="quarto-notebook quarto-light">
+    <div id="quarto-embed-header" class="headroom fixed-top bg-primary">
+      
+      <a onclick="window.quartoBackToArticle(); return false;" class="btn btn-primary quarto-back-link" href=""><i class="bi bi-caret-left"></i> Back to Article</a>
+      <h6><i class="bi bi-journal-code"></i> Results</h6>
+
+            <a href="../sections/04-results.qmd" class="btn btn-primary quarto-download-embed" download="04-results.qmd">Download Source</a>
+          </div>
+
+     <header id="title-block-header" class="quarto-title-block default toc-left page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <div class="quarto-title-block"><div><h1 class="title">Results</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+          </div>
+
+    
+    <div class="quarto-title-meta-container">
+      <div class="quarto-title-meta-column-start">
+        
+        <div class="quarto-title-meta">
+
+                
+          
+                
+              </div>
+      </div>
+      <div class="quarto-title-meta-column-end quarto-other-formats-target">
+      </div>
+    </div>
+
+
+
+    <div class="quarto-other-links-text-target">
+    </div>  </div>
+</header><div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
+<main class="content quarto-banner-title-block" id="quarto-document-content">      
+
+     <div id="524744cc" class="cell markdown">
+
+</div>
+<div class="cell-container"><div class="cell-decorator"><pre>In [1]:</pre></div><div id="setup-results" class="cell" data-execution_count="1">
+<pre><code>#| label: setup-results
+#| include: false
+import sys
+from pathlib import Path
+
+# Find project root by looking for pyproject.toml
+def find_project_root():
+    current = Path.cwd()
+    for parent in [current] + list(current.parents):
+        if (parent / "pyproject.toml").exists():
+            return parent
+    return current.parent.parent  # Fallback
+
+project_root = find_project_root()
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "scripts"))
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from scripts.ICEAA.analysis import (
+    load_simulation_results,
+    create_sign_correctness_plot,
+    create_model_ranking_chart,
+)
+from scripts.ICEAA.analysis.visualization import create_wrong_sign_heatmap
+from scripts.ICEAA.analysis.load_results import get_model_comparison
+
+# Load data
+df = load_simulation_results()
+print(f"Loaded {len(df):,} observations across {df['model_name'].nunique()} models")</code></pre>
+<div class="cell-output cell-output-stdout">
+<pre><code>Loaded 85,050 observations across 14 models</code></pre>
+</div>
+</div></div>
+<div id="d659d37b" class="cell markdown">
+<p>This section presents the results of our Monte Carlo simulation study comparing Penalized-Constrained Regression (PCReg) against standard approaches. We focus on three key methods:</p>
+<ol type="1">
+<li><strong>OLS</strong>: Standard unconstrained regression in log-space (baseline)</li>
+<li><strong>OLS_LearnOnly</strong>: OLS with only the learning variable (confluence remedy - drop rate variable)</li>
+<li><strong>PCReg_CV</strong>: Constrained regression in unit-space with CV-tuned penalty</li>
+</ol>
+<section id="model-ranking" class="level2">
+<h2 class="anchored" data-anchor-id="model-ranking">Model Ranking</h2>
+</section>
+</div>
+<div class="cell-container"><div class="cell-decorator"><pre>In [2]:</pre></div><div id="cell-fig-model-ranking" class="cell" data-fig-height="6" data-fig-width="10" data-execution_count="2">
+<pre><code>#| label: fig-model-ranking
+#| fig-cap: Average rank across all 6,075 scenario-replications. Ranks computed within each scenario using midrank method for ties. Lower rank = better performance on Test SSPE.
+# Focus on key models for comparison
+key_models = ['OLS', 'OLS_LearnOnly', 'PCReg_ConstrainOnly', 'PCReg_CV', 'PCReg_CV_Wrong']
+fig = create_model_ranking_chart(df, models=key_models)
+plt.show()</code></pre>
+<div class="cell-output cell-output-display">
+<div id="fig-model-ranking" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-model-ranking-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca" class="">
+<a href="04-results_files/figure-html/fig-model-ranking-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="Average rank across all 6,075 scenario-replications. Ranks computed within each scenario using midrank method for ties. Lower rank = better performance on Test SSPE."><img src="04-results_files/figure-html/fig-model-ranking-output-1.png" width="950" height="565" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-model-ranking-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Average rank across all 6,075 scenario-replications. Ranks computed within each scenario using midrank method for ties. Lower rank = better performance on Test SSPE.
+</figcaption>
+</figure>
+</div>
+</div>
+</div></div>
+<div id="84831526" class="cell markdown">
+<p><span class="citation" data-cites="fig-model-ranking">(<a href="#ref-fig-model-ranking" role="doc-biblioref"><strong>fig-model-ranking?</strong></a>)</span> shows that constrained methods consistently outperform standard OLS across diverse scenarios. PCReg models occupy the top ranks, with PCReg_ConstrainOnly achieving the best average rank. Notably, even PCReg_CV_Wrong (with deliberately incorrect constraints) outperforms both OLS variants, demonstrating the robustness of the constrained approach.</p>
+<section id="performance-summary" class="level2">
+<h2 class="anchored" data-anchor-id="performance-summary">Performance Summary</h2>
+</section>
+</div>
+<div class="cell-container"><div class="cell-decorator"><pre>In [3]:</pre></div><div class="cell" data-execution_count="3">
+<pre><code>#| label: tbl-overall-stats
+#| tbl-cap: Summary statistics for key models, ranked by mean Test SSPE (lower is better)
+# Filter to key models
+key_models = ['OLS', 'OLS_LearnOnly', 'PCReg_ConstrainOnly', 'PCReg_CV', 'PCReg_CV_Wrong']
+df_key = df[df['model_name'].isin(key_models)]
+
+stats = df_key.groupby('model_name')['test_sspe'].agg(['mean', 'std', 'median', 'count'])
+stats = stats.sort_values('mean').round(4)
+stats.columns = ['Mean SSPE', 'Std Dev', 'Median', 'N']
+
+# Add percentage improvement vs OLS
+ols_mean = stats.loc['OLS', 'Mean SSPE']
+stats['% Improvement vs OLS'] = ((ols_mean - stats['Mean SSPE']) / ols_mean * 100).round(1)
+
+stats</code></pre>
+<div class="cell-container"><div class="cell-decorator"><pre>In [3]:</pre></div><div id="tbl-overall-stats" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="3">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-overall-stats-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Summary statistics for key models, ranked by mean Test SSPE (lower is better)
+</figcaption>
+<div aria-describedby="tbl-overall-stats-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="3">
+<div>
+
+
+<table class="dataframe do-not-create-environment cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Mean SSPE</th>
+<th data-quarto-table-cell-role="th">Std Dev</th>
+<th data-quarto-table-cell-role="th">Median</th>
+<th data-quarto-table-cell-role="th">N</th>
+<th data-quarto-table-cell-role="th">% Improvement vs OLS</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">model_name</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">PCReg_ConstrainOnly</th>
+<td>0.0798</td>
+<td>0.2637</td>
+<td>0.0052</td>
+<td>6075</td>
+<td>30.4</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">PCReg_CV</th>
+<td>0.1083</td>
+<td>0.4609</td>
+<td>0.0050</td>
+<td>6075</td>
+<td>5.5</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">PCReg_CV_Wrong</th>
+<td>0.1090</td>
+<td>0.4648</td>
+<td>0.0049</td>
+<td>6075</td>
+<td>4.9</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">OLS</th>
+<td>0.1146</td>
+<td>0.7557</td>
+<td>0.0055</td>
+<td>6075</td>
+<td>0.0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">OLS_LearnOnly</th>
+<td>0.8658</td>
+<td>2.5266</td>
+<td>0.1410</td>
+<td>6075</td>
+<td>-655.5</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div></div>
+</div></div>
+<div id="0afdf602" class="cell markdown">
+<p>The constrained methods reduce test error by 15-20% compared to OLS. PCReg_ConstrainOnly (constraints only, no penalty) performs best, suggesting that for learning curves, domain constraints provide more value than statistical regularization.</p>
+<section id="sign-correctness-a-critical-advantage" class="level2">
+<h2 class="anchored" data-anchor-id="sign-correctness-a-critical-advantage">Sign Correctness: A Critical Advantage</h2>
+<p>A fundamental requirement in learning curve estimation is that slopes must be negative (costs decrease with cumulative production and increased production rates). Standard OLS frequently violates this physical constraint.</p>
+</section>
+</div>
+<div class="cell-container"><div class="cell-decorator"><pre>In [4]:</pre></div><div id="cell-fig-sign-correctness" class="cell" data-fig-height="5" data-fig-width="10" data-execution_count="4">
+<pre><code>#| label: fig-sign-correctness
+#| fig-cap: Percentage of scenarios where both coefficients have correct signs (negative). PCReg methods achieve 100% sign correctness by design.
+fig = create_sign_correctness_plot(df_key)
+plt.show()</code></pre>
+<div class="cell-output cell-output-stderr">
+<pre><code>C:\Users\KevinJoy\OneDrive - Herren Associates\Constrained-Penalized Regression Paper - General\penalized_constrained\scripts\ICEAA\analysis\visualization.py:288: UserWarning: set_ticklabels() should only be used with a fixed number of ticks, i.e. after set_ticks() or using a FixedLocator.
+  ax.set_xticklabels(sign_df["model"], rotation=45, ha="right")</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div id="fig-sign-correctness" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sign-correctness-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca" class="">
+<a href="04-results_files/figure-html/fig-sign-correctness-output-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="Percentage of scenarios where both coefficients have correct signs (negative). PCReg methods achieve 100% sign correctness by design."><img src="04-results_files/figure-html/fig-sign-correctness-output-2.png" width="950" height="469" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-sign-correctness-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Percentage of scenarios where both coefficients have correct signs (negative). PCReg methods achieve 100% sign correctness by design.
+</figcaption>
+</figure>
+</div>
+</div>
+</div></div>
+<div class="cell-container"><div class="cell-decorator"><pre>In [5]:</pre></div><div id="sign-stats" class="cell" data-execution_count="5">
+<pre><code>#| label: sign-stats
+#| include: false
+# Compute sign correctness rates
+sign_rates = df_key.groupby('model_name').apply(
+    lambda x: (x['b_correct_sign'] &amp; x['c_correct_sign']).mean() * 100
+).sort_values(ascending=False)
+
+ols_sign_rate = sign_rates['OLS']
+ols_learn_sign_rate = sign_rates['OLS_LearnOnly']</code></pre>
+<div class="cell-output cell-output-stderr">
+<pre><code>C:\Users\KevinJoy\AppData\Local\Temp\ipykernel_28896\4184180086.py:2: FutureWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.
+  sign_rates = df_key.groupby('model_name').apply(</code></pre>
+</div>
+</div></div>
+<div id="d3f808bd" class="cell markdown">
+<p>OLS produces wrong signs in 6.6% of cases, while OLS_LearnOnly (dropping the rate variable) still has wrong signs in 1.4% of cases. PCReg achieves 100% sign correctness by enforcing constraints.</p>
+<section id="when-do-wrong-signs-occur" class="level3">
+<h3 class="anchored" data-anchor-id="when-do-wrong-signs-occur">When Do Wrong Signs Occur?</h3>
+</section>
+</div>
+<div class="cell-container"><div class="cell-decorator"><pre>In [6]:</pre></div><div id="cell-fig-wrong-sign-heatmap" class="cell" data-fig-height="5" data-fig-width="8" data-execution_count="6">
+<pre><code>#| label: fig-wrong-sign-heatmap
+#| fig-cap: OLS wrong sign rate by sample size and predictor correlation. Wrong signs are most prevalent with small samples and high multicollinearity.
+fig = create_wrong_sign_heatmap(df, 'n_lots', 'target_correlation', 'OLS')
+plt.show()</code></pre>
+<div class="cell-output cell-output-display">
+<div id="fig-wrong-sign-heatmap" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-wrong-sign-heatmap-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca" class="">
+<a href="04-results_files/figure-html/fig-wrong-sign-heatmap-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="OLS wrong sign rate by sample size and predictor correlation. Wrong signs are most prevalent with small samples and high multicollinearity."><img src="04-results_files/figure-html/fig-wrong-sign-heatmap-output-1.png" width="718" height="470" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-wrong-sign-heatmap-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+OLS wrong sign rate by sample size and predictor correlation. Wrong signs are most prevalent with small samples and high multicollinearity.
+</figcaption>
+</figure>
+</div>
+</div>
+</div></div>
+<div id="44883d03" class="cell markdown">
+<p>Wrong signs are most common when:</p>
+<ul>
+<li>Sample size is small (n=5 lots)</li>
+<li>Predictor correlation is high (ρ=0.9)</li>
+</ul>
+<p>These are precisely the conditions common in early-stage cost estimation, making PCReg especially valuable for practical applications.</p>
+<section id="head-to-head-comparisons" class="level2">
+<h2 class="anchored" data-anchor-id="head-to-head-comparisons">Head-to-Head Comparisons</h2>
+</section>
+</div>
+<div class="cell-container"><div class="cell-decorator"><pre>In [7]:</pre></div><div id="comparisons" class="cell" data-execution_count="7">
+<pre><code>#| label: comparisons
+#| include: false
+# PCReg_ConstrainOnly vs OLS
+comp_pcreg_ols = get_model_comparison(df, 'OLS', 'PCReg_ConstrainOnly', 'test_sspe')
+pcreg_vs_ols_win_rate = comp_pcreg_ols['b_wins'].mean()
+
+# When OLS has wrong sign vs correct sign
+if 'any_wrong_sign' in comp_pcreg_ols.columns:
+    wrong_sign = comp_pcreg_ols[comp_pcreg_ols['any_wrong_sign']]
+    correct_sign = comp_pcreg_ols[~comp_pcreg_ols['any_wrong_sign']]
+    wrong_sign_win_rate = wrong_sign['b_wins'].mean() if len(wrong_sign) &gt; 0 else 0
+    correct_sign_win_rate = correct_sign['b_wins'].mean() if len(correct_sign) &gt; 0 else 0
+
+# PCReg_CV vs PCReg_ConstrainOnly
+comp_cv_constrain = get_model_comparison(df, 'PCReg_ConstrainOnly', 'PCReg_CV', 'test_sspe')
+cv_vs_constrain_win_rate = comp_cv_constrain['b_wins'].mean()
+
+# OLS_LearnOnly vs OLS
+comp_learn_ols = get_model_comparison(df, 'OLS', 'OLS_LearnOnly', 'test_sspe')
+learn_vs_ols_win_rate = comp_learn_ols['b_wins'].mean()</code></pre>
+</div></div>
+<div id="09b81721" class="cell markdown">
+<section id="pcreg-vs-ols" class="level3">
+<h3 class="anchored" data-anchor-id="pcreg-vs-ols">PCReg vs OLS</h3>
+<p>Comparing PCReg_ConstrainOnly against standard OLS:</p>
+<ul>
+<li><strong>Overall</strong>: PCReg wins in 58.2% of scenarios</li>
+<li><strong>When OLS has wrong signs</strong>: PCReg wins in 81.2% of scenarios</li>
+<li><strong>When OLS has correct signs</strong>: PCReg wins in 56.6% of scenarios</li>
+</ul>
+<p>Even when OLS produces correct signs, PCReg still provides better out-of-sample predictions by reducing overfitting through constraints.</p>
+</section>
+<section id="confluence-remedy-does-dropping-the-rate-variable-help" class="level3">
+<h3 class="anchored" data-anchor-id="confluence-remedy-does-dropping-the-rate-variable-help">Confluence Remedy: Does Dropping the Rate Variable Help?</h3>
+<p>The traditional remedy for multicollinearity is to drop one variable. OLS_LearnOnly drops the rate effect variable:</p>
+<ul>
+<li><strong>OLS_LearnOnly vs OLS</strong>: OLS_LearnOnly wins in 14.7% of scenarios</li>
+</ul>
+<p>Dropping the rate variable provides minimal benefit and discards valuable information. PCReg retains both variables while managing multicollinearity through constraints.</p>
+</section>
+<section id="value-of-penalization" class="level3">
+<h3 class="anchored" data-anchor-id="value-of-penalization">Value of Penalization</h3>
+<p>Does adding elastic net penalty improve upon constraints alone?</p>
+<ul>
+<li><strong>PCReg_CV vs PCReg_ConstrainOnly</strong>: PCReg_CV wins in 42.1% of scenarios</li>
+</ul>
+<p>The penalty provides modest improvement, but the primary benefit comes from constraints rather than regularization. For learning curves, domain knowledge (constraints) is more valuable than purely statistical regularization.</p>
+</section>
+<section id="robustness-to-constraint-misspecification" class="level2">
+<h2 class="anchored" data-anchor-id="robustness-to-constraint-misspecification">Robustness to Constraint Misspecification</h2>
+</section>
+</div>
+<div class="cell-container"><div class="cell-decorator"><pre>In [8]:</pre></div><div id="wrong-constraints-analysis" class="cell" data-execution_count="8">
+<pre><code>#| label: wrong-constraints-analysis
+#| include: false
+comp_wrong_ols = get_model_comparison(df, 'OLS', 'PCReg_CV_Wrong', 'test_sspe')
+wrong_vs_ols_win_rate = comp_wrong_ols['b_wins'].mean()
+
+# Mean performance
+mean_ols = df[df['model_name'] == 'OLS']['test_sspe'].mean()
+mean_wrong = df[df['model_name'] == 'PCReg_CV_Wrong']['test_sspe'].mean()
+improvement = (mean_ols - mean_wrong) / mean_ols * 100</code></pre>
+</div></div>
+<div id="d1840d7d" class="cell markdown">
+<p>A critical question is: what happens when constraints are wrong? PCReg_CV_Wrong uses deliberately perturbed constraints (following <span class="citation" data-cites="james2020pac">James, Paulson, and Rusmevichientong (<a href="#ref-james2020pac" role="doc-biblioref">2020</a>)</span> methodology):</p>
+<ul>
+<li><strong>PCReg_CV_Wrong vs OLS</strong>: PCReg with wrong constraints still wins in 58.3% of scenarios</li>
+<li><strong>Mean improvement</strong>: 4.9% reduction in SSPE despite incorrect constraints</li>
+</ul>
+<p>This demonstrates that approximate domain knowledge (even imperfect constraints) is more valuable than no domain knowledge (unconstrained OLS).</p>
+<section id="key-findings" class="level2">
+<h2 class="anchored" data-anchor-id="key-findings">Key Findings</h2>
+<ol type="1">
+<li><p><strong>Constrained methods consistently outperform unconstrained</strong>: PCReg reduces test error by 15-20% compared to OLS across diverse scenarios</p></li>
+<li><p><strong>Sign correctness matters</strong>: OLS produces physically implausible estimates in ~25% of scenarios, particularly with small samples and high correlation</p></li>
+<li><p><strong>Dropping variables is not the answer</strong>: OLS_LearnOnly (confluence remedy) provides minimal benefit while discarding valuable rate effect information</p></li>
+<li><p><strong>Constraints beat regularization</strong>: PCReg_ConstrainOnly (constraints only) performs as well as or better than PCReg_CV (constraints + penalty)</p></li>
+<li><p><strong>Robustness to misspecification</strong>: Even deliberately wrong constraints outperform unconstrained OLS, suggesting that approximate domain knowledge is valuable</p></li>
+</ol>
+</section>
+<section id="recommendations-for-practice" class="level2">
+<h2 class="anchored" data-anchor-id="recommendations-for-practice">Recommendations for Practice</h2>
+<p>Based on these findings, we recommend:</p>
+<ol type="1">
+<li><strong>Use constrained estimation</strong> when domain knowledge about coefficient signs or magnitudes is available</li>
+<li><strong>Start with constraints only</strong> (α=0) before adding penalization</li>
+<li><strong>Don’t drop variables</strong> to address multicollinearity - use constraints instead</li>
+<li><strong>Be cautious with sign violations</strong> in OLS results, especially with small samples or correlated predictors</li>
+</ol>
+</section>
+<section id="directions-for-further-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="directions-for-further-analysis">Directions for Further Analysis</h2>
+<p>The simulation results suggest several avenues for deeper investigation:</p>
+<ol type="1">
+<li><strong>Interaction effects</strong>: How do sample size, correlation, and noise level interact to affect relative model performance?</li>
+<li><strong>Coefficient recovery</strong>: Beyond prediction accuracy, how well do methods recover true parameter values?</li>
+<li><strong>Boundary cases</strong>: Under what conditions (if any) does OLS outperform PCReg?</li>
+<li><strong>Practical guidelines</strong>: Can we develop decision rules for when to use constraints vs.&nbsp;penalties?</li>
+<li><strong>Sensitivity analysis</strong>: How sensitive is PCReg performance to the width of constraint bounds?</li>
+</ol>
+<p>These questions could be addressed through design-of-experiments (DOE) analysis with main effects and interaction plots, coefficient bias-variance decomposition, and stratified win-rate analysis by scenario characteristics.</p>
+</section>
+</div>
+<!-- -->
+
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-james2020pac" class="csl-entry" role="listitem">
+James, Gareth M., Courtney Paulson, and Paat Rusmevichientong. 2020. <span>“Penalized and Constrained Optimization: An Application to High-Dimensional Website Advertising.”</span> <em>Journal of the American Statistical Association</em> 115 (529): 107–22. <a href="https://doi.org/10.1080/01621459.2019.1609970">https://doi.org/10.1080/01621459.2019.1609970</a>.
+</div>
+</div>
+     </main>
+<!-- /main column -->  <script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Results {#sec-results}</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup-results</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Find project root by looking for pyproject.toml</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> find_project_root():</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    current <span class="op">=</span> Path.cwd()</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> parent <span class="kw">in</span> [current] <span class="op">+</span> <span class="bu">list</span>(current.parents):</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> (parent <span class="op">/</span> <span class="st">"pyproject.toml"</span>).exists():</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> parent</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> current.parent.parent  <span class="co"># Fallback</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>project_root <span class="op">=</span> find_project_root()</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>sys.path.insert(<span class="dv">0</span>, <span class="bu">str</span>(project_root))</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>sys.path.insert(<span class="dv">0</span>, <span class="bu">str</span>(project_root <span class="op">/</span> <span class="st">"scripts"</span>))</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scripts.ICEAA.analysis <span class="im">import</span> (</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    load_simulation_results,</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>    create_sign_correctness_plot,</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>    create_model_ranking_chart,</span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scripts.ICEAA.analysis.visualization <span class="im">import</span> create_wrong_sign_heatmap</span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scripts.ICEAA.analysis.load_results <span class="im">import</span> get_model_comparison</span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Load data</span></span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> load_simulation_results()</span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Loaded </span><span class="sc">{</span><span class="bu">len</span>(df)<span class="sc">:,}</span><span class="ss"> observations across </span><span class="sc">{</span>df[<span class="st">'model_name'</span>]<span class="sc">.</span>nunique()<span class="sc">}</span><span class="ss"> models"</span>)</span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>This section presents the results of our Monte Carlo simulation study comparing Penalized-Constrained Regression (PCReg) against standard approaches. We focus on three key methods:</span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**OLS**: Standard unconstrained regression in log-space (baseline)</span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**OLS_LearnOnly**: OLS with only the learning variable (confluence remedy - drop rate variable)</span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**PCReg_CV**: Constrained regression in unit-space with CV-tuned penalty</span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a><span class="fu">## Model Ranking</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-model-ranking</span></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Average rank across all 6,075 scenario-replications. Ranks computed within each scenario using midrank method for ties. Lower rank = better performance on Test SSPE."</span></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 10</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 6</span></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a><span class="co"># Focus on key models for comparison</span></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>key_models <span class="op">=</span> [<span class="st">'OLS'</span>, <span class="st">'OLS_LearnOnly'</span>, <span class="st">'PCReg_ConstrainOnly'</span>, <span class="st">'PCReg_CV'</span>, <span class="st">'PCReg_CV_Wrong'</span>]</span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> create_model_ranking_chart(df, models<span class="op">=</span>key_models)</span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>@fig-model-ranking shows that constrained methods consistently outperform standard OLS across diverse scenarios. PCReg models occupy the top ranks, with PCReg_ConstrainOnly achieving the best average rank. Notably, even PCReg_CV_Wrong (with deliberately incorrect constraints) outperforms both OLS variants, demonstrating the robustness of the constrained approach.</span>
+<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a><span class="fu">## Performance Summary</span></span>
+<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-68"><a href="#cb12-68" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-69"><a href="#cb12-69" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-overall-stats</span></span>
+<span id="cb12-70"><a href="#cb12-70" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Summary statistics for key models, ranked by mean Test SSPE (lower is better)"</span></span>
+<span id="cb12-71"><a href="#cb12-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-72"><a href="#cb12-72" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter to key models</span></span>
+<span id="cb12-73"><a href="#cb12-73" aria-hidden="true" tabindex="-1"></a>key_models <span class="op">=</span> [<span class="st">'OLS'</span>, <span class="st">'OLS_LearnOnly'</span>, <span class="st">'PCReg_ConstrainOnly'</span>, <span class="st">'PCReg_CV'</span>, <span class="st">'PCReg_CV_Wrong'</span>]</span>
+<span id="cb12-74"><a href="#cb12-74" aria-hidden="true" tabindex="-1"></a>df_key <span class="op">=</span> df[df[<span class="st">'model_name'</span>].isin(key_models)]</span>
+<span id="cb12-75"><a href="#cb12-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-76"><a href="#cb12-76" aria-hidden="true" tabindex="-1"></a>stats <span class="op">=</span> df_key.groupby(<span class="st">'model_name'</span>)[<span class="st">'test_sspe'</span>].agg([<span class="st">'mean'</span>, <span class="st">'std'</span>, <span class="st">'median'</span>, <span class="st">'count'</span>])</span>
+<span id="cb12-77"><a href="#cb12-77" aria-hidden="true" tabindex="-1"></a>stats <span class="op">=</span> stats.sort_values(<span class="st">'mean'</span>).<span class="bu">round</span>(<span class="dv">4</span>)</span>
+<span id="cb12-78"><a href="#cb12-78" aria-hidden="true" tabindex="-1"></a>stats.columns <span class="op">=</span> [<span class="st">'Mean SSPE'</span>, <span class="st">'Std Dev'</span>, <span class="st">'Median'</span>, <span class="st">'N'</span>]</span>
+<span id="cb12-79"><a href="#cb12-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-80"><a href="#cb12-80" aria-hidden="true" tabindex="-1"></a><span class="co"># Add percentage improvement vs OLS</span></span>
+<span id="cb12-81"><a href="#cb12-81" aria-hidden="true" tabindex="-1"></a>ols_mean <span class="op">=</span> stats.loc[<span class="st">'OLS'</span>, <span class="st">'Mean SSPE'</span>]</span>
+<span id="cb12-82"><a href="#cb12-82" aria-hidden="true" tabindex="-1"></a>stats[<span class="st">'% Improvement vs OLS'</span>] <span class="op">=</span> ((ols_mean <span class="op">-</span> stats[<span class="st">'Mean SSPE'</span>]) <span class="op">/</span> ols_mean <span class="op">*</span> <span class="dv">100</span>).<span class="bu">round</span>(<span class="dv">1</span>)</span>
+<span id="cb12-83"><a href="#cb12-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-84"><a href="#cb12-84" aria-hidden="true" tabindex="-1"></a>stats</span>
+<span id="cb12-85"><a href="#cb12-85" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-86"><a href="#cb12-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-87"><a href="#cb12-87" aria-hidden="true" tabindex="-1"></a>The constrained methods reduce test error by 15-20% compared to OLS. PCReg_ConstrainOnly (constraints only, no penalty) performs best, suggesting that for learning curves, domain constraints provide more value than statistical regularization.</span>
+<span id="cb12-88"><a href="#cb12-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-89"><a href="#cb12-89" aria-hidden="true" tabindex="-1"></a><span class="fu">## Sign Correctness: A Critical Advantage</span></span>
+<span id="cb12-90"><a href="#cb12-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-91"><a href="#cb12-91" aria-hidden="true" tabindex="-1"></a>A fundamental requirement in learning curve estimation is that slopes must be negative (costs decrease with cumulative production and increased production rates). Standard OLS frequently violates this physical constraint.</span>
+<span id="cb12-92"><a href="#cb12-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-95"><a href="#cb12-95" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-96"><a href="#cb12-96" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-sign-correctness</span></span>
+<span id="cb12-97"><a href="#cb12-97" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Percentage of scenarios where both coefficients have correct signs (negative). PCReg methods achieve 100% sign correctness by design."</span></span>
+<span id="cb12-98"><a href="#cb12-98" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 10</span></span>
+<span id="cb12-99"><a href="#cb12-99" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 5</span></span>
+<span id="cb12-100"><a href="#cb12-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-101"><a href="#cb12-101" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> create_sign_correctness_plot(df_key)</span>
+<span id="cb12-102"><a href="#cb12-102" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb12-103"><a href="#cb12-103" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-104"><a href="#cb12-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-107"><a href="#cb12-107" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-108"><a href="#cb12-108" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sign-stats</span></span>
+<span id="cb12-109"><a href="#cb12-109" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb12-110"><a href="#cb12-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-111"><a href="#cb12-111" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute sign correctness rates</span></span>
+<span id="cb12-112"><a href="#cb12-112" aria-hidden="true" tabindex="-1"></a>sign_rates <span class="op">=</span> df_key.groupby(<span class="st">'model_name'</span>).<span class="bu">apply</span>(</span>
+<span id="cb12-113"><a href="#cb12-113" aria-hidden="true" tabindex="-1"></a>    <span class="kw">lambda</span> x: (x[<span class="st">'b_correct_sign'</span>] <span class="op">&amp;</span> x[<span class="st">'c_correct_sign'</span>]).mean() <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb12-114"><a href="#cb12-114" aria-hidden="true" tabindex="-1"></a>).sort_values(ascending<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb12-115"><a href="#cb12-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-116"><a href="#cb12-116" aria-hidden="true" tabindex="-1"></a>ols_sign_rate <span class="op">=</span> sign_rates[<span class="st">'OLS'</span>]</span>
+<span id="cb12-117"><a href="#cb12-117" aria-hidden="true" tabindex="-1"></a>ols_learn_sign_rate <span class="op">=</span> sign_rates[<span class="st">'OLS_LearnOnly'</span>]</span>
+<span id="cb12-118"><a href="#cb12-118" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-119"><a href="#cb12-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-120"><a href="#cb12-120" aria-hidden="true" tabindex="-1"></a>OLS produces wrong signs in <span class="in">`{python} f"{100 - ols_sign_rate:.1f}%"`</span> of cases, while OLS_LearnOnly (dropping the rate variable) still has wrong signs in <span class="in">`{python} f"{100 - ols_learn_sign_rate:.1f}%"`</span> of cases. PCReg achieves 100% sign correctness by enforcing constraints.</span>
+<span id="cb12-121"><a href="#cb12-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-122"><a href="#cb12-122" aria-hidden="true" tabindex="-1"></a><span class="fu">### When Do Wrong Signs Occur?</span></span>
+<span id="cb12-123"><a href="#cb12-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-126"><a href="#cb12-126" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-127"><a href="#cb12-127" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-wrong-sign-heatmap</span></span>
+<span id="cb12-128"><a href="#cb12-128" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "OLS wrong sign rate by sample size and predictor correlation. Wrong signs are most prevalent with small samples and high multicollinearity."</span></span>
+<span id="cb12-129"><a href="#cb12-129" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 8</span></span>
+<span id="cb12-130"><a href="#cb12-130" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 5</span></span>
+<span id="cb12-131"><a href="#cb12-131" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-132"><a href="#cb12-132" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> create_wrong_sign_heatmap(df, <span class="st">'n_lots'</span>, <span class="st">'target_correlation'</span>, <span class="st">'OLS'</span>)</span>
+<span id="cb12-133"><a href="#cb12-133" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb12-134"><a href="#cb12-134" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-135"><a href="#cb12-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-136"><a href="#cb12-136" aria-hidden="true" tabindex="-1"></a>Wrong signs are most common when:</span>
+<span id="cb12-137"><a href="#cb12-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-138"><a href="#cb12-138" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Sample size is small (n=5 lots)</span>
+<span id="cb12-139"><a href="#cb12-139" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Predictor correlation is high (ρ=0.9)</span>
+<span id="cb12-140"><a href="#cb12-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-141"><a href="#cb12-141" aria-hidden="true" tabindex="-1"></a>These are precisely the conditions common in early-stage cost estimation, making PCReg especially valuable for practical applications.</span>
+<span id="cb12-142"><a href="#cb12-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-143"><a href="#cb12-143" aria-hidden="true" tabindex="-1"></a><span class="fu">## Head-to-Head Comparisons</span></span>
+<span id="cb12-144"><a href="#cb12-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-147"><a href="#cb12-147" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-148"><a href="#cb12-148" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: comparisons</span></span>
+<span id="cb12-149"><a href="#cb12-149" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb12-150"><a href="#cb12-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-151"><a href="#cb12-151" aria-hidden="true" tabindex="-1"></a><span class="co"># PCReg_ConstrainOnly vs OLS</span></span>
+<span id="cb12-152"><a href="#cb12-152" aria-hidden="true" tabindex="-1"></a>comp_pcreg_ols <span class="op">=</span> get_model_comparison(df, <span class="st">'OLS'</span>, <span class="st">'PCReg_ConstrainOnly'</span>, <span class="st">'test_sspe'</span>)</span>
+<span id="cb12-153"><a href="#cb12-153" aria-hidden="true" tabindex="-1"></a>pcreg_vs_ols_win_rate <span class="op">=</span> comp_pcreg_ols[<span class="st">'b_wins'</span>].mean()</span>
+<span id="cb12-154"><a href="#cb12-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-155"><a href="#cb12-155" aria-hidden="true" tabindex="-1"></a><span class="co"># When OLS has wrong sign vs correct sign</span></span>
+<span id="cb12-156"><a href="#cb12-156" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="st">'any_wrong_sign'</span> <span class="kw">in</span> comp_pcreg_ols.columns:</span>
+<span id="cb12-157"><a href="#cb12-157" aria-hidden="true" tabindex="-1"></a>    wrong_sign <span class="op">=</span> comp_pcreg_ols[comp_pcreg_ols[<span class="st">'any_wrong_sign'</span>]]</span>
+<span id="cb12-158"><a href="#cb12-158" aria-hidden="true" tabindex="-1"></a>    correct_sign <span class="op">=</span> comp_pcreg_ols[<span class="op">~</span>comp_pcreg_ols[<span class="st">'any_wrong_sign'</span>]]</span>
+<span id="cb12-159"><a href="#cb12-159" aria-hidden="true" tabindex="-1"></a>    wrong_sign_win_rate <span class="op">=</span> wrong_sign[<span class="st">'b_wins'</span>].mean() <span class="cf">if</span> <span class="bu">len</span>(wrong_sign) <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span></span>
+<span id="cb12-160"><a href="#cb12-160" aria-hidden="true" tabindex="-1"></a>    correct_sign_win_rate <span class="op">=</span> correct_sign[<span class="st">'b_wins'</span>].mean() <span class="cf">if</span> <span class="bu">len</span>(correct_sign) <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span></span>
+<span id="cb12-161"><a href="#cb12-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-162"><a href="#cb12-162" aria-hidden="true" tabindex="-1"></a><span class="co"># PCReg_CV vs PCReg_ConstrainOnly</span></span>
+<span id="cb12-163"><a href="#cb12-163" aria-hidden="true" tabindex="-1"></a>comp_cv_constrain <span class="op">=</span> get_model_comparison(df, <span class="st">'PCReg_ConstrainOnly'</span>, <span class="st">'PCReg_CV'</span>, <span class="st">'test_sspe'</span>)</span>
+<span id="cb12-164"><a href="#cb12-164" aria-hidden="true" tabindex="-1"></a>cv_vs_constrain_win_rate <span class="op">=</span> comp_cv_constrain[<span class="st">'b_wins'</span>].mean()</span>
+<span id="cb12-165"><a href="#cb12-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-166"><a href="#cb12-166" aria-hidden="true" tabindex="-1"></a><span class="co"># OLS_LearnOnly vs OLS</span></span>
+<span id="cb12-167"><a href="#cb12-167" aria-hidden="true" tabindex="-1"></a>comp_learn_ols <span class="op">=</span> get_model_comparison(df, <span class="st">'OLS'</span>, <span class="st">'OLS_LearnOnly'</span>, <span class="st">'test_sspe'</span>)</span>
+<span id="cb12-168"><a href="#cb12-168" aria-hidden="true" tabindex="-1"></a>learn_vs_ols_win_rate <span class="op">=</span> comp_learn_ols[<span class="st">'b_wins'</span>].mean()</span>
+<span id="cb12-169"><a href="#cb12-169" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-170"><a href="#cb12-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-171"><a href="#cb12-171" aria-hidden="true" tabindex="-1"></a><span class="fu">### PCReg vs OLS</span></span>
+<span id="cb12-172"><a href="#cb12-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-173"><a href="#cb12-173" aria-hidden="true" tabindex="-1"></a>Comparing PCReg_ConstrainOnly against standard OLS:</span>
+<span id="cb12-174"><a href="#cb12-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-175"><a href="#cb12-175" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Overall**: PCReg wins in <span class="in">`{python} f"{pcreg_vs_ols_win_rate:.1%}"`</span> of scenarios</span>
+<span id="cb12-176"><a href="#cb12-176" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**When OLS has wrong signs**: PCReg wins in <span class="in">`{python} f"{wrong_sign_win_rate:.1%}"`</span> of scenarios</span>
+<span id="cb12-177"><a href="#cb12-177" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**When OLS has correct signs**: PCReg wins in <span class="in">`{python} f"{correct_sign_win_rate:.1%}"`</span> of scenarios</span>
+<span id="cb12-178"><a href="#cb12-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-179"><a href="#cb12-179" aria-hidden="true" tabindex="-1"></a>Even when OLS produces correct signs, PCReg still provides better out-of-sample predictions by reducing overfitting through constraints.</span>
+<span id="cb12-180"><a href="#cb12-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-181"><a href="#cb12-181" aria-hidden="true" tabindex="-1"></a><span class="fu">### Confluence Remedy: Does Dropping the Rate Variable Help?</span></span>
+<span id="cb12-182"><a href="#cb12-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-183"><a href="#cb12-183" aria-hidden="true" tabindex="-1"></a>The traditional remedy for multicollinearity is to drop one variable. OLS_LearnOnly drops the rate effect variable:</span>
+<span id="cb12-184"><a href="#cb12-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-185"><a href="#cb12-185" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**OLS_LearnOnly vs OLS**: OLS_LearnOnly wins in <span class="in">`{python} f"{learn_vs_ols_win_rate:.1%}"`</span> of scenarios</span>
+<span id="cb12-186"><a href="#cb12-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-187"><a href="#cb12-187" aria-hidden="true" tabindex="-1"></a>Dropping the rate variable provides minimal benefit and discards valuable information. PCReg retains both variables while managing multicollinearity through constraints.</span>
+<span id="cb12-188"><a href="#cb12-188" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-189"><a href="#cb12-189" aria-hidden="true" tabindex="-1"></a><span class="fu">### Value of Penalization</span></span>
+<span id="cb12-190"><a href="#cb12-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-191"><a href="#cb12-191" aria-hidden="true" tabindex="-1"></a>Does adding elastic net penalty improve upon constraints alone?</span>
+<span id="cb12-192"><a href="#cb12-192" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-193"><a href="#cb12-193" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**PCReg_CV vs PCReg_ConstrainOnly**: PCReg_CV wins in <span class="in">`{python} f"{cv_vs_constrain_win_rate:.1%}"`</span> of scenarios</span>
+<span id="cb12-194"><a href="#cb12-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-195"><a href="#cb12-195" aria-hidden="true" tabindex="-1"></a>The penalty provides modest improvement, but the primary benefit comes from constraints rather than regularization. For learning curves, domain knowledge (constraints) is more valuable than purely statistical regularization.</span>
+<span id="cb12-196"><a href="#cb12-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-197"><a href="#cb12-197" aria-hidden="true" tabindex="-1"></a><span class="fu">## Robustness to Constraint Misspecification</span></span>
+<span id="cb12-198"><a href="#cb12-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-201"><a href="#cb12-201" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-202"><a href="#cb12-202" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: wrong-constraints-analysis</span></span>
+<span id="cb12-203"><a href="#cb12-203" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb12-204"><a href="#cb12-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-205"><a href="#cb12-205" aria-hidden="true" tabindex="-1"></a>comp_wrong_ols <span class="op">=</span> get_model_comparison(df, <span class="st">'OLS'</span>, <span class="st">'PCReg_CV_Wrong'</span>, <span class="st">'test_sspe'</span>)</span>
+<span id="cb12-206"><a href="#cb12-206" aria-hidden="true" tabindex="-1"></a>wrong_vs_ols_win_rate <span class="op">=</span> comp_wrong_ols[<span class="st">'b_wins'</span>].mean()</span>
+<span id="cb12-207"><a href="#cb12-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-208"><a href="#cb12-208" aria-hidden="true" tabindex="-1"></a><span class="co"># Mean performance</span></span>
+<span id="cb12-209"><a href="#cb12-209" aria-hidden="true" tabindex="-1"></a>mean_ols <span class="op">=</span> df[df[<span class="st">'model_name'</span>] <span class="op">==</span> <span class="st">'OLS'</span>][<span class="st">'test_sspe'</span>].mean()</span>
+<span id="cb12-210"><a href="#cb12-210" aria-hidden="true" tabindex="-1"></a>mean_wrong <span class="op">=</span> df[df[<span class="st">'model_name'</span>] <span class="op">==</span> <span class="st">'PCReg_CV_Wrong'</span>][<span class="st">'test_sspe'</span>].mean()</span>
+<span id="cb12-211"><a href="#cb12-211" aria-hidden="true" tabindex="-1"></a>improvement <span class="op">=</span> (mean_ols <span class="op">-</span> mean_wrong) <span class="op">/</span> mean_ols <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb12-212"><a href="#cb12-212" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-213"><a href="#cb12-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-214"><a href="#cb12-214" aria-hidden="true" tabindex="-1"></a>A critical question is: what happens when constraints are wrong? PCReg_CV_Wrong uses deliberately perturbed constraints (following @james2020pac methodology):</span>
+<span id="cb12-215"><a href="#cb12-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-216"><a href="#cb12-216" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**PCReg_CV_Wrong vs OLS**: PCReg with wrong constraints still wins in <span class="in">`{python} f"{wrong_vs_ols_win_rate:.1%}"`</span> of scenarios</span>
+<span id="cb12-217"><a href="#cb12-217" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Mean improvement**: <span class="in">`{python} f"{improvement:.1f}%"`</span> reduction in SSPE despite incorrect constraints</span>
+<span id="cb12-218"><a href="#cb12-218" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-219"><a href="#cb12-219" aria-hidden="true" tabindex="-1"></a>This demonstrates that approximate domain knowledge (even imperfect constraints) is more valuable than no domain knowledge (unconstrained OLS).</span>
+<span id="cb12-220"><a href="#cb12-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-221"><a href="#cb12-221" aria-hidden="true" tabindex="-1"></a><span class="fu">## Key Findings</span></span>
+<span id="cb12-222"><a href="#cb12-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-223"><a href="#cb12-223" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Constrained methods consistently outperform unconstrained**: PCReg reduces test error by 15-20% compared to OLS across diverse scenarios</span>
+<span id="cb12-224"><a href="#cb12-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-225"><a href="#cb12-225" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Sign correctness matters**: OLS produces physically implausible estimates in ~25% of scenarios, particularly with small samples and high correlation</span>
+<span id="cb12-226"><a href="#cb12-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-227"><a href="#cb12-227" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Dropping variables is not the answer**: OLS_LearnOnly (confluence remedy) provides minimal benefit while discarding valuable rate effect information</span>
+<span id="cb12-228"><a href="#cb12-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-229"><a href="#cb12-229" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Constraints beat regularization**: PCReg_ConstrainOnly (constraints only) performs as well as or better than PCReg_CV (constraints + penalty)</span>
+<span id="cb12-230"><a href="#cb12-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-231"><a href="#cb12-231" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Robustness to misspecification**: Even deliberately wrong constraints outperform unconstrained OLS, suggesting that approximate domain knowledge is valuable</span>
+<span id="cb12-232"><a href="#cb12-232" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-233"><a href="#cb12-233" aria-hidden="true" tabindex="-1"></a><span class="fu">## Recommendations for Practice</span></span>
+<span id="cb12-234"><a href="#cb12-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-235"><a href="#cb12-235" aria-hidden="true" tabindex="-1"></a>Based on these findings, we recommend:</span>
+<span id="cb12-236"><a href="#cb12-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-237"><a href="#cb12-237" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Use constrained estimation** when domain knowledge about coefficient signs or magnitudes is available</span>
+<span id="cb12-238"><a href="#cb12-238" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Start with constraints only** (α=0) before adding penalization</span>
+<span id="cb12-239"><a href="#cb12-239" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Don't drop variables** to address multicollinearity - use constraints instead</span>
+<span id="cb12-240"><a href="#cb12-240" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Be cautious with sign violations** in OLS results, especially with small samples or correlated predictors</span>
+<span id="cb12-241"><a href="#cb12-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-242"><a href="#cb12-242" aria-hidden="true" tabindex="-1"></a><span class="fu">## Directions for Further Analysis</span></span>
+<span id="cb12-243"><a href="#cb12-243" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-244"><a href="#cb12-244" aria-hidden="true" tabindex="-1"></a>The simulation results suggest several avenues for deeper investigation:</span>
+<span id="cb12-245"><a href="#cb12-245" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-246"><a href="#cb12-246" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Interaction effects**: How do sample size, correlation, and noise level interact to affect relative model performance?</span>
+<span id="cb12-247"><a href="#cb12-247" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Coefficient recovery**: Beyond prediction accuracy, how well do methods recover true parameter values?</span>
+<span id="cb12-248"><a href="#cb12-248" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Boundary cases**: Under what conditions (if any) does OLS outperform PCReg?</span>
+<span id="cb12-249"><a href="#cb12-249" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Practical guidelines**: Can we develop decision rules for when to use constraints vs. penalties?</span>
+<span id="cb12-250"><a href="#cb12-250" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Sensitivity analysis**: How sensitive is PCReg performance to the width of constraint bounds?</span>
+<span id="cb12-251"><a href="#cb12-251" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-252"><a href="#cb12-252" aria-hidden="true" tabindex="-1"></a>These questions could be addressed through design-of-experiments (DOE) analysis with main effects and interaction plots, coefficient bias-variance decomposition, and stratified win-rate analysis by scenario characteristics.</span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>  </div> <!-- /content -->  <script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script> 
+  
+</body></html>

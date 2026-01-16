@@ -1,8 +1,5 @@
 """Demo: PCReg in unit space with custom prediction function."""
 import numpy as np
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 import penalized_constrained as pcreg
 
 # Generate sample data

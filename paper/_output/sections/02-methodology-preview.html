@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="generator" content="quarto-1.8.26">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+    <title>methodology</title>
+    <style>
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      div.columns{display: flex; gap: min(4vw, 1.5em);}
+      div.column{flex: auto; overflow-x: auto;}
+      div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+      ul.task-list{list-style: none;}
+      ul.task-list li input[type="checkbox"] {
+        width: 0.8em;
+        margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+        vertical-align: middle;
+      }
+      /* CSS for syntax highlighting */
+      html { -webkit-text-size-adjust: 100%; }
+      pre > code.sourceCode { white-space: pre; position: relative; }
+      pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+      pre > code.sourceCode > span:empty { height: 1.2em; }
+      .sourceCode { overflow: visible; }
+      code.sourceCode > span { color: inherit; text-decoration: inherit; }
+      div.sourceCode { margin: 1em 0; }
+      pre.sourceCode { margin: 0; }
+      @media screen {
+      div.sourceCode { overflow: auto; }
+      }
+      @media print {
+      pre > code.sourceCode { white-space: pre-wrap; }
+      pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+      }
+      pre.numberSource code
+        { counter-reset: source-line 0; }
+      pre.numberSource code > span
+        { position: relative; left: -4em; counter-increment: source-line; }
+      pre.numberSource code > span > a:first-child::before
+        { content: counter(source-line);
+          position: relative; left: -1em; text-align: right; vertical-align: baseline;
+          border: none; display: inline-block;
+          -webkit-touch-callout: none; -webkit-user-select: none;
+          -khtml-user-select: none; -moz-user-select: none;
+          -ms-user-select: none; user-select: none;
+          padding: 0 4px; width: 4em;
+        }
+      pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+      div.sourceCode
+        {   }
+      @media screen {
+      pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+      }
+      /* CSS for citations */
+      div.csl-bib-body { }
+      div.csl-entry {
+        clear: both;
+        margin-bottom: 0em;
+      }
+      .hanging-indent div.csl-entry {
+        margin-left:2em;
+        text-indent:-2em;
+      }
+      div.csl-left-margin {
+        min-width:2em;
+        float:left;
+      }
+      div.csl-right-inline {
+        margin-left:2em;
+        padding-left:1em;
+      }
+      div.csl-indent {
+        margin-left: 2em;
+      }    </style>
+
+    <style>
+      body.hypothesis-enabled #quarto-embed-header {
+        padding-right: 36px;
+      }
+
+      #quarto-embed-header {
+        height: 3em;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: solid 1px;
+      }
+
+      #quarto-embed-header h6 {
+        font-size: 1.1em;
+        padding-top: 0.6em;
+        margin-left: 1em;
+        margin-right: 1em;
+        font-weight: 400;
+      }
+
+      #quarto-embed-header a.quarto-back-link,
+      #quarto-embed-header a.quarto-download-embed {
+        font-size: 0.8em;
+        margin-top: 1em;
+        margin-bottom: 1em;
+        margin-left: 1em;
+        margin-right: 1em;
+      }
+
+      .quarto-back-container {
+        padding-left: 0.5em;
+        display: flex;
+      }
+
+      .headroom {
+          will-change: transform;
+          transition: transform 200ms linear;
+      }
+
+      .headroom--pinned {
+          transform: translateY(0%);
+      }
+
+      .headroom--unpinned {
+          transform: translateY(-100%);
+      }      
+    </style>
+
+    <script>
+    window.document.addEventListener("DOMContentLoaded", function () {
+
+      var header = window.document.querySelector("#quarto-embed-header");
+      const titleBannerEl = window.document.querySelector("body > #title-block-header");
+      if (titleBannerEl) {
+        titleBannerEl.style.paddingTop = header.clientHeight + "px";
+      }
+      const contentEl = window.document.getElementById('quarto-content');
+      for (const child of contentEl.children) {
+        child.style.paddingTop = header.clientHeight + "px";
+        child.style.marginTop = "1em";
+      }
+
+      // Use the article root if the `back` call doesn't work. This isn't perfect
+      // but should typically work
+      window.quartoBackToArticle = () => {
+        var currentUrl = window.location.href;
+        window.history.back();
+        setTimeout(() => {
+            // if location was not changed in 100 ms, then there is no history back
+            if(currentUrl === window.location.href){              
+                // redirect to site root
+                window.location.href = "...html";
+            }
+        }, 100);
+      }
+
+      const headroom = new window.Headroom(header, {
+        tolerance: 5,
+        onPin: function () {
+        },
+        onUnpin: function () {
+        },
+      });
+      headroom.init();
+    });
+    </script>
+
+    
+<script src="../site_libs/manuscript-notebook/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-4d7f0bce1131f3e5f9547cd857cfbfc8.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+      <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script> 
+      </head>
+
+  <body class="quarto-notebook quarto-light">
+    <div id="quarto-embed-header" class="headroom fixed-top bg-primary">
+      
+      <a onclick="window.quartoBackToArticle(); return false;" class="btn btn-primary quarto-back-link" href=""><i class="bi bi-caret-left"></i> Back to Article</a>
+      <h6><i class="bi bi-journal-code"></i> Methodology</h6>
+
+            <a href="../sections/02-methodology.qmd" class="btn btn-primary quarto-download-embed" download="02-methodology.qmd">Download Source</a>
+          </div>
+
+     <div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-methodology" id="toc-sec-methodology" class="nav-link active" data-scroll-target="#sec-methodology">Methodology</a>
+  <ul class="collapse">
+  <li><a href="#problem-formulation" id="toc-problem-formulation" class="nav-link" data-scroll-target="#problem-formulation">Problem Formulation</a>
+  <ul class="collapse">
+  <li><a href="#why-sklearn-elastic-net-parameterization" id="toc-why-sklearn-elastic-net-parameterization" class="nav-link" data-scroll-target="#why-sklearn-elastic-net-parameterization">Why sklearn Elastic Net Parameterization?</a></li>
+  </ul></li>
+  <li><a href="#loss-functions" id="toc-loss-functions" class="nav-link" data-scroll-target="#loss-functions">Loss Functions</a>
+  <ul class="collapse">
+  <li><a href="#why-unit-space-sspe" id="toc-why-unit-space-sspe" class="nav-link" data-scroll-target="#why-unit-space-sspe">Why Unit Space (SSPE)?</a></li>
+  </ul></li>
+  <li><a href="#convexity-and-global-optimality" id="toc-convexity-and-global-optimality" class="nav-link" data-scroll-target="#convexity-and-global-optimality">Convexity and Global Optimality</a></li>
+  <li><a href="#note-on-blue" id="toc-note-on-blue" class="nav-link" data-scroll-target="#note-on-blue">Note on BLUE</a></li>
+  <li><a href="#algorithm-overview" id="toc-algorithm-overview" class="nav-link" data-scroll-target="#algorithm-overview">Algorithm Overview</a>
+  <ul class="collapse">
+  <li><a href="#optimization-methods" id="toc-optimization-methods" class="nav-link" data-scroll-target="#optimization-methods">Optimization Methods</a></li>
+  </ul></li>
+  <li><a href="#degrees-of-freedom-for-constrained-models" id="toc-degrees-of-freedom-for-constrained-models" class="nav-link" data-scroll-target="#degrees-of-freedom-for-constrained-models">Degrees of Freedom for Constrained Models</a>
+  <ul class="collapse">
+  <li><a href="#hus-gdf-formula" id="toc-hus-gdf-formula" class="nav-link" data-scroll-target="#hus-gdf-formula">Hu’s GDF Formula</a></li>
+  <li><a href="#gaines-et-al.-constrained-lasso-df-formula" id="toc-gaines-et-al.-constrained-lasso-df-formula" class="nav-link" data-scroll-target="#gaines-et-al.-constrained-lasso-df-formula">Gaines et al.&nbsp;Constrained Lasso DF Formula</a></li>
+  <li><a href="#gdf-adjusted-fit-statistics" id="toc-gdf-adjusted-fit-statistics" class="nav-link" data-scroll-target="#gdf-adjusted-fit-statistics">GDF-Adjusted Fit Statistics</a></li>
+  </ul></li>
+  <li><a href="#model-diagnostics-and-validation" id="toc-model-diagnostics-and-validation" class="nav-link" data-scroll-target="#model-diagnostics-and-validation">Model Diagnostics and Validation</a>
+  <ul class="collapse">
+  <li><a href="#cross-validation-as-primary-model-selection" id="toc-cross-validation-as-primary-model-selection" class="nav-link" data-scroll-target="#cross-validation-as-primary-model-selection">Cross-Validation as Primary Model Selection</a></li>
+  <li><a href="#coefficient-uncertainty-estimation" id="toc-coefficient-uncertainty-estimation" class="nav-link" data-scroll-target="#coefficient-uncertainty-estimation">Coefficient Uncertainty Estimation</a></li>
+  </ul></li>
+  <li><a href="#hyperparameter-selection" id="toc-hyperparameter-selection" class="nav-link" data-scroll-target="#hyperparameter-selection">Hyperparameter Selection</a></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
+<main class="content quarto-banner-title-block" id="quarto-document-content"><div class="quarto-title-block"><div class="quarto-title-tools-only"><h1></h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>      <section id="sec-methodology" class="level1">
+<h1>Methodology</h1>
+<section id="problem-formulation" class="level2">
+<h2 class="anchored" data-anchor-id="problem-formulation">Problem Formulation</h2>
+<p>Given training data <span class="math inline">\((X, y)\)</span> where <span class="math inline">\(X \in \mathbb{R}^{n \times p}\)</span> and <span class="math inline">\(y \in \mathbb{R}^n\)</span>, Penalized-Constrained Regression solves:</p>
+<p><span class="math display">\[\min_{\beta} \mathcal{L}(\beta) + \alpha \cdot \text{l1\_ratio} \cdot \|\beta\|_1 + \frac{1}{2} \cdot \alpha \cdot (1 - \text{l1\_ratio}) \cdot \|\beta\|_2^2\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[l_j \leq \beta_j \leq u_j \quad \forall j \in \{1, \ldots, p\}\]</span></p>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\(\mathcal{L}(\beta)\)</span> is the loss function (e.g., SSPE, MSE, or user-defined; default is SSPE)</li>
+<li><span class="math inline">\(\alpha \geq 0\)</span> is the overall penalty strength; <span class="math inline">\(\alpha = 0\)</span> recovers constrained-only optimization</li>
+<li><span class="math inline">\(\text{l1\_ratio} \in [0,1]\)</span> is the mix between L1 and L2; l1_ratio = 1 is Lasso, l1_ratio = 0 is Ridge</li>
+<li><span class="math inline">\(l_j, u_j\)</span> are the lower and upper bounds for coefficient <span class="math inline">\(j\)</span></li>
+</ul>
+<section id="why-sklearn-elastic-net-parameterization" class="level3">
+<h3 class="anchored" data-anchor-id="why-sklearn-elastic-net-parameterization">Why sklearn Elastic Net Parameterization?</h3>
+<p>We adopt sklearn’s <span class="math inline">\((\alpha, \text{l1\_ratio})\)</span> parameterization rather than the standard statistical <span class="math inline">\((\lambda_1, \lambda_2)\)</span> formulation for several practical reasons:</p>
+<ol type="1">
+<li><strong>Consistency</strong>: sklearn is the dominant machine learning library in Python, enabling direct comparison with sklearn’s ElasticNetCV results</li>
+<li><strong>Intuitive interpretation</strong>: l1_ratio provides clear meaning—0 = pure Ridge, 1 = pure Lasso, 0.5 = balanced</li>
+<li><strong>Reproducibility</strong>: Practitioners can directly use sklearn’s cross-validation infrastructure for hyperparameter tuning before applying constraints</li>
+</ol>
+<p>The conversion is straightforward: <span class="math inline">\(\lambda_1 = \alpha \cdot \text{l1\_ratio}\)</span> and <span class="math inline">\(\lambda_2 = \alpha \cdot (1 - \text{l1\_ratio})\)</span>.</p>
+</section>
+</section>
+<section id="loss-functions" class="level2">
+<h2 class="anchored" data-anchor-id="loss-functions">Loss Functions</h2>
+<p>The framework supports multiple loss functions <span class="math inline">\(\mathcal{L}(\beta)\)</span>, each with distinct properties:</p>
+<div id="tbl-loss-functions" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-loss-functions-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Loss function options
+</figcaption>
+<div aria-describedby="tbl-loss-functions-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 24%">
+<col style="width: 32%">
+<col style="width: 27%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Loss</th>
+<th>Formula</th>
+<th>Properties</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>SSE</td>
+<td><span class="math inline">\(\sum(y_i - \hat{y}_i)^2\)</span></td>
+<td>Convex; closed-form for linear</td>
+<td>Standard OLS setting</td>
+</tr>
+<tr class="even">
+<td>SSPE</td>
+<td><span class="math inline">\(\sum[(y_i - \hat{y}_i)/y_i]^2\)</span></td>
+<td>Unit space; MUPE-consistent</td>
+<td>Default for CERs</td>
+</tr>
+<tr class="odd">
+<td>LAD</td>
+<td><span class="math inline">\(\sum\|y_i - \hat{y}_i\|\)</span></td>
+<td>Robust to outliers</td>
+<td>Heavy-tailed errors</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<section id="why-unit-space-sspe" class="level3">
+<h3 class="anchored" data-anchor-id="why-unit-space-sspe">Why Unit Space (SSPE)?</h3>
+<p>The default loss function is Sum of Squared Percentage Errors:</p>
+<p><span class="math display">\[\text{SSPE} = \sum_{i=1}^{n} \left( \frac{y_i - f(X_i, \beta)}{y_i} \right)^2\]</span></p>
+<p>This produces directly interpretable percentage errors while penalizing large errors proportionally to the magnitude of actual costs. SSPE is comparable to the MUPE formulation widely used in cost estimation <span class="citation" data-cites="hu2007mupe">(<a href="#ref-hu2007mupe" role="doc-biblioref">Hu and Smith 2007</a>)</span>.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Future Work: MUPE and pcLAD">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Future Work: MUPE and pcLAD
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>MUPE</strong> (Minimum Unbiased Percentage Error) employs Iteratively Reweighted Least Squares (IRLS), producing the Best Linear Unbiased Estimator for multiplicative error models <span class="citation" data-cites="hu2007mupe">(<a href="#ref-hu2007mupe" role="doc-biblioref">Hu and Smith 2007</a>)</span>.</p>
+<p><strong>pcLAD</strong> (Penalized-Constrained Least Absolute Deviation) offers superior performance with heavy-tailed errors or outliers: “pcLAD enjoys the Oracle property even with Cauchy-distributed errors” <span class="citation" data-cites="wu2022pclad">(<a href="#ref-wu2022pclad" role="doc-biblioref">Wu, Liang, and Yang 2022</a>)</span>.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="convexity-and-global-optimality" class="level2">
+<h2 class="anchored" data-anchor-id="convexity-and-global-optimality">Convexity and Global Optimality</h2>
+<p>Global optimality is guaranteed when:</p>
+<ol type="1">
+<li>The loss function <span class="math inline">\(\mathcal{L}(\beta)\)</span> is convex (e.g., SSE with linear model)</li>
+<li>All constraints define a convex feasible region (linear inequalities/equalities)</li>
+<li>Regularization terms (L1 and L2 penalties) are convex</li>
+</ol>
+<div class="callout callout-style-default callout-warning callout-titled" title="Non-Convex Cases">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Non-Convex Cases
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>For nonlinear models (e.g., power forms <span class="math inline">\(Y = aX^bZ^c\)</span>) with SSPE objective, the problem is non-convex. Local minima are possible. ZMPE is documented to be sensitive to starting points <span class="citation" data-cites="hu2007mupe">(<a href="#ref-hu2007mupe" role="doc-biblioref">Hu and Smith 2007</a>)</span>. <strong>Recommendation</strong>: Test multiple starting points; COBYLA optimizer recommended for ZMPE-type problems <span class="citation" data-cites="schiavoni2021assessing">(<a href="#ref-schiavoni2021assessing" role="doc-biblioref">Schiavoni et al. 2021</a>)</span>.</p>
+</div>
+</div>
+</section>
+<section id="note-on-blue" class="level2">
+<h2 class="anchored" data-anchor-id="note-on-blue">Note on BLUE</h2>
+<div class="callout callout-style-default callout-note callout-titled" title="Best Linear Unbiased Estimator (BLUE)">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Best Linear Unbiased Estimator (BLUE)
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>By the Gauss-Markov theorem, OLS is BLUE under classical assumptions. Introducing penalties and/or constraints means the resulting estimator is <strong>no longer BLUE</strong>. This is an intentional tradeoff: we accept bias in exchange for reduced variance (bias-variance tradeoff), improved interpretability (domain-consistent coefficients), and enhanced predictive accuracy (regularization benefits).</p>
+<p>Per the Theobald-Farebrother theorem, this tradeoff yields lower MSE for some <span class="math inline">\(\lambda &gt; 0\)</span>. Cross-validation identifies when that <span class="math inline">\(\lambda\)</span> is near zero (OLS suffices) versus when substantial regularization helps.</p>
+</div>
+</div>
+</section>
+<section id="algorithm-overview" class="level2">
+<h2 class="anchored" data-anchor-id="algorithm-overview">Algorithm Overview</h2>
+<p>The high-level algorithm proceeds as follows:</p>
+<ol type="1">
+<li><p><strong>Input</strong>: Data <span class="math inline">\((X, y)\)</span>, functional form <span class="math inline">\(f(X, \beta)\)</span>, penalty parameters <span class="math inline">\((\alpha, \text{l1\_ratio})\)</span>, bounds/constraints, loss function, optimizer choice</p></li>
+<li><p><strong>Scale</strong> (optional): Standardize <span class="math inline">\(X\)</span> (mean=0, std=1) if <code>scale=True</code></p></li>
+<li><p><strong>Initialize</strong>: Starting coefficients from OLS (default when possible), trimmed to satisfy bounds; alternatively zeros or user-specified</p></li>
+<li><p><strong>Optimize</strong>: Solve constrained penalized minimization via selected optimizer</p></li>
+<li><p><strong>Unscale</strong>: Transform coefficients back to original units: <span class="math inline">\(\beta_{\text{original}} = \beta_{\text{scaled}} / \sigma\)</span></p></li>
+<li><p><strong>Output</strong>: Coefficient estimates <span class="math inline">\(\hat{\beta}\)</span>, fit statistics (GDF-adjusted), <code>active_constraints_</code> flag</p></li>
+</ol>
+<section id="optimization-methods" class="level3">
+<h3 class="anchored" data-anchor-id="optimization-methods">Optimization Methods</h3>
+<p>The implementation uses general constrained solvers from <code>scipy.optimize.minimize</code>:</p>
+<ul>
+<li><strong>SLSQP</strong> (Sequential Least-Squares Quadratic Programming): Current default. Handles bounds and linear constraints efficiently.</li>
+<li><strong>COBYLA</strong> (Constrained Optimization BY Linear Approximation): Derivative-free; recommended for ZMPE-type problems <span class="citation" data-cites="schiavoni2021assessing">(<a href="#ref-schiavoni2021assessing" role="doc-biblioref">Schiavoni et al. 2021</a>)</span>.</li>
+<li><strong>trust-constr</strong>: Interior point method; suitable for larger-scale problems with many constraints.</li>
+</ul>
+<p>See <span class="citation" data-cites="sec-appendix-algorithm">(<a href="#ref-sec-appendix-algorithm" role="doc-biblioref"><strong>sec-appendix-algorithm?</strong></a>)</span> for detailed algorithm information including initialization strategy and scaling considerations.</p>
+</section>
+</section>
+<section id="degrees-of-freedom-for-constrained-models" class="level2">
+<h2 class="anchored" data-anchor-id="degrees-of-freedom-for-constrained-models">Degrees of Freedom for Constrained Models</h2>
+<div class="callout callout-style-default callout-important callout-titled" title="Critical Issue">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Critical Issue
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>When constraints are imposed on regression coefficients, the effective degrees of freedom (DF) must be adjusted. Without this adjustment, fit statistics (SEE, SPE, Adjusted R²) are incorrect and misleading <span class="citation" data-cites="hu2010gdf">(<a href="#ref-hu2010gdf" role="doc-biblioref">Hu 2010</a>)</span>.</p>
+</div>
+</div>
+<section id="hus-gdf-formula" class="level3">
+<h3 class="anchored" data-anchor-id="hus-gdf-formula">Hu’s GDF Formula</h3>
+<p><span class="math display">\[\text{GDF} = n - p - (\text{\# Constraints}) + (\text{\# Redundancies})\]</span></p>
+<p>where <span class="math inline">\(p\)</span> is the number of estimated parameters and <span class="math inline">\(n\)</span> is the sample size. One restriction is equivalent to a loss of one DF.</p>
+</section>
+<section id="gaines-et-al.-constrained-lasso-df-formula" class="level3">
+<h3 class="anchored" data-anchor-id="gaines-et-al.-constrained-lasso-df-formula">Gaines et al.&nbsp;Constrained Lasso DF Formula</h3>
+<p><span class="math display">\[\text{df} = |\text{Active predictors}| - (\text{\# equality constraints}) - (\text{\# binding inequality constraints})\]</span></p>
+<p>The key difference: Gaines’ formulation <span class="citation" data-cites="gaines2018constrained">(<a href="#ref-gaines2018constrained" role="doc-biblioref">Gaines, Kim, and Zhou 2018</a>)</span> only counts binding inequality constraints, while Hu’s formulation counts all specified constraints. See <span class="citation" data-cites="sec-appendix-gdf">(<a href="#ref-sec-appendix-gdf" role="doc-biblioref"><strong>sec-appendix-gdf?</strong></a>)</span> for detailed comparison.</p>
+</section>
+<section id="gdf-adjusted-fit-statistics" class="level3">
+<h3 class="anchored" data-anchor-id="gdf-adjusted-fit-statistics">GDF-Adjusted Fit Statistics</h3>
+<p><span class="math display">\[\text{SEE} = \sqrt{\frac{\sum(y_i - \hat{y}_i)^2}{\text{GDF}}} \qquad \text{SPE} = \sqrt{\frac{\sum((y_i - \hat{y}_i)/\hat{y}_i)^2}{\text{GDF}}}\]</span></p>
+</section>
+</section>
+<section id="model-diagnostics-and-validation" class="level2">
+<h2 class="anchored" data-anchor-id="model-diagnostics-and-validation">Model Diagnostics and Validation</h2>
+<section id="cross-validation-as-primary-model-selection" class="level3">
+<h3 class="anchored" data-anchor-id="cross-validation-as-primary-model-selection">Cross-Validation as Primary Model Selection</h3>
+<p>Since penalized-constrained estimators do not follow standard likelihood theory, cross-validation serves as the primary arbiter of model quality <span class="citation" data-cites="hastie2009elements">(<a href="#ref-hastie2009elements" role="doc-biblioref">Hastie, Tibshirani, and Friedman 2009</a>)</span>:</p>
+<ul>
+<li>Directly estimates out-of-sample prediction error without distributional assumptions</li>
+<li>Enables comparison across fundamentally different model classes (OLS vs.&nbsp;penalized vs.&nbsp;constrained)</li>
+<li>Provides a principled basis for hyperparameter selection (<span class="math inline">\(\alpha\)</span>, l1_ratio)</li>
+</ul>
+<p>For cost estimation with small samples, Leave-One-Out Cross-Validation (LOOCV) is recommended to maximize training data usage. K-fold CV (k=5 or k=10) provides a computationally cheaper alternative.</p>
+</section>
+<section id="coefficient-uncertainty-estimation" class="level3">
+<h3 class="anchored" data-anchor-id="coefficient-uncertainty-estimation">Coefficient Uncertainty Estimation</h3>
+<p>Four approaches are available for likelihood-free coefficient uncertainty:</p>
+<ol type="1">
+<li><p><strong>Hessian-based covariance</strong>: Uses the inverse Hessian of the objective function at the solution. Available directly from most optimizers. Assumes local quadratic approximation is valid.</p></li>
+<li><p><strong>Jacobian-based</strong>: Estimates covariance from the Jacobian of residuals, following <code>scipy.optimize.curve_fit</code> methodology. Appropriate for nonlinear least squares problems.</p></li>
+<li><p><strong>Bootstrap</strong>: Resamples data and re-estimates coefficients to build empirical confidence intervals <span class="citation" data-cites="efron1993bootstrap">(<a href="#ref-efron1993bootstrap" role="doc-biblioref">Efron and Tibshirani 1993</a>)</span>. Does not require distributional assumptions. <em>Caveat</em>: For penalized models, bootstrap CIs may be artificially narrow because penalties constrain coefficient variability across resamples.</p></li>
+<li><p><strong>Profile likelihood</strong>: Varies each coefficient individually while re-optimizing others to trace out confidence regions. Most computationally expensive but most robust for non-quadratic objective surfaces.</p></li>
+</ol>
+<p>This implementation supports Bootstrap and Hessian-based covariance methods.</p>
+</section>
+</section>
+<section id="hyperparameter-selection" class="level2">
+<h2 class="anchored" data-anchor-id="hyperparameter-selection">Hyperparameter Selection</h2>
+<p>The regularization strength <span class="math inline">\(\alpha\)</span> is selected via:</p>
+<ol type="1">
+<li><strong>Cross-validation</strong>: Minimize out-of-fold SSPE (primary method)</li>
+<li><strong>AICc</strong>: Corrected Akaike Information Criterion</li>
+<li><strong>GCV</strong>: Generalized Cross-Validation</li>
+</ol>
+<p>For this simulation study, we use 5-fold cross-validation with an alpha grid spanning <span class="math inline">\(10^{-5}\)</span> to <span class="math inline">\(1.0\)</span>.</p>
+<!-- -->
+
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-efron1993bootstrap" class="csl-entry" role="listitem">
+Efron, Bradley, and Robert J. Tibshirani. 1993. <em>An Introduction to the Bootstrap</em>. Chapman &amp; Hall/CRC.
+</div>
+<div id="ref-gaines2018constrained" class="csl-entry" role="listitem">
+Gaines, Brian R., Juhyun Kim, and Hua Zhou. 2018. <span>“Algorithms for Fitting the Constrained Lasso.”</span> <em>Journal of Computational and Graphical Statistics</em> 27 (4): 861–71. <a href="https://doi.org/10.1080/10618600.2018.1473777">https://doi.org/10.1080/10618600.2018.1473777</a>.
+</div>
+<div id="ref-hastie2009elements" class="csl-entry" role="listitem">
+Hastie, Trevor, Robert Tibshirani, and Jerome Friedman. 2009. <em>The Elements of Statistical Learning: Data Mining, Inference, and Prediction</em>. 2nd ed. Springer. <a href="https://doi.org/10.1007/978-0-387-84858-7">https://doi.org/10.1007/978-0-387-84858-7</a>.
+</div>
+<div id="ref-hu2010gdf" class="csl-entry" role="listitem">
+Hu, Shu-Ping. 2010. <span>“Generalized Degrees of Freedom for Constrained CERs.”</span> PRT-191. Tecolote Research.
+</div>
+<div id="ref-hu2007mupe" class="csl-entry" role="listitem">
+Hu, Shu-Ping, and Adam Smith. 2007. <span>“Why ZMPE When You Can MUPE?”</span> In <em>ISPA/SCEA Joint International Conference</em>.
+</div>
+<div id="ref-schiavoni2021assessing" class="csl-entry" role="listitem">
+Schiavoni, Brian et al. 2021. <span>“Assessing Regression Methods.”</span> In <em>ICEAA Professional Development &amp; Training Workshop</em>.
+</div>
+<div id="ref-wu2022pclad" class="csl-entry" role="listitem">
+Wu, Xiaofei, Rongmei Liang, and Hu Yang. 2022. <span>“Penalized and Constrained LAD Estimation in Fixed and High Dimension.”</span> <em>Statistical Papers</em> 63: 53–95. <a href="https://doi.org/10.1007/s00362-021-01229-0">https://doi.org/10.1007/s00362-021-01229-0</a>.
+</div>
+</div>
+</section>
+</section>
+     </main>
+<!-- /main column -->  <script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Methodology {#sec-methodology}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Problem Formulation</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>Given training data $(X, y)$ where $X \in \mathbb{R}^{n \times p}$ and $y \in \mathbb{R}^n$, Penalized-Constrained Regression solves:</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>$$\min_{\beta} \mathcal{L}(\beta) + \alpha \cdot \text{l1<span class="sc">\_</span>ratio} \cdot <span class="sc">\|</span>\beta<span class="sc">\|</span>_1 + \frac{1}{2} \cdot \alpha \cdot (1 - \text{l1<span class="sc">\_</span>ratio}) \cdot <span class="sc">\|</span>\beta<span class="sc">\|</span>_2^2$$</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>subject to:</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>$$l_j \leq \beta_j \leq u_j \quad \forall j \in <span class="sc">\{</span>1, \ldots, p<span class="sc">\}</span>$$</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>where:</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\mathcal{L}(\beta)$ is the loss function (e.g., SSPE, MSE, or user-defined; default is SSPE)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\alpha \geq 0$ is the overall penalty strength; $\alpha = 0$ recovers constrained-only optimization</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\text{l1<span class="sc">\_</span>ratio} \in <span class="co">[</span><span class="ot">0,1</span><span class="co">]</span>$ is the mix between L1 and L2; l1<span class="sc">\_</span>ratio = 1 is Lasso, l1<span class="sc">\_</span>ratio = 0 is Ridge</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$l_j, u_j$ are the lower and upper bounds for coefficient $j$</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="fu">### Why sklearn Elastic Net Parameterization?</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>We adopt sklearn's $(\alpha, \text{l1<span class="sc">\_</span>ratio})$ parameterization rather than the standard statistical $(\lambda_1, \lambda_2)$ formulation for several practical reasons:</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Consistency**: sklearn is the dominant machine learning library in Python, enabling direct comparison with sklearn's ElasticNetCV results</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Intuitive interpretation**: l1<span class="sc">\_</span>ratio provides clear meaning---0 = pure Ridge, 1 = pure Lasso, 0.5 = balanced</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Reproducibility**: Practitioners can directly use sklearn's cross-validation infrastructure for hyperparameter tuning before applying constraints</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>The conversion is straightforward: $\lambda_1 = \alpha \cdot \text{l1<span class="sc">\_</span>ratio}$ and $\lambda_2 = \alpha \cdot (1 - \text{l1<span class="sc">\_</span>ratio})$.</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="fu">## Loss Functions</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>The framework supports multiple loss functions $\mathcal{L}(\beta)$, each with distinct properties:</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Loss <span class="pp">|</span> Formula <span class="pp">|</span> Properties <span class="pp">|</span> Use Case <span class="pp">|</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="pp">|------|---------|------------|----------|</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SSE <span class="pp">|</span> $\sum(y_i - \hat{y}_i)^2$ <span class="pp">|</span> Convex; closed-form for linear <span class="pp">|</span> Standard OLS setting <span class="pp">|</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SSPE <span class="pp">|</span> $\sum<span class="co">[</span><span class="ot">(y_i - \hat{y}_i)/y_i</span><span class="co">]</span>^2$ <span class="pp">|</span> Unit space; MUPE-consistent <span class="pp">|</span> Default for CERs <span class="pp">|</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> LAD <span class="pp">|</span> $\sum<span class="sc">\|</span>y_i - \hat{y}_i<span class="sc">\|</span>$ <span class="pp">|</span> Robust to outliers <span class="pp">|</span> Heavy-tailed errors <span class="pp">|</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>: Loss function options {#tbl-loss-functions}</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a><span class="fu">### Why Unit Space (SSPE)?</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>The default loss function is Sum of Squared Percentage Errors:</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>$$\text{SSPE} = \sum_{i=1}^{n} \left( \frac{y_i - f(X_i, \beta)}{y_i} \right)^2$$</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>This produces directly interpretable percentage errors while penalizing large errors proportionally to the magnitude of actual costs. SSPE is comparable to the MUPE formulation widely used in cost estimation <span class="co">[</span><span class="ot">@hu2007mupe</span><span class="co">]</span>.</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>::: {.callout-tip title="Future Work: MUPE and pcLAD"}</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>**MUPE** (Minimum Unbiased Percentage Error) employs Iteratively Reweighted Least Squares (IRLS), producing the Best Linear Unbiased Estimator for multiplicative error models <span class="co">[</span><span class="ot">@hu2007mupe</span><span class="co">]</span>.</span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>**pcLAD** (Penalized-Constrained Least Absolute Deviation) offers superior performance with heavy-tailed errors or outliers: "pcLAD enjoys the Oracle property even with Cauchy-distributed errors" <span class="co">[</span><span class="ot">@wu2022pclad</span><span class="co">]</span>.</span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a><span class="fu">## Convexity and Global Optimality</span></span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>Global optimality is guaranteed when:</span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>The loss function $\mathcal{L}(\beta)$ is convex (e.g., SSE with linear model)</span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>All constraints define a convex feasible region (linear inequalities/equalities)</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Regularization terms (L1 and L2 penalties) are convex</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning title="Non-Convex Cases"}</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>For nonlinear models (e.g., power forms $Y = aX^bZ^c$) with SSPE objective, the problem is non-convex. Local minima are possible. ZMPE is documented to be sensitive to starting points <span class="co">[</span><span class="ot">@hu2007mupe</span><span class="co">]</span>. **Recommendation**: Test multiple starting points; COBYLA optimizer recommended for ZMPE-type problems <span class="co">[</span><span class="ot">@schiavoni2021assessing</span><span class="co">]</span>.</span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a><span class="fu">## Note on BLUE</span></span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>::: {.callout-note title="Best Linear Unbiased Estimator (BLUE)"}</span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>By the Gauss-Markov theorem, OLS is BLUE under classical assumptions. Introducing penalties and/or constraints means the resulting estimator is **no longer BLUE**. This is an intentional tradeoff: we accept bias in exchange for reduced variance (bias-variance tradeoff), improved interpretability (domain-consistent coefficients), and enhanced predictive accuracy (regularization benefits).</span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>Per the Theobald-Farebrother theorem, this tradeoff yields lower MSE for some $\lambda &gt; 0$. Cross-validation identifies when that $\lambda$ is near zero (OLS suffices) versus when substantial regularization helps.</span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a><span class="fu">## Algorithm Overview</span></span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a>The high-level algorithm proceeds as follows:</span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Input**: Data $(X, y)$, functional form $f(X, \beta)$, penalty parameters $(\alpha, \text{l1<span class="sc">\_</span>ratio})$, bounds/constraints, loss function, optimizer choice</span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Scale** (optional): Standardize $X$ (mean=0, std=1) if <span class="in">`scale=True`</span></span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Initialize**: Starting coefficients from OLS (default when possible), trimmed to satisfy bounds; alternatively zeros or user-specified</span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Optimize**: Solve constrained penalized minimization via selected optimizer</span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Unscale**: Transform coefficients back to original units: $\beta_{\text{original}} = \beta_{\text{scaled}} / \sigma$</span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Output**: Coefficient estimates $\hat{\beta}$, fit statistics (GDF-adjusted), <span class="in">`active_constraints_`</span> flag</span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a><span class="fu">### Optimization Methods</span></span>
+<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a>The implementation uses general constrained solvers from <span class="in">`scipy.optimize.minimize`</span>:</span>
+<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**SLSQP** (Sequential Least-Squares Quadratic Programming): Current default. Handles bounds and linear constraints efficiently.</span>
+<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**COBYLA** (Constrained Optimization BY Linear Approximation): Derivative-free; recommended for ZMPE-type problems <span class="co">[</span><span class="ot">@schiavoni2021assessing</span><span class="co">]</span>.</span>
+<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**trust-constr**: Interior point method; suitable for larger-scale problems with many constraints.</span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a>See @sec-appendix-algorithm for detailed algorithm information including initialization strategy and scaling considerations.</span>
+<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a><span class="fu">## Degrees of Freedom for Constrained Models</span></span>
+<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a>::: {.callout-important title="Critical Issue"}</span>
+<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a>When constraints are imposed on regression coefficients, the effective degrees of freedom (DF) must be adjusted. Without this adjustment, fit statistics (SEE, SPE, Adjusted R²) are incorrect and misleading <span class="co">[</span><span class="ot">@hu2010gdf</span><span class="co">]</span>.</span>
+<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a><span class="fu">### Hu's GDF Formula</span></span>
+<span id="cb1-109"><a href="#cb1-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-110"><a href="#cb1-110" aria-hidden="true" tabindex="-1"></a>$$\text{GDF} = n - p - (\text{<span class="sc">\#</span> Constraints}) + (\text{<span class="sc">\#</span> Redundancies})$$</span>
+<span id="cb1-111"><a href="#cb1-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-112"><a href="#cb1-112" aria-hidden="true" tabindex="-1"></a>where $p$ is the number of estimated parameters and $n$ is the sample size. One restriction is equivalent to a loss of one DF.</span>
+<span id="cb1-113"><a href="#cb1-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-114"><a href="#cb1-114" aria-hidden="true" tabindex="-1"></a><span class="fu">### Gaines et al. Constrained Lasso DF Formula</span></span>
+<span id="cb1-115"><a href="#cb1-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-116"><a href="#cb1-116" aria-hidden="true" tabindex="-1"></a>$$\text{df} = |\text{Active predictors}| - (\text{<span class="sc">\#</span> equality constraints}) - (\text{<span class="sc">\#</span> binding inequality constraints})$$</span>
+<span id="cb1-117"><a href="#cb1-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-118"><a href="#cb1-118" aria-hidden="true" tabindex="-1"></a>The key difference: Gaines' formulation <span class="co">[</span><span class="ot">@gaines2018constrained</span><span class="co">]</span> only counts binding inequality constraints, while Hu's formulation counts all specified constraints. See @sec-appendix-gdf for detailed comparison.</span>
+<span id="cb1-119"><a href="#cb1-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-120"><a href="#cb1-120" aria-hidden="true" tabindex="-1"></a><span class="fu">### GDF-Adjusted Fit Statistics</span></span>
+<span id="cb1-121"><a href="#cb1-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-122"><a href="#cb1-122" aria-hidden="true" tabindex="-1"></a>$$\text{SEE} = \sqrt{\frac{\sum(y_i - \hat{y}_i)^2}{\text{GDF}}} \qquad \text{SPE} = \sqrt{\frac{\sum((y_i - \hat{y}_i)/\hat{y}_i)^2}{\text{GDF}}}$$</span>
+<span id="cb1-123"><a href="#cb1-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-124"><a href="#cb1-124" aria-hidden="true" tabindex="-1"></a><span class="fu">## Model Diagnostics and Validation</span></span>
+<span id="cb1-125"><a href="#cb1-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-126"><a href="#cb1-126" aria-hidden="true" tabindex="-1"></a><span class="fu">### Cross-Validation as Primary Model Selection</span></span>
+<span id="cb1-127"><a href="#cb1-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-128"><a href="#cb1-128" aria-hidden="true" tabindex="-1"></a>Since penalized-constrained estimators do not follow standard likelihood theory, cross-validation serves as the primary arbiter of model quality <span class="co">[</span><span class="ot">@hastie2009elements</span><span class="co">]</span>:</span>
+<span id="cb1-129"><a href="#cb1-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-130"><a href="#cb1-130" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Directly estimates out-of-sample prediction error without distributional assumptions</span>
+<span id="cb1-131"><a href="#cb1-131" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Enables comparison across fundamentally different model classes (OLS vs. penalized vs. constrained)</span>
+<span id="cb1-132"><a href="#cb1-132" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Provides a principled basis for hyperparameter selection ($\alpha$, l1<span class="sc">\_</span>ratio)</span>
+<span id="cb1-133"><a href="#cb1-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-134"><a href="#cb1-134" aria-hidden="true" tabindex="-1"></a>For cost estimation with small samples, Leave-One-Out Cross-Validation (LOOCV) is recommended to maximize training data usage. K-fold CV (k=5 or k=10) provides a computationally cheaper alternative.</span>
+<span id="cb1-135"><a href="#cb1-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-136"><a href="#cb1-136" aria-hidden="true" tabindex="-1"></a><span class="fu">### Coefficient Uncertainty Estimation</span></span>
+<span id="cb1-137"><a href="#cb1-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-138"><a href="#cb1-138" aria-hidden="true" tabindex="-1"></a>Four approaches are available for likelihood-free coefficient uncertainty:</span>
+<span id="cb1-139"><a href="#cb1-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-140"><a href="#cb1-140" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Hessian-based covariance**: Uses the inverse Hessian of the objective function at the solution. Available directly from most optimizers. Assumes local quadratic approximation is valid.</span>
+<span id="cb1-141"><a href="#cb1-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-142"><a href="#cb1-142" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Jacobian-based**: Estimates covariance from the Jacobian of residuals, following <span class="in">`scipy.optimize.curve_fit`</span> methodology. Appropriate for nonlinear least squares problems.</span>
+<span id="cb1-143"><a href="#cb1-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-144"><a href="#cb1-144" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Bootstrap**: Resamples data and re-estimates coefficients to build empirical confidence intervals <span class="co">[</span><span class="ot">@efron1993bootstrap</span><span class="co">]</span>. Does not require distributional assumptions. *Caveat*: For penalized models, bootstrap CIs may be artificially narrow because penalties constrain coefficient variability across resamples.</span>
+<span id="cb1-145"><a href="#cb1-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-146"><a href="#cb1-146" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Profile likelihood**: Varies each coefficient individually while re-optimizing others to trace out confidence regions. Most computationally expensive but most robust for non-quadratic objective surfaces.</span>
+<span id="cb1-147"><a href="#cb1-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-148"><a href="#cb1-148" aria-hidden="true" tabindex="-1"></a>This implementation supports Bootstrap and Hessian-based covariance methods.</span>
+<span id="cb1-149"><a href="#cb1-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-150"><a href="#cb1-150" aria-hidden="true" tabindex="-1"></a><span class="fu">## Hyperparameter Selection</span></span>
+<span id="cb1-151"><a href="#cb1-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-152"><a href="#cb1-152" aria-hidden="true" tabindex="-1"></a>The regularization strength $\alpha$ is selected via:</span>
+<span id="cb1-153"><a href="#cb1-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-154"><a href="#cb1-154" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Cross-validation**: Minimize out-of-fold SSPE (primary method)</span>
+<span id="cb1-155"><a href="#cb1-155" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**AICc**: Corrected Akaike Information Criterion</span>
+<span id="cb1-156"><a href="#cb1-156" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**GCV**: Generalized Cross-Validation</span>
+<span id="cb1-157"><a href="#cb1-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-158"><a href="#cb1-158" aria-hidden="true" tabindex="-1"></a>For this simulation study, we use 5-fold cross-validation with an alpha grid spanning $10^{-5}$ to $1.0$.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>  </div> <!-- /content --> 
+  
+</body></html>

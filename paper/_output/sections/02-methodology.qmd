@@ -1,0 +1,158 @@
+# Methodology {#sec-methodology}
+
+## Problem Formulation
+
+Given training data $(X, y)$ where $X \in \mathbb{R}^{n \times p}$ and $y \in \mathbb{R}^n$, Penalized-Constrained Regression solves:
+
+$$\min_{\beta} \mathcal{L}(\beta) + \alpha \cdot \text{l1\_ratio} \cdot \|\beta\|_1 + \frac{1}{2} \cdot \alpha \cdot (1 - \text{l1\_ratio}) \cdot \|\beta\|_2^2$$
+
+subject to:
+
+$$l_j \leq \beta_j \leq u_j \quad \forall j \in \{1, \ldots, p\}$$
+
+where:
+
+- $\mathcal{L}(\beta)$ is the loss function (e.g., SSPE, MSE, or user-defined; default is SSPE)
+- $\alpha \geq 0$ is the overall penalty strength; $\alpha = 0$ recovers constrained-only optimization
+- $\text{l1\_ratio} \in [0,1]$ is the mix between L1 and L2; l1\_ratio = 1 is Lasso, l1\_ratio = 0 is Ridge
+- $l_j, u_j$ are the lower and upper bounds for coefficient $j$
+
+### Why sklearn Elastic Net Parameterization?
+
+We adopt sklearn's $(\alpha, \text{l1\_ratio})$ parameterization rather than the standard statistical $(\lambda_1, \lambda_2)$ formulation for several practical reasons:
+
+1. **Consistency**: sklearn is the dominant machine learning library in Python, enabling direct comparison with sklearn's ElasticNetCV results
+2. **Intuitive interpretation**: l1\_ratio provides clear meaning---0 = pure Ridge, 1 = pure Lasso, 0.5 = balanced
+3. **Reproducibility**: Practitioners can directly use sklearn's cross-validation infrastructure for hyperparameter tuning before applying constraints
+
+The conversion is straightforward: $\lambda_1 = \alpha \cdot \text{l1\_ratio}$ and $\lambda_2 = \alpha \cdot (1 - \text{l1\_ratio})$.
+
+## Loss Functions
+
+The framework supports multiple loss functions $\mathcal{L}(\beta)$, each with distinct properties:
+
+| Loss | Formula | Properties | Use Case |
+|------|---------|------------|----------|
+| SSE | $\sum(y_i - \hat{y}_i)^2$ | Convex; closed-form for linear | Standard OLS setting |
+| SSPE | $\sum[(y_i - \hat{y}_i)/y_i]^2$ | Unit space; MUPE-consistent | Default for CERs |
+| LAD | $\sum\|y_i - \hat{y}_i\|$ | Robust to outliers | Heavy-tailed errors |
+
+: Loss function options {#tbl-loss-functions}
+
+### Why Unit Space (SSPE)?
+
+The default loss function is Sum of Squared Percentage Errors:
+
+$$\text{SSPE} = \sum_{i=1}^{n} \left( \frac{y_i - f(X_i, \beta)}{y_i} \right)^2$$
+
+This produces directly interpretable percentage errors while penalizing large errors proportionally to the magnitude of actual costs. SSPE is comparable to the MUPE formulation widely used in cost estimation [@hu2007mupe].
+
+::: {.callout-tip title="Future Work: MUPE and pcLAD"}
+**MUPE** (Minimum Unbiased Percentage Error) employs Iteratively Reweighted Least Squares (IRLS), producing the Best Linear Unbiased Estimator for multiplicative error models [@hu2007mupe].
+
+**pcLAD** (Penalized-Constrained Least Absolute Deviation) offers superior performance with heavy-tailed errors or outliers: "pcLAD enjoys the Oracle property even with Cauchy-distributed errors" [@wu2022pclad].
+:::
+
+## Convexity and Global Optimality
+
+Global optimality is guaranteed when:
+
+1. The loss function $\mathcal{L}(\beta)$ is convex (e.g., SSE with linear model)
+2. All constraints define a convex feasible region (linear inequalities/equalities)
+3. Regularization terms (L1 and L2 penalties) are convex
+
+::: {.callout-warning title="Non-Convex Cases"}
+For nonlinear models (e.g., power forms $Y = aX^bZ^c$) with SSPE objective, the problem is non-convex. Local minima are possible. ZMPE is documented to be sensitive to starting points [@hu2007mupe]. **Recommendation**: Test multiple starting points; COBYLA optimizer recommended for ZMPE-type problems [@schiavoni2021assessing].
+:::
+
+## Note on BLUE
+
+::: {.callout-note title="Best Linear Unbiased Estimator (BLUE)"}
+By the Gauss-Markov theorem, OLS is BLUE under classical assumptions. Introducing penalties and/or constraints means the resulting estimator is **no longer BLUE**. This is an intentional tradeoff: we accept bias in exchange for reduced variance (bias-variance tradeoff), improved interpretability (domain-consistent coefficients), and enhanced predictive accuracy (regularization benefits).
+
+Per the Theobald-Farebrother theorem, this tradeoff yields lower MSE for some $\lambda > 0$. Cross-validation identifies when that $\lambda$ is near zero (OLS suffices) versus when substantial regularization helps.
+:::
+
+## Algorithm Overview
+
+The high-level algorithm proceeds as follows:
+
+1. **Input**: Data $(X, y)$, functional form $f(X, \beta)$, penalty parameters $(\alpha, \text{l1\_ratio})$, bounds/constraints, loss function, optimizer choice
+
+2. **Scale** (optional): Standardize $X$ (mean=0, std=1) if `scale=True`
+
+3. **Initialize**: Starting coefficients from OLS (default when possible), trimmed to satisfy bounds; alternatively zeros or user-specified
+
+4. **Optimize**: Solve constrained penalized minimization via selected optimizer
+
+5. **Unscale**: Transform coefficients back to original units: $\beta_{\text{original}} = \beta_{\text{scaled}} / \sigma$
+
+6. **Output**: Coefficient estimates $\hat{\beta}$, fit statistics (GDF-adjusted), `active_constraints_` flag
+
+### Optimization Methods
+
+The implementation uses general constrained solvers from `scipy.optimize.minimize`:
+
+- **SLSQP** (Sequential Least-Squares Quadratic Programming): Current default. Handles bounds and linear constraints efficiently.
+- **COBYLA** (Constrained Optimization BY Linear Approximation): Derivative-free; recommended for ZMPE-type problems [@schiavoni2021assessing].
+- **trust-constr**: Interior point method; suitable for larger-scale problems with many constraints.
+
+See @sec-appendix-algorithm for detailed algorithm information including initialization strategy and scaling considerations.
+
+## Degrees of Freedom for Constrained Models
+
+::: {.callout-important title="Critical Issue"}
+When constraints are imposed on regression coefficients, the effective degrees of freedom (DF) must be adjusted. Without this adjustment, fit statistics (SEE, SPE, Adjusted R²) are incorrect and misleading [@hu2010gdf].
+:::
+
+### Hu's GDF Formula
+
+$$\text{GDF} = n - p - (\text{\# Constraints}) + (\text{\# Redundancies})$$
+
+where $p$ is the number of estimated parameters and $n$ is the sample size. One restriction is equivalent to a loss of one DF.
+
+### Gaines et al. Constrained Lasso DF Formula
+
+$$\text{df} = |\text{Active predictors}| - (\text{\# equality constraints}) - (\text{\# binding inequality constraints})$$
+
+The key difference: Gaines' formulation [@gaines2018constrained] only counts binding inequality constraints, while Hu's formulation counts all specified constraints. See @sec-appendix-gdf for detailed comparison.
+
+### GDF-Adjusted Fit Statistics
+
+$$\text{SEE} = \sqrt{\frac{\sum(y_i - \hat{y}_i)^2}{\text{GDF}}} \qquad \text{SPE} = \sqrt{\frac{\sum((y_i - \hat{y}_i)/\hat{y}_i)^2}{\text{GDF}}}$$
+
+## Model Diagnostics and Validation
+
+### Cross-Validation as Primary Model Selection
+
+Since penalized-constrained estimators do not follow standard likelihood theory, cross-validation serves as the primary arbiter of model quality [@hastie2009elements]:
+
+- Directly estimates out-of-sample prediction error without distributional assumptions
+- Enables comparison across fundamentally different model classes (OLS vs. penalized vs. constrained)
+- Provides a principled basis for hyperparameter selection ($\alpha$, l1\_ratio)
+
+For cost estimation with small samples, Leave-One-Out Cross-Validation (LOOCV) is recommended to maximize training data usage. K-fold CV (k=5 or k=10) provides a computationally cheaper alternative.
+
+### Coefficient Uncertainty Estimation
+
+Four approaches are available for likelihood-free coefficient uncertainty:
+
+1. **Hessian-based covariance**: Uses the inverse Hessian of the objective function at the solution. Available directly from most optimizers. Assumes local quadratic approximation is valid.
+
+2. **Jacobian-based**: Estimates covariance from the Jacobian of residuals, following `scipy.optimize.curve_fit` methodology. Appropriate for nonlinear least squares problems.
+
+3. **Bootstrap**: Resamples data and re-estimates coefficients to build empirical confidence intervals [@efron1993bootstrap]. Does not require distributional assumptions. *Caveat*: For penalized models, bootstrap CIs may be artificially narrow because penalties constrain coefficient variability across resamples.
+
+4. **Profile likelihood**: Varies each coefficient individually while re-optimizing others to trace out confidence regions. Most computationally expensive but most robust for non-quadratic objective surfaces.
+
+This implementation supports Bootstrap and Hessian-based covariance methods.
+
+## Hyperparameter Selection
+
+The regularization strength $\alpha$ is selected via:
+
+1. **Cross-validation**: Minimize out-of-fold SSPE (primary method)
+2. **AICc**: Corrected Akaike Information Criterion
+3. **GCV**: Generalized Cross-Validation
+
+For this simulation study, we use 5-fold cross-validation with an alpha grid spanning $10^{-5}$ to $1.0$.

@@ -1,0 +1,129 @@
+# Appendix B: Algorithm Details {#sec-appendix-algorithm .unnumbered}
+
+This appendix provides detailed algorithm information for Penalized-Constrained Regression implementation.
+
+## B.1 High-Level Algorithm {.unnumbered}
+
+```
+Input:  Data (X, y), functional form f(X, β), penalty parameters (α, l1_ratio),
+        bounds/constraints, error function, optimizer choice
+
+1. Scale (optional):
+   - Standardize X (mean=0, std=1) if scale=True
+   - Store scaling parameters for unscaling
+
+2. Initialize:
+   - Compute OLS coefficients when possible (X'X invertible)
+   - Trim starting values to satisfy bounds
+   - Alternative: zeros or user-specified starting point
+
+3. Optimize:
+   - Solve constrained penalized minimization via selected optimizer
+   - Monitor convergence and constraint satisfaction
+
+4. Unscale:
+   - Transform coefficients back to original units
+   - β_original = β_scaled / σ
+
+Output: Coefficient estimates β̂, fit statistics (GDF-adjusted),
+        active_constraints_ flag
+```
+
+## B.2 Initialization Strategy {.unnumbered}
+
+The default initialization uses OLS coefficients when the problem is well-conditioned ($X'X$ invertible). These starting values are then trimmed to satisfy bounds---any coefficient outside the specified bounds is clamped to the nearest boundary.
+
+**Benefits**:
+
+- Provides a warm start that respects domain constraints from the first iteration
+- Improves convergence speed
+- Reduces risk of local minima
+
+**Alternative initializations**:
+
+- Zeros: Simple but may require more iterations
+- User-specified: When domain expertise suggests better starting point
+- Random: For testing multiple starting points in non-convex problems
+
+## B.3 Why Scaling Matters {.unnumbered}
+
+Scaling ensures that penalty terms (L1 and L2) are applied fairly across features. Without scaling:
+
+- Features with larger magnitudes may dominate the optimization
+- Leads to biased shrinkage and poor variable selection
+- Degrades conditioning of the optimization problem
+
+**For linear models**: Standardization (zero mean, unit variance) is typically sufficient.
+
+**For nonlinear models** like $Y = AX^b$:
+
+- Log-transformations (common in power-law modeling)
+- Min-max scaling or domain-specific normalization
+- Careful unscaling of both $X$ and $\beta$ to preserve interpretability
+
+::: {.callout-warning}
+In nonlinear models such as $Y = AX^b$, scaling the predictor $X$ alters the curvature and interpretation of the exponent $b$. When applying penalized regression with L1 and L2 penalties to such models, scaling affects both the error function and the regularization terms. Scaling must be applied with caution, and unscaling procedures should be explicitly defined.
+:::
+
+## B.4 Optimization Methods {.unnumbered}
+
+### SLSQP (Sequential Least-Squares Quadratic Programming)
+
+**Current default**. Handles bounds and linear constraints efficiently.
+
+- Uses sequential quadratic programming approach
+- Requires gradient computation (finite differences if not provided)
+- Efficient for small to medium problems
+
+### COBYLA (Constrained Optimization BY Linear Approximation)
+
+**Derivative-free**; recommended for ZMPE-type problems [@schiavoni2021assessing].
+
+- Does not require gradient computation
+- Handles nonlinear constraints
+- More robust for non-smooth objectives
+- Slower convergence than gradient-based methods
+
+### trust-constr
+
+Interior point method; suitable for larger-scale problems with many constraints.
+
+- Modern implementation with trust-region approach
+- Handles equality and inequality constraints
+- Good numerical stability
+- Requires more computational resources
+
+## B.5 Note on L1 Penalty Implementation {.unnumbered}
+
+::: {.callout-note title="Technical Note"}
+The L1 penalty $\|\beta\|_1$ is convex but not differentiable at zero. This non-smoothness introduces challenges for gradient-based optimization algorithms. Standard approaches include:
+
+1. **Coordinate descent**: Most popular approach; for constrained problems, use projected or constrained coordinate descent
+2. **Subgradient methods**: Handle non-differentiability directly
+3. **Proximal algorithms**: Efficient for structured sparsity problems
+4. **CVXPY**: Convex optimization framework that handles non-smooth objectives
+
+This implementation uses general-purpose scipy optimizers. Despite theoretical limitations, they yield reasonable and stable solutions when problem size is moderate and constraints are well-posed.
+
+Future work will evaluate coordinate descent and PAC algorithm implementations.
+:::
+
+## B.6 Convergence Criteria {.unnumbered}
+
+The optimizer terminates when any of these conditions are met:
+
+1. **Function tolerance**: Change in objective function $< \text{ftol}$ (default: $10^{-9}$)
+2. **Parameter tolerance**: Change in parameters $< \text{xtol}$ (default: $10^{-9}$)
+3. **Maximum iterations**: Exceeds `maxiter` (default: 1000)
+4. **Constraint satisfaction**: All constraints satisfied within tolerance
+
+## B.7 Post-Optimization Checks {.unnumbered}
+
+After optimization completes:
+
+1. **Constraint satisfaction**: Verify all bounds are satisfied within numerical tolerance
+2. **Active constraints**: Identify which inequality constraints are binding (within tolerance of bound)
+3. **Gradient check**: Verify KKT conditions are approximately satisfied
+4. **Hessian conditioning**: Check for numerical issues in uncertainty estimation
+
+The `active_constraints_` attribute indicates which constraints are binding at the solution, informing degrees of freedom calculation.

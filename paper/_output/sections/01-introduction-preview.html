@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="generator" content="quarto-1.8.26">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+    <title>introduction</title>
+    <style>
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      div.columns{display: flex; gap: min(4vw, 1.5em);}
+      div.column{flex: auto; overflow-x: auto;}
+      div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+      ul.task-list{list-style: none;}
+      ul.task-list li input[type="checkbox"] {
+        width: 0.8em;
+        margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+        vertical-align: middle;
+      }
+      /* CSS for syntax highlighting */
+      html { -webkit-text-size-adjust: 100%; }
+      pre > code.sourceCode { white-space: pre; position: relative; }
+      pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+      pre > code.sourceCode > span:empty { height: 1.2em; }
+      .sourceCode { overflow: visible; }
+      code.sourceCode > span { color: inherit; text-decoration: inherit; }
+      div.sourceCode { margin: 1em 0; }
+      pre.sourceCode { margin: 0; }
+      @media screen {
+      div.sourceCode { overflow: auto; }
+      }
+      @media print {
+      pre > code.sourceCode { white-space: pre-wrap; }
+      pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+      }
+      pre.numberSource code
+        { counter-reset: source-line 0; }
+      pre.numberSource code > span
+        { position: relative; left: -4em; counter-increment: source-line; }
+      pre.numberSource code > span > a:first-child::before
+        { content: counter(source-line);
+          position: relative; left: -1em; text-align: right; vertical-align: baseline;
+          border: none; display: inline-block;
+          -webkit-touch-callout: none; -webkit-user-select: none;
+          -khtml-user-select: none; -moz-user-select: none;
+          -ms-user-select: none; user-select: none;
+          padding: 0 4px; width: 4em;
+        }
+      pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+      div.sourceCode
+        {   }
+      @media screen {
+      pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+      }
+      /* CSS for citations */
+      div.csl-bib-body { }
+      div.csl-entry {
+        clear: both;
+        margin-bottom: 0em;
+      }
+      .hanging-indent div.csl-entry {
+        margin-left:2em;
+        text-indent:-2em;
+      }
+      div.csl-left-margin {
+        min-width:2em;
+        float:left;
+      }
+      div.csl-right-inline {
+        margin-left:2em;
+        padding-left:1em;
+      }
+      div.csl-indent {
+        margin-left: 2em;
+      }    </style>
+
+    <style>
+      body.hypothesis-enabled #quarto-embed-header {
+        padding-right: 36px;
+      }
+
+      #quarto-embed-header {
+        height: 3em;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: solid 1px;
+      }
+
+      #quarto-embed-header h6 {
+        font-size: 1.1em;
+        padding-top: 0.6em;
+        margin-left: 1em;
+        margin-right: 1em;
+        font-weight: 400;
+      }
+
+      #quarto-embed-header a.quarto-back-link,
+      #quarto-embed-header a.quarto-download-embed {
+        font-size: 0.8em;
+        margin-top: 1em;
+        margin-bottom: 1em;
+        margin-left: 1em;
+        margin-right: 1em;
+      }
+
+      .quarto-back-container {
+        padding-left: 0.5em;
+        display: flex;
+      }
+
+      .headroom {
+          will-change: transform;
+          transition: transform 200ms linear;
+      }
+
+      .headroom--pinned {
+          transform: translateY(0%);
+      }
+
+      .headroom--unpinned {
+          transform: translateY(-100%);
+      }      
+    </style>
+
+    <script>
+    window.document.addEventListener("DOMContentLoaded", function () {
+
+      var header = window.document.querySelector("#quarto-embed-header");
+      const titleBannerEl = window.document.querySelector("body > #title-block-header");
+      if (titleBannerEl) {
+        titleBannerEl.style.paddingTop = header.clientHeight + "px";
+      }
+      const contentEl = window.document.getElementById('quarto-content');
+      for (const child of contentEl.children) {
+        child.style.paddingTop = header.clientHeight + "px";
+        child.style.marginTop = "1em";
+      }
+
+      // Use the article root if the `back` call doesn't work. This isn't perfect
+      // but should typically work
+      window.quartoBackToArticle = () => {
+        var currentUrl = window.location.href;
+        window.history.back();
+        setTimeout(() => {
+            // if location was not changed in 100 ms, then there is no history back
+            if(currentUrl === window.location.href){              
+                // redirect to site root
+                window.location.href = "...html";
+            }
+        }, 100);
+      }
+
+      const headroom = new window.Headroom(header, {
+        tolerance: 5,
+        onPin: function () {
+        },
+        onUnpin: function () {
+        },
+      });
+      headroom.init();
+    });
+    </script>
+
+    
+<script src="../site_libs/manuscript-notebook/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-4d7f0bce1131f3e5f9547cd857cfbfc8.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+      <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script> 
+      </head>
+
+  <body class="quarto-notebook quarto-light">
+    <div id="quarto-embed-header" class="headroom fixed-top bg-primary">
+      
+      <a onclick="window.quartoBackToArticle(); return false;" class="btn btn-primary quarto-back-link" href=""><i class="bi bi-caret-left"></i> Back to Article</a>
+      <h6><i class="bi bi-journal-code"></i> Introduction</h6>
+
+            <a href="../sections/01-introduction.qmd" class="btn btn-primary quarto-download-embed" download="01-introduction.qmd">Download Source</a>
+          </div>
+
+     <div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-introduction" id="toc-sec-introduction" class="nav-link active" data-scroll-target="#sec-introduction">Introduction</a>
+  <ul class="collapse">
+  <li><a href="#the-problem-small-correlated-datasets-in-cost-estimation" id="toc-the-problem-small-correlated-datasets-in-cost-estimation" class="nav-link" data-scroll-target="#the-problem-small-correlated-datasets-in-cost-estimation">The Problem: Small, Correlated Datasets in Cost Estimation</a>
+  <ul class="collapse">
+  <li><a href="#motivating-example-cost-improvement-curve-with-rate-effect" id="toc-motivating-example-cost-improvement-curve-with-rate-effect" class="nav-link" data-scroll-target="#motivating-example-cost-improvement-curve-with-rate-effect">Motivating Example: Cost Improvement Curve with Rate Effect</a></li>
+  </ul></li>
+  <li><a href="#diagnosing-multicollinearity" id="toc-diagnosing-multicollinearity" class="nav-link" data-scroll-target="#diagnosing-multicollinearity">Diagnosing Multicollinearity</a></li>
+  <li><a href="#traditional-remedies-and-their-limitations" id="toc-traditional-remedies-and-their-limitations" class="nav-link" data-scroll-target="#traditional-remedies-and-their-limitations">Traditional Remedies and Their Limitations</a></li>
+  <li><a href="#theoretical-foundation" id="toc-theoretical-foundation" class="nav-link" data-scroll-target="#theoretical-foundation">Theoretical Foundation</a>
+  <ul class="collapse">
+  <li><a href="#why-some-regularization-is-always-optimal" id="toc-why-some-regularization-is-always-optimal" class="nav-link" data-scroll-target="#why-some-regularization-is-always-optimal">Why Some Regularization is Always Optimal</a></li>
+  <li><a href="#constrained-methods-superior-to-unconstrained" id="toc-constrained-methods-superior-to-unconstrained" class="nav-link" data-scroll-target="#constrained-methods-superior-to-unconstrained">Constrained Methods Superior to Unconstrained</a></li>
+  </ul></li>
+  <li><a href="#research-contribution" id="toc-research-contribution" class="nav-link" data-scroll-target="#research-contribution">Research Contribution</a></li>
+  <li><a href="#paper-organization" id="toc-paper-organization" class="nav-link" data-scroll-target="#paper-organization">Paper Organization</a></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
+<main class="content quarto-banner-title-block" id="quarto-document-content"><div class="quarto-title-block"><div class="quarto-title-tools-only"><h1></h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>      <section id="sec-introduction" class="level1">
+<h1>Introduction</h1>
+<section id="the-problem-small-correlated-datasets-in-cost-estimation" class="level2">
+<h2 class="anchored" data-anchor-id="the-problem-small-correlated-datasets-in-cost-estimation">The Problem: Small, Correlated Datasets in Cost Estimation</h2>
+<p>Developing hundreds of Cost Estimating Relationships (CERs) for small datasets ranging from 5-30 data points, a recurring pattern emerges: strong fit statistics (R², F-Statistics) but nonsensical coefficients—wrong signs, implausible magnitudes, and poor p-values for critical predictors. As Department of Defense analysts know, this story may feel too close to home.</p>
+<p>Multicollinear datasets are a frequent presence in cost analysis, causing models to misbehave. The consequences of multicollinearity in small samples are well-documented <span class="citation" data-cites="flynn2016multicollinearity">(<a href="#ref-flynn2016multicollinearity" role="doc-biblioref">Flynn and James 2016</a>)</span>:</p>
+<ul>
+<li><strong>“Bouncing β’s”</strong>—unstable coefficient estimates that swing wildly with small changes in the data</li>
+<li><strong>Wrong coefficient signs</strong>—estimates flip positive/negative contrary to domain knowledge</li>
+<li><strong>Unreliable hypothesis testing</strong>—high F-statistic but statistically insignificant individual t-statistics</li>
+<li><strong>Hidden extrapolation</strong>—predictions fall outside the convex hull of training data despite appearing within variable ranges</li>
+<li><strong>Inflated variance</strong>—coefficient variance increases by factor <span class="math inline">\(1/(1-R^2)\)</span> where <span class="math inline">\(R^2\)</span> is correlation between predictors</li>
+</ul>
+<section id="motivating-example-cost-improvement-curve-with-rate-effect" class="level3">
+<h3 class="anchored" data-anchor-id="motivating-example-cost-improvement-curve-with-rate-effect">Motivating Example: Cost Improvement Curve with Rate Effect</h3>
+<p>Learning curves are fundamental to cost estimation in manufacturing and aerospace industries. The classic power-law model describes how unit costs decrease with cumulative production:</p>
+<p><span class="math display">\[Y = T_1 \cdot X^b\]</span></p>
+<p>where <span class="math inline">\(Y\)</span> is the unit cost, <span class="math inline">\(T_1\)</span> is the theoretical first unit cost, <span class="math inline">\(X\)</span> is the cumulative unit number, and <span class="math inline">\(b\)</span> is the learning curve slope (typically negative, indicating cost reduction with experience).</p>
+<p>When multiple factors affect costs (e.g., production rate effects), the model extends to:</p>
+<p><span class="math display">\[Y = T_1 \cdot X_1^b \cdot X_2^c \cdot \varepsilon\]</span> {#eq-learning-rate}</p>
+<p>where <span class="math inline">\(X_1\)</span> represents lot midpoint (Learning variable) and <span class="math inline">\(X_2\)</span> represents lot quantity (Rate variable). In this specification, lot midpoint is inherently correlated with lot size as production ramps up from Prototypes to Low-Rate Initial Production (LRIP) to Full-Rate Production (FRP). Correlations of <span class="math inline">\(\rho = (-0.3, 0.88)\)</span> have been found in Selected Acquisition Reports comparing lot size to cumulative quantities. Domain knowledge establishes that learning and rate slopes should be <span class="math inline">\(\leq 100\%\)</span> (i.e., costs should not increase with cumulative production).</p>
+</section>
+</section>
+<section id="diagnosing-multicollinearity" class="level2">
+<h2 class="anchored" data-anchor-id="diagnosing-multicollinearity">Diagnosing Multicollinearity</h2>
+<p>Standard diagnostic measures for detecting multicollinearity include:</p>
+<div id="tbl-diagnostics" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-diagnostics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Multicollinearity diagnostic thresholds
+</figcaption>
+<div aria-describedby="tbl-diagnostics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 28%">
+<col style="width: 41%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Diagnostic</th>
+<th>Threshold</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Simple correlation <span class="math inline">\(r_{X_i,X_j}\)</span></td>
+<td>&gt; 0.8</td>
+<td>Potential multicollinearity</td>
+</tr>
+<tr class="even">
+<td>VIF (Variance Inflation Factor)</td>
+<td>&gt; 10</td>
+<td>Likely harmful (CEBoK threshold)</td>
+</tr>
+<tr class="odd">
+<td>Condition number <span class="math inline">\(\kappa\)</span></td>
+<td>&gt; 30</td>
+<td>Collinearity harmful</td>
+</tr>
+<tr class="even">
+<td>R² among predictors</td>
+<td>&gt; 0.90</td>
+<td>Harmful if <span class="math inline">\(R^2\)</span> for <span class="math inline">\(X_i \vert \text{other } X\)</span>’s &gt; 0.90</td>
+</tr>
+<tr class="odd">
+<td>F vs t mismatch</td>
+<td>High F, low t</td>
+<td>Classic multicollinearity symptom</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>The Variance Inflation Factor is defined as <span class="math inline">\(\text{VIF} = 1/(1-R^2_{X_i|\text{other}X})\)</span>, and the condition number <span class="math inline">\(\kappa = \lambda_{\max}/\lambda_{\min}\)</span> from eigenvalue decomposition of <span class="math inline">\(X'X\)</span>.</p>
+</section>
+<section id="traditional-remedies-and-their-limitations" class="level2">
+<h2 class="anchored" data-anchor-id="traditional-remedies-and-their-limitations">Traditional Remedies and Their Limitations</h2>
+<p>Traditional approaches each come with trade-offs <span class="citation" data-cites="flynn2016multicollinearity">(<a href="#ref-flynn2016multicollinearity" role="doc-biblioref">Flynn and James 2016</a>)</span>:</p>
+<div id="tbl-remedies" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-remedies-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Traditional multicollinearity remedies
+</figcaption>
+<div aria-describedby="tbl-remedies-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 39%">
+<col style="width: 36%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Remedy</th>
+<th>Description</th>
+<th>Limitation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Collect more data</td>
+<td>Increases sample size, reduces variance</td>
+<td>Often infeasible in defense cost analysis</td>
+</tr>
+<tr class="even">
+<td>Drop variables</td>
+<td>Remove collinear predictors via confluence analysis</td>
+<td>May lose domain-required variables</td>
+</tr>
+<tr class="odd">
+<td>Centering/Scaling</td>
+<td>Reduces structural multicollinearity</td>
+<td>Only helps polynomial/interaction terms</td>
+</tr>
+<tr class="even">
+<td>Ridge Regression</td>
+<td>L2 penalty shrinks coefficients</td>
+<td>No sparsity; no domain constraints</td>
+</tr>
+<tr class="odd">
+<td>Lasso Regression</td>
+<td>L1 penalty enables variable selection</td>
+<td>Arbitrary selection among correlated vars; no constraints</td>
+</tr>
+<tr class="even">
+<td>Elastic Net</td>
+<td>Combined L1+L2 penalties</td>
+<td>Still no explicit domain constraints</td>
+</tr>
+<tr class="odd">
+<td>PCA / PLS</td>
+<td>Transforms to uncorrelated components</td>
+<td>Loses coefficient interpretability</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+</section>
+<section id="theoretical-foundation" class="level2">
+<h2 class="anchored" data-anchor-id="theoretical-foundation">Theoretical Foundation</h2>
+<section id="why-some-regularization-is-always-optimal" class="level3">
+<h3 class="anchored" data-anchor-id="why-some-regularization-is-always-optimal">Why Some Regularization is Always Optimal</h3>
+<div class="callout callout-style-default callout-note callout-titled" title="Theobald-Farebrother Theorem (1974, 1976)">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Theobald-Farebrother Theorem (1974, 1976)
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>For any OLS problem, there exists a ridge parameter <span class="math inline">\(\lambda^* &gt; 0\)</span> such that the ridge estimator has strictly lower Mean Squared Error (MSE) than OLS. This result holds for the population MSE (true prediction risk), not merely training error <span class="citation" data-cites="theobald1974 farebrother1976">(<a href="#ref-theobald1974" role="doc-biblioref">Theobald 1974</a>; <a href="#ref-farebrother1976" role="doc-biblioref">Farebrother 1976</a>)</span>.</p>
+</div>
+</div>
+<p><strong>Why This Matters</strong>: OLS minimizes training error but may overfit—especially with correlated predictors. Ridge introduces bias but reduces variance. The theorem guarantees that for some <span class="math inline">\(\lambda &gt; 0\)</span>, the variance reduction exceeds the bias increase, yielding lower total error.</p>
+<p><strong>The Practical Challenge</strong>: The optimal <span class="math inline">\(\lambda^*\)</span> depends on unknown population parameters (<span class="math inline">\(\beta\)</span>, <span class="math inline">\(\sigma^2\)</span>). Cross-validation provides an empirical estimate. When CV selects <span class="math inline">\(\lambda \approx 0\)</span>, OLS was already near-optimal. The framework adapts automatically.</p>
+</section>
+<section id="constrained-methods-superior-to-unconstrained" class="level3">
+<h3 class="anchored" data-anchor-id="constrained-methods-superior-to-unconstrained">Constrained Methods Superior to Unconstrained</h3>
+<p>The Penalized and Constrained (PAC) optimization method developed by <span class="citation" data-cites="james2020pac">James, Paulson, and Rusmevichientong (<a href="#ref-james2020pac" role="doc-biblioref">2020</a>)</span> found:</p>
+<blockquote class="blockquote">
+<p>“The results suggest that PAC and relaxed PAC are surprisingly robust to random violations in the constraints. While both methods deteriorated slightly as [constraint error] increased, they were still both superior to their unconstrained counterparts for all values of [error] and all settings.”</p>
+</blockquote>
+</section>
+</section>
+<section id="research-contribution" class="level2">
+<h2 class="anchored" data-anchor-id="research-contribution">Research Contribution</h2>
+<p>This paper provides a practical guide and framework that combines penalized regularization (Lasso, Ridge, Elastic Net) with constrained optimization in the context of cost estimation. Key contributions include:</p>
+<ol type="1">
+<li><p><strong>Investigation of small-sample applicability</strong>: Most research on penalized methods uses large datasets—does it apply to cost estimation’s typical 5-30 point samples?</p></li>
+<li><p><strong>Python package implementation</strong>: The <code>penalized_constrained</code> package combines Elastic Net penalties with lower and upper bound constraints on coefficients</p></li>
+<li><p><strong>Proper diagnostic adjustments</strong>: Via Generalized Degrees of Freedom (GDF) for constraint-driven regression <span class="citation" data-cites="hu2010gdf">(<a href="#ref-hu2010gdf" role="doc-biblioref">Hu 2010</a>)</span></p></li>
+<li><p><strong>Cross-validation framework</strong>: For likelihood-free hyperparameter selection</p></li>
+<li><p><strong>sklearn-compatible implementation</strong>: For practical application in existing workflows</p></li>
+<li><p><strong>Comprehensive benchmarks</strong>: Simulation data comparing proposed method against OLS, Ridge, Lasso, and constrained-only approaches across varying sample sizes, correlations, and error variances</p></li>
+<li><p><strong>Practical guidance</strong>: On when and how to implement these algorithms</p></li>
+</ol>
+<p><strong>Future Work</strong>: Validation on actual program data using publicly available Selected Acquisition Reports (SARs), which are not subject to CUI restrictions.</p>
+</section>
+<section id="paper-organization" class="level2">
+<h2 class="anchored" data-anchor-id="paper-organization">Paper Organization</h2>
+<p>The remainder of this paper is organized as follows: <span class="citation" data-cites="sec-methodology">(<a href="#ref-sec-methodology" role="doc-biblioref"><strong>sec-methodology?</strong></a>)</span> presents the mathematical formulation and algorithm details, <span class="citation" data-cites="sec-simulation-design">(<a href="#ref-sec-simulation-design" role="doc-biblioref"><strong>sec-simulation-design?</strong></a>)</span> describes our Monte Carlo study design, <span class="citation" data-cites="sec-results">(<a href="#ref-sec-results" role="doc-biblioref"><strong>sec-results?</strong></a>)</span> presents the empirical findings, <span class="citation" data-cites="sec-doe-analysis">(<a href="#ref-sec-doe-analysis" role="doc-biblioref"><strong>sec-doe-analysis?</strong></a>)</span> provides rigorous statistical analysis using DOE methodology, and <span class="citation" data-cites="sec-discussion">(<a href="#ref-sec-discussion" role="doc-biblioref"><strong>sec-discussion?</strong></a>)</span> offers practical recommendations and discusses limitations.</p>
+<!-- -->
+
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-farebrother1976" class="csl-entry" role="listitem">
+Farebrother, R. W. 1976. <span>“Further Results on the Mean Square Error of Ridge Regression.”</span> <em>Journal of the Royal Statistical Society: Series B</em> 38 (3): 248–50. <a href="https://doi.org/10.1111/j.2517-6161.1976.tb01588.x">https://doi.org/10.1111/j.2517-6161.1976.tb01588.x</a>.
+</div>
+<div id="ref-flynn2016multicollinearity" class="csl-entry" role="listitem">
+Flynn, Bernard, and Andrew James. 2016. <span>“Multicollinearity in CER Development.”</span> In <em>ICEAA Professional Development &amp; Training Workshop</em>.
+</div>
+<div id="ref-hu2010gdf" class="csl-entry" role="listitem">
+Hu, Shu-Ping. 2010. <span>“Generalized Degrees of Freedom for Constrained CERs.”</span> PRT-191. Tecolote Research.
+</div>
+<div id="ref-james2020pac" class="csl-entry" role="listitem">
+James, Gareth M., Courtney Paulson, and Paat Rusmevichientong. 2020. <span>“Penalized and Constrained Optimization: An Application to High-Dimensional Website Advertising.”</span> <em>Journal of the American Statistical Association</em> 115 (529): 107–22. <a href="https://doi.org/10.1080/01621459.2019.1609970">https://doi.org/10.1080/01621459.2019.1609970</a>.
+</div>
+<div id="ref-theobald1974" class="csl-entry" role="listitem">
+Theobald, C. M. 1974. <span>“Generalizations of Mean Square Error Applied to Ridge Regression.”</span> <em>Journal of the Royal Statistical Society: Series B</em> 36 (1): 103–6. <a href="https://doi.org/10.1111/j.2517-6161.1974.tb00990.x">https://doi.org/10.1111/j.2517-6161.1974.tb00990.x</a>.
+</div>
+</div>
+</section>
+</section>
+     </main>
+<!-- /main column -->  <script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Introduction {#sec-introduction}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## The Problem: Small, Correlated Datasets in Cost Estimation</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>Developing hundreds of Cost Estimating Relationships (CERs) for small datasets ranging from 5-30 data points, a recurring pattern emerges: strong fit statistics (R², F-Statistics) but nonsensical coefficients---wrong signs, implausible magnitudes, and poor p-values for critical predictors. As Department of Defense analysts know, this story may feel too close to home.</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>Multicollinear datasets are a frequent presence in cost analysis, causing models to misbehave. The consequences of multicollinearity in small samples are well-documented <span class="co">[</span><span class="ot">@flynn2016multicollinearity</span><span class="co">]</span>:</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**"Bouncing β's"**---unstable coefficient estimates that swing wildly with small changes in the data</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Wrong coefficient signs**---estimates flip positive/negative contrary to domain knowledge</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Unreliable hypothesis testing**---high F-statistic but statistically insignificant individual t-statistics</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Hidden extrapolation**---predictions fall outside the convex hull of training data despite appearing within variable ranges</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Inflated variance**---coefficient variance increases by factor $1/(1-R^2)$ where $R^2$ is correlation between predictors</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">### Motivating Example: Cost Improvement Curve with Rate Effect</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>Learning curves are fundamental to cost estimation in manufacturing and aerospace industries. The classic power-law model describes how unit costs decrease with cumulative production:</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>$$Y = T_1 \cdot X^b$$</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>where $Y$ is the unit cost, $T_1$ is the theoretical first unit cost, $X$ is the cumulative unit number, and $b$ is the learning curve slope (typically negative, indicating cost reduction with experience).</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>When multiple factors affect costs (e.g., production rate effects), the model extends to:</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>$$Y = T_1 \cdot X_1^b \cdot X_2^c \cdot \varepsilon$$ {#eq-learning-rate}</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>where $X_1$ represents lot midpoint (Learning variable) and $X_2$ represents lot quantity (Rate variable). In this specification, lot midpoint is inherently correlated with lot size as production ramps up from Prototypes to Low-Rate Initial Production (LRIP) to Full-Rate Production (FRP). Correlations of $\rho = (-0.3, 0.88)$ have been found in Selected Acquisition Reports comparing lot size to cumulative quantities. Domain knowledge establishes that learning and rate slopes should be $\leq 100\%$ (i.e., costs should not increase with cumulative production).</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="fu">## Diagnosing Multicollinearity</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>Standard diagnostic measures for detecting multicollinearity include:</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Diagnostic <span class="pp">|</span> Threshold <span class="pp">|</span> Interpretation <span class="pp">|</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="pp">|------------|-----------|----------------|</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Simple correlation $r_{X_i,X_j}$ <span class="pp">|</span> &gt; 0.8 <span class="pp">|</span> Potential multicollinearity <span class="pp">|</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> VIF (Variance Inflation Factor) <span class="pp">|</span> &gt; 10 <span class="pp">|</span> Likely harmful (CEBoK threshold) <span class="pp">|</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Condition number $\kappa$ <span class="pp">|</span> &gt; 30 <span class="pp">|</span> Collinearity harmful <span class="pp">|</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> R² among predictors <span class="pp">|</span> &gt; 0.90 <span class="pp">|</span> Harmful if $R^2$ for $X_i \vert \text{other } X$'s &gt; 0.90 <span class="pp">|</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> F vs t mismatch <span class="pp">|</span> High F, low t <span class="pp">|</span> Classic multicollinearity symptom <span class="pp">|</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>: Multicollinearity diagnostic thresholds {#tbl-diagnostics}</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>The Variance Inflation Factor is defined as $\text{VIF} = 1/(1-R^2_{X_i|\text{other}X})$, and the condition number $\kappa = \lambda_{\max}/\lambda_{\min}$ from eigenvalue decomposition of $X'X$.</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="fu">## Traditional Remedies and Their Limitations</span></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>Traditional approaches each come with trade-offs <span class="co">[</span><span class="ot">@flynn2016multicollinearity</span><span class="co">]</span>:</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Remedy <span class="pp">|</span> Description <span class="pp">|</span> Limitation <span class="pp">|</span></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a><span class="pp">|--------|-------------|------------|</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Collect more data <span class="pp">|</span> Increases sample size, reduces variance <span class="pp">|</span> Often infeasible in defense cost analysis <span class="pp">|</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Drop variables <span class="pp">|</span> Remove collinear predictors via confluence analysis <span class="pp">|</span> May lose domain-required variables <span class="pp">|</span></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Centering/Scaling <span class="pp">|</span> Reduces structural multicollinearity <span class="pp">|</span> Only helps polynomial/interaction terms <span class="pp">|</span></span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Ridge Regression <span class="pp">|</span> L2 penalty shrinks coefficients <span class="pp">|</span> No sparsity; no domain constraints <span class="pp">|</span></span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Lasso Regression <span class="pp">|</span> L1 penalty enables variable selection <span class="pp">|</span> Arbitrary selection among correlated vars; no constraints <span class="pp">|</span></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Elastic Net <span class="pp">|</span> Combined L1+L2 penalties <span class="pp">|</span> Still no explicit domain constraints <span class="pp">|</span></span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> PCA / PLS <span class="pp">|</span> Transforms to uncorrelated components <span class="pp">|</span> Loses coefficient interpretability <span class="pp">|</span></span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>: Traditional multicollinearity remedies {#tbl-remedies}</span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a><span class="fu">## Theoretical Foundation</span></span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a><span class="fu">### Why Some Regularization is Always Optimal</span></span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>::: {.callout-note title="Theobald-Farebrother Theorem (1974, 1976)"}</span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>For any OLS problem, there exists a ridge parameter $\lambda^* &gt; 0$ such that the ridge estimator has strictly lower Mean Squared Error (MSE) than OLS. This result holds for the population MSE (true prediction risk), not merely training error <span class="co">[</span><span class="ot">@theobald1974; @farebrother1976</span><span class="co">]</span>.</span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>**Why This Matters**: OLS minimizes training error but may overfit---especially with correlated predictors. Ridge introduces bias but reduces variance. The theorem guarantees that for some $\lambda &gt; 0$, the variance reduction exceeds the bias increase, yielding lower total error.</span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>**The Practical Challenge**: The optimal $\lambda^*$ depends on unknown population parameters ($\beta$, $\sigma^2$). Cross-validation provides an empirical estimate. When CV selects $\lambda \approx 0$, OLS was already near-optimal. The framework adapts automatically.</span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a><span class="fu">### Constrained Methods Superior to Unconstrained</span></span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>The Penalized and Constrained (PAC) optimization method developed by @james2020pac found:</span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; "The results suggest that PAC and relaxed PAC are surprisingly robust to random violations in the constraints. While both methods deteriorated slightly as </span><span class="co">[</span><span class="ot">constraint error</span><span class="co">]</span><span class="at"> increased, they were still both superior to their unconstrained counterparts for all values of </span><span class="co">[</span><span class="ot">error</span><span class="co">]</span><span class="at"> and all settings."</span></span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a><span class="fu">## Research Contribution</span></span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>This paper provides a practical guide and framework that combines penalized regularization (Lasso, Ridge, Elastic Net) with constrained optimization in the context of cost estimation. Key contributions include:</span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Investigation of small-sample applicability**: Most research on penalized methods uses large datasets---does it apply to cost estimation's typical 5-30 point samples?</span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Python package implementation**: The <span class="in">`penalized_constrained`</span> package combines Elastic Net penalties with lower and upper bound constraints on coefficients</span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Proper diagnostic adjustments**: Via Generalized Degrees of Freedom (GDF) for constraint-driven regression <span class="co">[</span><span class="ot">@hu2010gdf</span><span class="co">]</span></span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Cross-validation framework**: For likelihood-free hyperparameter selection</span>
+<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**sklearn-compatible implementation**: For practical application in existing workflows</span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Comprehensive benchmarks**: Simulation data comparing proposed method against OLS, Ridge, Lasso, and constrained-only approaches across varying sample sizes, correlations, and error variances</span>
+<span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a><span class="ss">7. </span>**Practical guidance**: On when and how to implement these algorithms</span>
+<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a>**Future Work**: Validation on actual program data using publicly available Selected Acquisition Reports (SARs), which are not subject to CUI restrictions.</span>
+<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a><span class="fu">## Paper Organization</span></span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>The remainder of this paper is organized as follows: @sec-methodology presents the mathematical formulation and algorithm details, @sec-simulation-design describes our Monte Carlo study design, @sec-results presents the empirical findings, @sec-doe-analysis provides rigorous statistical analysis using DOE methodology, and @sec-discussion offers practical recommendations and discusses limitations.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>  </div> <!-- /content --> 
+  
+</body></html>

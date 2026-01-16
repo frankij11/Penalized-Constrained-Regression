@@ -1,0 +1,31 @@
+{
+  "hash": "1082e9f4350b374da3c0c70eb976c4e469141a7d199b3837f38ae2d5e354f3f4",
+  "config": {
+    "sample_sizes": [
+      5,
+      10,
+      30
+    ],
+    "cv_errors": [
+      0.01,
+      0.1,
+      0.2
+    ],
+    "learning_rates": [
+      0.85,
+      0.9,
+      0.95
+    ],
+    "rate_effects": [
+      0.8,
+      0.85,
+      0.9
+    ],
+    "n_replications": 100,
+    "T1": 100,
+    "base_seed": 42
+  },
+  "created_at": "2026-01-14T17:24:36.516378",
+  "n_scenarios": 8100,
+  "n_rows": 185339
+}
