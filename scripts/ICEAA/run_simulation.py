@@ -322,9 +322,9 @@ def generate_models(scenario_config: Dict = {}) -> Dict[str, Any]:
     correct_bounds = scenario_config.get('correct_loose_bounds', [(-0.5, 0), (-0.5, 0)])
     tight_bounds = scenario_config.get('tight_bounds', [(-0.5, 0), (-0.5, 0)])
     wrong_bounds = scenario_config.get('wrong_bounds', [(-0.5, 0), (-0.5, 0)])
-    T1 = scenario_config.get('T1', 100)
-    b_init = scenario_config.get('b_true', -0.15)
-    c_init = scenario_config.get('c_true', -0.23)
+    T1 = 1
+    b_init = 0
+    c_init = 0
 
     # Unit-space bounds include T1 as first parameter
     unit_bounds_correct = [(0, None)] + correct_bounds
@@ -525,28 +525,8 @@ def generate_models(scenario_config: Dict = {}) -> Dict[str, Any]:
 # ============================================================================
 # MODEL REGISTRY
 # ============================================================================
-def get_model_registry() -> List[str]:
-    """
-    Get list of all available model names.
-
-    Generates a dummy scenario_config to extract model names from generate_models().
-    """
-    dummy_config = {
-        'alpha_grid': np.logspace(-5, 0, 10),
-        'l1_ratio_grid': [0.0, 0.5, 1.0],
-        'cv_folds': 3,
-        'correct_loose_bounds': [(-0.5, 0), (-0.5, 0)],
-        'tight_bounds': [(-0.5, 0), (-0.5, 0)],
-        'wrong_bounds': [(-0.5, 0), (-0.5, 0)],
-        'T1': 100,
-        'b_true': -0.15,
-        'c_true': -0.23,
-    }
-    return list(generate_models(dummy_config).keys())
-
-
 # Module-level constant (generated once at import)
-MODEL_REGISTRY = get_model_registry()
+MODEL_REGISTRY = generate_models()
 
 
 # ============================================================================
