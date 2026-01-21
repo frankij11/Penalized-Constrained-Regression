@@ -64,7 +64,7 @@ CONFIG = {
     'cv_errors': [0.01, 0.1, 0.2],
     'learning_rates': [0.85, 0.90, 0.95],
     'rate_effects': [0.80, 0.85, 0.90],
-    'n_replications': 100,
+    'n_replications': 100, # 100 Replications ~50 minutes on 16-core machine 50 replications ~25 minutes
 
     # Fixed parameters
     'T1': 100,
@@ -654,8 +654,19 @@ def fit_and_extract(
     model : estimator
         Fitted model.
     """
+    # Convert model params to JSON string (handles non-serializable objects like np.log)
+    try:
+        import json
+        model_params_str = json.dumps(
+            {k: str(v) if callable(v) or not isinstance(v, (int, float, str, bool, list, dict, type(None))) else v
+             for k, v in model.get_params().items()}
+        )
+    except Exception:
+        model_params_str = str(model.get_params())
+
     result = {
         'model_name': model_name,
+        'model_params': model_params_str,
         'converged': True,
         'fit_time': 0.0,
     }
@@ -1008,31 +1019,33 @@ def load_completed_scenarios(output_dir: Path) -> Tuple[set, set]:
             return set(), set()
 
         # Build set of completed (scenario, model_hash) combinations
+        # Use vectorized operations instead of iterrows for speed
         scenario_cols = ['n_lots', 'actual_correlation', 'cv_error',
                          'learning_rate', 'rate_effect', 'replication', 'model_hash']
 
-        completed_scenario_models = set()
-        for _, row in df[scenario_cols].drop_duplicates().iterrows():
-            key = (row['n_lots'], row['actual_correlation'], row['cv_error'],
-                   row['learning_rate'], row['rate_effect'], row['replication'],
-                   row['model_hash'])
-            completed_scenario_models.add(key)
+        unique_df = df[scenario_cols].drop_duplicates()
+        completed_scenario_models = set(
+            zip(unique_df['n_lots'], unique_df['actual_correlation'], unique_df['cv_error'],
+                unique_df['learning_rate'], unique_df['rate_effect'], unique_df['replication'],
+                unique_df['model_hash'])
+        )
 
         # Find scenarios where ALL current models have been run
         scenario_only_cols = ['n_lots', 'actual_correlation', 'cv_error',
                               'learning_rate', 'rate_effect', 'replication']
-        completed_scenarios = set()
 
-        for _, row in df[scenario_only_cols].drop_duplicates().iterrows():
-            scenario_key = (row['n_lots'], row['actual_correlation'], row['cv_error'],
-                           row['learning_rate'], row['rate_effect'], row['replication'])
+        # Group by scenario and count unique model hashes
+        required_hashes = set(current_hashes.values())
+        n_required = len(required_hashes)
 
-            # Check if all current model hashes are present for this scenario
-            scenario_hashes = {h for (n, cor, cv, lr, re, rep, h) in completed_scenario_models
-                              if (n, cor, cv, lr, re, rep) == scenario_key}
+        # Get hashes per scenario using groupby (much faster than iterrows)
+        scenario_hash_counts = df.groupby(scenario_only_cols)['model_hash'].apply(
+            lambda x: required_hashes.issubset(set(x))
+        )
 
-            if set(current_hashes.values()).issubset(scenario_hashes):
-                completed_scenarios.add(scenario_key)
+        completed_scenarios = set(
+            scenario_hash_counts[scenario_hash_counts].index.tolist()
+        )
 
         return completed_scenario_models, completed_scenarios
 
@@ -1112,11 +1125,15 @@ def run_simulation(config: Dict, parallel: bool = True) -> Tuple[pd.DataFrame, p
     completed_scenario_models, completed_scenarios = load_completed_scenarios(output_dir)
 
     # Build list of (scenario_id, models_to_run) pairs
+    # Use vectorized approach: build scenario lookup table first
+    scenario_cols = ['scenario_id', 'n_lots', 'actual_correlation', 'cv_error',
+                     'learning_rate', 'rate_effect', 'replication']
+    scenario_lookup = simulation_df[scenario_cols].drop_duplicates('scenario_id').set_index('scenario_id')
+
     scenarios_with_models = []
     total_model_fits = 0
     for scenario_id in all_scenario_ids:
-        # Get scenario tuple for compatibility with completed tracking
-        row = simulation_df[simulation_df['scenario_id'] == scenario_id].iloc[0]
+        row = scenario_lookup.loc[scenario_id]
         scenario_tuple = (int(row['n_lots']), row['actual_correlation'], row['cv_error'],
                          row['learning_rate'], row['rate_effect'], int(row['replication']))
 
@@ -1192,7 +1209,7 @@ def run_simulation(config: Dict, parallel: bool = True) -> Tuple[pd.DataFrame, p
 
         print(f"  Saved {len(batch_results)} model fits")
         print(f"  Progress: {scenarios_done}/{n_to_run} ({100*scenarios_done/n_to_run:.1f}%)")
-        print(f"  Elapsed: {elapsed/60:.1f} min | ETA: {remaining/60:.1f} min")
+        print(f"  Elapsed: {elapsed/60:.1f} min | ETA: {remaining/60:.1f} min | Total Time: {(elapsed + remaining)/60:.1f} min")
         print()
 
     # Merge all batch files
@@ -1346,6 +1363,11 @@ if __name__ == "__main__":
 
     # Run simulation
     results_df, predictions_df = run_simulation(CONFIG, parallel=(CONFIG['n_jobs'] != 1))
+
+    # Run simulation_analysis.py
+    
+
+    # run 04_motivating_example.py to generate plots for motivation analysis
 
     # Save config
     output_dir = CONFIG['output_dir']

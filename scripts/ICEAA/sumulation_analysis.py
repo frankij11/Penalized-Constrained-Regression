@@ -24,8 +24,9 @@ METRICS_TO_COMPARE = [
 
 # find seeds where OLS produces "bad" coefficients but good R2
 def find_bad_ols_coefs(df, r2=.8):
-    seeds = df.query("(LC_est>1 | RC_est>1) and r2>0.8 and model_name=='OLS'")["seed"].unique()
-    df = df.assign(bad_ols_coefs=lambda x: x["seed"].isin(seeds))
+    seeds = df.query("(LC_est>1 | RC_est>1 | LC_est <.7 | RC_est<.7) and r2>0.8 and model_name=='OLS'")["seed"].unique()
+    seeds_all = df.query("(LC_est>1 | RC_est>1 | LC_est <.7 | RC_est<.7) and r2>0.8 and not model_name.str.contains('PC')")["seed"].unique()
+    df = df.assign(bad_ols_coefs=lambda x: x["seed"].isin(seeds), bad_non_pc_coefs=lambda x: x["seed"].isin(seeds_all))
     return df
 
 def find_good_pcreg_fits(df, r2=.8):
@@ -78,15 +79,22 @@ df.to_csv(PARENT / "Output_v2" / f"simulation_results_extended_{filename}.csv", 
 df_study_data = pd.read_parquet(RESULTS_PATH.parent / "simulation_study_data.parquet")
 
 # motivational example is a run where OLS has very bad test_mape but PCReg is best and has a good test_mape
-motivational_example_results = df.sort_values('test_mape').query("bad_ols_coefs==1 and model_name.str.contains('PC') and LC_est <1 and RC_est<1 and alpha>0").reset_index().loc[0]
-df_motivational = df_study_data.query("seed==@motivational_example_results.seed")
+motivational_example_results = df.sort_values('test_mape').query("bad_ols_coefs==1 and model_name.str.contains('PC') and (.80<LC_est <=.95) and (.80<RC_est<=.95) and alpha>0 and r2>.85 and T1_error <5").reset_index()
+motivational_example_results.to_csv(PARENT / "Output_v2" / "motivational_example_simulation_results.csv", index=False)
+example_seed = motivational_example_results.loc[0, 'seed']
+df_motivational = df_study_data.query("seed==@example_seed")
+
+# write the motivational example data to csv
 df_motivational.to_csv(PARENT / "Output_v2" / "motivational_example_data.csv", index=False)
-print("Motivational example Results:", df.query("seed==@motivational_example_results.seed").T)
+motivational_example_results.to_csv(PARENT / "Output_v2" / "motivational_example_simulation_results.csv", index=False)
 
 
-
+print("Motivational example Results:", df.query("seed==@example_seed").T)
 print("motivational example study data:")
-print(df_study_data.query("seed==@motivational_example_results.seed"))
+print(df_study_data.query("seed==@example_seed"))
+
+
+
 def DecisionTree(df, feature_columns=None):
     '''Create a decision tree to determine what model to use based on simulation parameters'''
     from sklearn.tree import DecisionTreeClassifier
@@ -159,7 +167,7 @@ for i, metric in enumerate(metrics):
 fig.suptitle("Violin Plots: Distribution of Test Metrics by Model", fontsize=14, fontweight='bold', y=1.01)
 plt.tight_layout()
 plt.savefig(PARENT / "Output_v2" / "violin_plots.png", dpi=150, bbox_inches='tight')
-plt.show()
+#plt.show()
 
 # ============================================================
 # Option 2: ECDF (Cumulative Distribution) - shows % below threshold
@@ -189,7 +197,7 @@ for i, metric in enumerate(metrics):
 fig.suptitle("ECDF: Cumulative Distribution of Test Metrics", fontsize=14, fontweight='bold', y=1.01)
 plt.tight_layout()
 plt.savefig(PARENT / "Output_v2" / "ecdf_plots.png", dpi=150, bbox_inches='tight')
-plt.show()
+#plt.show()
 
 # ============================================================
 # Option 3: KDE overlay - smooth density comparison
