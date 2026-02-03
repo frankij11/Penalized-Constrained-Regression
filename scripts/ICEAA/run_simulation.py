@@ -60,7 +60,7 @@ class SimulationConfig:
 
 CONFIG = {
     # Experimental design
-    'sample_sizes': [5, 10, 30],
+    'sample_sizes': [5, 10, 30], # number of lots
     'cv_errors': [0.01, 0.1, 0.2],
     'learning_rates': [0.85, 0.90, 0.95],
     'rate_effects': [0.80, 0.85, 0.90],

@@ -6,7 +6,7 @@ OLS vs. PCRegGCV
 import pandas as pd
 from pathlib import Path
 
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, RidgeCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.compose import TransformedTargetRegressor
@@ -35,6 +35,20 @@ ols = TransformedTargetRegressor(
         func=np.log,
         inverse_func=np.exp,
     )
+
+ridge = TransformedTargetRegressor(
+    regressor=Pipeline([
+        ('log', FunctionTransformer(np.log)),
+        ('reg', RidgeCV(
+            alphas=np.logspace(-5, 5, 11),
+            fit_intercept=True,
+            store_cv_values=True))
+    ]),
+    func=np.log,
+    inverse_func=np.exp,
+    )
+
+
 def unit_space_prediction_fn(X: np.ndarray, params: np.ndarray) -> np.ndarray:
     """
     Learning curve prediction function for unit-space fitting.
@@ -73,23 +87,6 @@ pc = pcreg.PenalizedConstrainedCV(
         safe_mode=True
     )
 
-pc_enet = pcreg.PenalizedConstrainedCV(
-        coef_names=['T1', 'b', 'c'],
-        bounds={'T1': (None, None), 'b': (None, None), 'c': (None, None)},
-        prediction_fn=unit_space_prediction_fn,
-        fit_intercept=False,
-        x0=[1, 0, 0],
-        loss='sspe',
-        alphas=np.logspace(-5, 0, 10),  # Match simulation
-        l1_ratios=[0.0, 0.5, 1.0],       # Match simulation
-        cv=3,                             # Match simulation cv_folds
-        selection='gcv',
-        penalty_exclude=['T1'],
-        n_jobs=1,
-        verbose=0,
-        safe_mode=True
-    )
-
 
 ols.fit(X, y)
 ols_lc, ols_rc=2**ols.regressor_.named_steps['reg'].coef_
@@ -104,7 +101,14 @@ print(f"OLS has impossible coefficients (LC>1 or RC>1): {bad_ols}")
 
 
 pc.fit(X, y)
-pc_enet.fit(X, y)
+diag = pcreg.ModelDiagnostics(pc, X, y)
+# Note: alpha_trace not supported for custom prediction_fn with different param count than X features
+report = diag.summary(bootstrap=True, n_bootstrap=100, include_alpha_trace=True)
+report.plot_diagnostics()
+report.to_html("scripts/ICEAA/output_v2/motivating_example_diagnostics.html")
+
+
+ridge.fit(X, y)
 
 # Hyperparameters selected by GCV (may vary slightly from simulation due to numeric precision)
 # Simulation results for this seed: alpha=1.0, l1_ratio=0.0
@@ -114,18 +118,11 @@ print(f"PCRegGCV selected l1_ratio: {pc.l1_ratio_}")
 pc_lc, pc_rc = 2**pc.coef_[1], 2**pc.coef_[2]
 pc_t1 = pc.coef_[0]
 
-pc_enet_lc, pc_enet_rc = 2**pc_enet.coef_[1], 2**pc_enet.coef_[2]
-pc_enet_t1 = pc_enet.coef_[0]
 
 
 # print Score and coefficients
 print("PCRegGCV R^2:", pc.score(X, y))
 print("PCRegGCV Coefficients (T1, LC, RC):", pc_t1, pc_lc, pc_rc)
-
-# print Score and coefficients
-print("PCRegGCV Enet (No Constraints) R^2:", pc_enet.score(X, y))
-print("PCRegGCV Enet (No Constraints) Coefficients (T1, LC, RC):", pc_enet_t1, pc_enet_lc, pc_enet_rc)
-
 
 # Check if PCReg respects constraints (LC <= 1 and RC <= 1)
 pcreg_valid = (pc_lc <= 1) and (pc_rc <= 1)

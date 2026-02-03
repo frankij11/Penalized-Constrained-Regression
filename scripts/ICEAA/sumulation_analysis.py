@@ -1,3 +1,4 @@
+# %%
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -6,7 +7,7 @@ PARENT = Path(__file__).resolve().parent
 RESULTS_PATH = PARENT / "Output_v2" / "simulation_results.parquet"
 
 class CONFIG:
-    all_models=False
+    all_models=True
 
 if CONFIG.all_models:
     MODELS_TO_COMPARE = [
@@ -36,6 +37,282 @@ def find_good_pcreg_fits(df, r2=.8):
     df = df.assign(pcreg_improves_good_ols_coef=lambda x: x["seed"].isin(seeds))
 
     return df
+
+def find_pcreg_beats_all_baselines(df):
+    """
+    Find scenarios where PCReg_GCV outperforms both constraints-only AND Ridge-only.
+
+    Primary criterion: lower true_coefs_error (T1_error + b_error + c_error)
+    Secondary criterion: lower test_mape
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Simulation results with model_name, seed, test_mape, LC_est, RC_est,
+        T1_error, b_error, c_error columns
+
+    Returns
+    -------
+    pd.DataFrame
+        Analysis dataframe with one row per seed, containing comparison metrics
+    """
+    # Compute true_coefs_error if not present
+    if 'true_coefs_error' not in df.columns:
+        df = df.assign(true_coefs_error=lambda x: x['T1_error'] + x['b_error'] + x['c_error'])
+
+    # Models to compare
+    models = ['OLS', 'PCReg_ConstrainOnly', 'RidgeCV', 'PCReg_GCV']
+    df_subset = df[df['model_name'].isin(models)].copy()
+
+    # Pivot to get one row per seed for each metric
+    pivot_mape = df_subset.pivot_table(index='seed', columns='model_name', values='test_mape')
+    pivot_coef_err = df_subset.pivot_table(index='seed', columns='model_name', values='true_coefs_error')
+    pivot_lc = df_subset.pivot_table(index='seed', columns='model_name', values='LC_est')
+    pivot_rc = df_subset.pivot_table(index='seed', columns='model_name', values='RC_est')
+    pivot_test_n = df_subset.pivot_table(index='seed', columns='model_name', values='test_n_lots')
+
+    # Build analysis dataframe
+    analysis = pd.DataFrame({
+        # Test MAPE
+        'OLS_mape': pivot_mape.get('OLS'),
+        'ConstrainOnly_mape': pivot_mape.get('PCReg_ConstrainOnly'),
+        'RidgeCV_mape': pivot_mape.get('RidgeCV'),
+        'PCReg_GCV_mape': pivot_mape.get('PCReg_GCV'),
+        # True coefficient error
+        'OLS_coef_err': pivot_coef_err.get('OLS'),
+        'ConstrainOnly_coef_err': pivot_coef_err.get('PCReg_ConstrainOnly'),
+        'RidgeCV_coef_err': pivot_coef_err.get('RidgeCV'),
+        'PCReg_GCV_coef_err': pivot_coef_err.get('PCReg_GCV'),
+        # Learning curve estimates
+        'PCReg_GCV_LC': pivot_lc.get('PCReg_GCV'),
+        'PCReg_GCV_RC': pivot_rc.get('PCReg_GCV'),
+        'OLS_LC': pivot_lc.get('OLS'),
+        'OLS_RC': pivot_rc.get('OLS'),
+        'RidgeCV_LC': pivot_lc.get('RidgeCV'),
+        'RidgeCV_RC': pivot_rc.get('RidgeCV'),
+        'ConstrainOnly_LC': pivot_lc.get('PCReg_ConstrainOnly'),
+        'ConstrainOnly_RC': pivot_rc.get('PCReg_ConstrainOnly'),
+        # Test lots
+        'test_n_lots': pivot_test_n.get('OLS'),
+    })
+
+    # Calculate improvements in coefficient error
+    analysis['coef_improve_vs_constrain'] = (
+        (analysis['ConstrainOnly_coef_err'] - analysis['PCReg_GCV_coef_err'])
+        / analysis['ConstrainOnly_coef_err'].replace(0, np.nan) * 100
+    )
+    analysis['coef_improve_vs_ridge'] = (
+        (analysis['RidgeCV_coef_err'] - analysis['PCReg_GCV_coef_err'])
+        / analysis['RidgeCV_coef_err'].replace(0, np.nan) * 100
+    )
+    analysis['coef_improve_vs_ols'] = (
+        (analysis['OLS_coef_err'] - analysis['PCReg_GCV_coef_err'])
+        / analysis['OLS_coef_err'].replace(0, np.nan) * 100
+    )
+
+    # Calculate improvements in test MAPE
+    analysis['mape_improve_vs_constrain'] = (
+        (analysis['ConstrainOnly_mape'] - analysis['PCReg_GCV_mape'])
+        / analysis['ConstrainOnly_mape'].replace(0, np.nan) * 100
+    )
+    analysis['mape_improve_vs_ridge'] = (
+        (analysis['RidgeCV_mape'] - analysis['PCReg_GCV_mape'])
+        / analysis['RidgeCV_mape'].replace(0, np.nan) * 100
+    )
+
+    # Conditions for a "compelling" example
+    # PRIMARY: Must beat both on coefficient error
+    analysis['beats_both_coef'] = (
+        (analysis['PCReg_GCV_coef_err'] < analysis['ConstrainOnly_coef_err']) &
+        (analysis['PCReg_GCV_coef_err'] < analysis['RidgeCV_coef_err'])
+    )
+    # SECONDARY: Also beats both on test MAPE
+    analysis['beats_both_mape'] = (
+        (analysis['PCReg_GCV_mape'] < analysis['ConstrainOnly_mape']) &
+        (analysis['PCReg_GCV_mape'] < analysis['RidgeCV_mape'])
+    )
+    # Sensible coefficients for PCReg_GCV (stricter: <= 0.96 to avoid boundary solutions)
+    analysis['sensible_coef'] = (
+        (analysis['PCReg_GCV_LC'] >= 0.7) & (analysis['PCReg_GCV_LC'] <= 0.96) &
+        (analysis['PCReg_GCV_RC'] >= 0.7) & (analysis['PCReg_GCV_RC'] <= 0.96)
+    )
+    # OLS produces problematic coefficients
+    analysis['ols_problematic'] = (
+        (analysis['OLS_LC'] > 1) | (analysis['OLS_RC'] > 1) |
+        (analysis['OLS_LC'] < 0.7) | (analysis['OLS_RC'] < 0.7)
+    )
+
+    # Combined filter: must beat both on coef error, prefer if also beats on MAPE
+    mask = (
+        analysis['beats_both_coef'] &
+        analysis['sensible_coef'] &
+        analysis['ols_problematic']
+    )
+
+    return analysis[mask].sort_values('PCReg_GCV_coef_err', ascending=True)
+
+
+def select_best_motivating_example(analysis_df, df_results, df_study_data):
+    """
+    Select the single best motivating example.
+
+    Selection criteria:
+    1. Lowest true_coefs_error for PCReg_GCV (50% weight)
+    2. Largest improvement margin over both baselines in coef error (30% weight)
+    3. OLS clearly wrong with impossible coefficients >1 (20% weight)
+
+    Parameters
+    ----------
+    analysis_df : pd.DataFrame
+        Output from find_pcreg_beats_all_baselines()
+    df_results : pd.DataFrame
+        Full simulation results
+    df_study_data : pd.DataFrame
+        Study data with raw observations
+
+    Returns
+    -------
+    seed : int
+        Selected seed
+    example_results : pd.DataFrame
+        All model results for this seed
+    example_data : pd.DataFrame
+        Raw data for this seed
+    summary : pd.Series
+        Summary statistics for selected example
+    """
+    if len(analysis_df) == 0:
+        raise ValueError("No candidates found matching criteria")
+
+    # Score candidates
+    candidates = analysis_df.copy()
+
+    # Prefer examples where OLS produces clearly impossible coefficients (>1)
+    candidates['ols_clearly_wrong'] = (
+        (candidates['OLS_LC'] > 1) | (candidates['OLS_RC'] > 1)
+    ).astype(int)
+
+    # Min improvement over both baselines
+    candidates['min_coef_improvement'] = candidates[['coef_improve_vs_constrain', 'coef_improve_vs_ridge']].min(axis=1)
+
+    # Normalize for scoring
+    max_coef_err = candidates['PCReg_GCV_coef_err'].max()
+    min_coef_err = candidates['PCReg_GCV_coef_err'].min()
+    candidates['norm_coef_err'] = 1 - (candidates['PCReg_GCV_coef_err'] - min_coef_err) / (max_coef_err - min_coef_err + 1e-10)
+
+    max_improvement = candidates['min_coef_improvement'].max()
+    min_improvement = candidates['min_coef_improvement'].min()
+    candidates['norm_improvement'] = (candidates['min_coef_improvement'] - min_improvement) / (max_improvement - min_improvement + 1e-10)
+
+    # Composite score
+    candidates['score'] = (
+        candidates['norm_coef_err'] * 0.5 +
+        candidates['norm_improvement'] * 0.3 +
+        candidates['ols_clearly_wrong'] * 0.2
+    )
+
+    # Also prefer if beats both on MAPE (bonus)
+    candidates.loc[candidates['beats_both_mape'], 'score'] += 0.1
+
+    # Select best
+    best_seed = candidates['score'].idxmax()
+
+    # Extract results and data
+    example_results = df_results[df_results['seed'] == best_seed].copy()
+    example_data = df_study_data[df_study_data['seed'] == best_seed].copy()
+
+    return best_seed, example_results, example_data, candidates.loc[best_seed]
+
+
+def export_motivating_example(seed, example_results, example_data, summary_stats,
+                               output_dir, prefix="pcr_beats_all"):
+    """
+    Export motivating example to CSV files.
+
+    Creates:
+    - {prefix}_example_data.csv - Raw lot data
+    - {prefix}_example_results.csv - All model results for this seed
+    - {prefix}_comparison.csv - Head-to-head comparison table
+    - {prefix}_summary.csv - Summary comparison table
+
+    Parameters
+    ----------
+    seed : int
+        Selected seed
+    example_results : pd.DataFrame
+        All model results for this seed
+    example_data : pd.DataFrame
+        Raw data for this seed
+    summary_stats : pd.Series
+        Summary statistics from selection
+    output_dir : Path
+        Output directory
+    prefix : str
+        File prefix (default "pcr_beats_all")
+    """
+    output_dir = Path(output_dir)
+
+    # 1. Export raw data
+    example_data.to_csv(output_dir / f"{prefix}_example_data.csv", index=False)
+
+    # 2. Export all model results for this seed
+    example_results.to_csv(output_dir / f"{prefix}_example_results.csv", index=False)
+
+    # 3. Create comparison table for key models
+    key_models = ['OLS', 'RidgeCV', 'PCReg_ConstrainOnly', 'PCReg_GCV']
+
+    # Add true_coefs_error if not present
+    if 'true_coefs_error' not in example_results.columns:
+        example_results = example_results.assign(
+            true_coefs_error=lambda x: x['T1_error'] + x['b_error'] + x['c_error']
+        )
+
+    comparison = example_results[example_results['model_name'].isin(key_models)][
+        ['model_name', 'test_mape', 'true_coefs_error', 'T1_error', 'b_error', 'c_error',
+         'LC_est', 'RC_est', 'T1_est', 'r2', 'alpha']
+    ].sort_values('true_coefs_error')
+    comparison.to_csv(output_dir / f"{prefix}_comparison.csv", index=False)
+
+    # 4. Export summary
+    summary_df = pd.DataFrame([{
+        'seed': seed,
+        'coef_improve_vs_constrainonly_pct': summary_stats['coef_improve_vs_constrain'],
+        'coef_improve_vs_ridge_pct': summary_stats['coef_improve_vs_ridge'],
+        'coef_improve_vs_ols_pct': summary_stats['coef_improve_vs_ols'],
+        'mape_improve_vs_constrainonly_pct': summary_stats.get('mape_improve_vs_constrain', np.nan),
+        'mape_improve_vs_ridge_pct': summary_stats.get('mape_improve_vs_ridge', np.nan),
+        'PCReg_GCV_coef_err': summary_stats['PCReg_GCV_coef_err'],
+        'ConstrainOnly_coef_err': summary_stats['ConstrainOnly_coef_err'],
+        'RidgeCV_coef_err': summary_stats['RidgeCV_coef_err'],
+        'OLS_coef_err': summary_stats['OLS_coef_err'],
+        'PCReg_GCV_mape': summary_stats['PCReg_GCV_mape'],
+        'ConstrainOnly_mape': summary_stats['ConstrainOnly_mape'],
+        'RidgeCV_mape': summary_stats['RidgeCV_mape'],
+        'OLS_mape': summary_stats['OLS_mape'],
+        'PCReg_GCV_LC': summary_stats['PCReg_GCV_LC'],
+        'PCReg_GCV_RC': summary_stats['PCReg_GCV_RC'],
+        'test_n_lots': summary_stats['test_n_lots'],
+        'beats_both_mape': summary_stats['beats_both_mape'],
+    }])
+    summary_df.to_csv(output_dir / f"{prefix}_summary.csv", index=False)
+
+    print(f"\nMotivating Example Exported (seed={seed})")
+    print("=" * 70)
+    print(f"  PRIMARY CRITERION - Coefficient Error:")
+    print(f"    PCReg_GCV:          {summary_stats['PCReg_GCV_coef_err']:.4f}")
+    print(f"    PCReg_ConstrainOnly:{summary_stats['ConstrainOnly_coef_err']:.4f} ({summary_stats['coef_improve_vs_constrain']:.1f}% worse)")
+    print(f"    RidgeCV:            {summary_stats['RidgeCV_coef_err']:.4f} ({summary_stats['coef_improve_vs_ridge']:.1f}% worse)")
+    print(f"    OLS:                {summary_stats['OLS_coef_err']:.4f} ({summary_stats['coef_improve_vs_ols']:.1f}% worse)")
+    print(f"  SECONDARY - Test MAPE:")
+    print(f"    PCReg_GCV:          {summary_stats['PCReg_GCV_mape']:.4f}")
+    print(f"    PCReg_ConstrainOnly:{summary_stats['ConstrainOnly_mape']:.4f}")
+    print(f"    RidgeCV:            {summary_stats['RidgeCV_mape']:.4f}")
+    print(f"    OLS:                {summary_stats['OLS_mape']:.4f}")
+    print(f"  Beats both on MAPE too: {summary_stats['beats_both_mape']}")
+    print(f"  PCReg_GCV coefficients: LC={summary_stats['PCReg_GCV_LC']:.3f}, RC={summary_stats['PCReg_GCV_RC']:.3f}")
+    print(f"  Test lots: {int(summary_stats['test_n_lots']) if not pd.isna(summary_stats['test_n_lots']) else 'N/A'}")
+    print("=" * 70)
+
 
 def rank_models(df, criteria='test_mape'):
     df = df.copy()
@@ -78,22 +355,136 @@ df.to_csv(PARENT / "Output_v2" / f"simulation_results_extended_{filename}.csv", 
 
 df_study_data = pd.read_parquet(RESULTS_PATH.parent / "simulation_study_data.parquet")
 
-# motivational example is a run where OLS has very bad test_mape but PCReg is best and has a good test_mape
-motivational_example_results = df.sort_values('test_mape').query("bad_ols_coefs==1 and model_name.str.contains('PC') and (.80<LC_est <=.95) and (.80<RC_est<=.95) and alpha>0 and r2>.85 and T1_error <5").reset_index()
+# =============================================================================
+# MOTIVATING EXAMPLE: PCReg beats BOTH Constraints-Only AND Ridge-Only
+# =============================================================================
+# Primary criterion: lower true_coefs_error (coefficient recovery)
+# Secondary criterion: lower test_mape (predictive accuracy)
+print("\n" + "="*70)
+print("Finding Motivating Example: PCReg vs Constraints-Only vs Ridge")
+print("="*70)
+
+# Add true_coefs_error to df for analysis
+df = df.assign(true_coefs_error=lambda x: x['T1_error'] + x['b_error'] + x['c_error'])
+
+# Find candidates where PCReg_GCV beats both baselines on coefficient error
+candidates = find_pcreg_beats_all_baselines(df)
+
+print(f"Found {len(candidates)} candidates where PCReg_GCV beats both baselines on coef error")
+print(f"  - Of these, {candidates['beats_both_mape'].sum()} also beat both on test_mape")
+
+if len(candidates) > 0:
+    # Select best example
+    best_seed, example_results, example_data, summary = select_best_motivating_example(
+        candidates, df, df_study_data
+    )
+
+    # Export
+    export_motivating_example(
+        best_seed, example_results, example_data, summary,
+        output_dir=PARENT / "Output_v2",
+        prefix="pcr_beats_all"
+    )
+
+    # Also export top 10 candidates for reference
+    candidates.head(10).to_csv(PARENT / "Output_v2" / "pcr_beats_all_top_candidates.csv")
+    print(f"\nTop 10 candidates exported to pcr_beats_all_top_candidates.csv")
+
+    # Print comparison table
+    print("\nModel Comparison for Best Example (sorted by true_coefs_error):")
+    key_models = ['OLS', 'RidgeCV', 'PCReg_ConstrainOnly', 'PCReg_GCV']
+    print(example_results[example_results['model_name'].isin(key_models)][
+        ['model_name', 'true_coefs_error', 'test_mape', 'LC_est', 'RC_est', 'T1_est', 'r2']
+    ].sort_values('true_coefs_error').to_string())
+
+    # =============================================================================
+    # HEAD-TO-HEAD: OLS vs PCReg_GCV for the motivating example
+    # =============================================================================
+    print("\n" + "="*70)
+    print(f"HEAD-TO-HEAD: OLS vs PCReg_GCV (seed={best_seed})")
+    print("="*70)
+
+    ols_row = example_results[example_results['model_name'] == 'OLS'].iloc[0]
+    pcreg_row = example_results[example_results['model_name'] == 'PCReg_GCV'].iloc[0]
+
+    # Get true parameters from the study data
+    true_b = example_data['b_true'].iloc[0]
+    true_c = example_data['c_true'].iloc[0]
+    true_T1 = example_data['T1_true'].iloc[0]
+    true_LC = 2 ** true_b
+    true_RC = 2 ** true_c
+
+    print(f"\n  TRUE PARAMETERS:")
+    print(f"    T1 = {true_T1:.2f}, b = {true_b:.4f}, c = {true_c:.4f}")
+    print(f"    LC = {true_LC:.4f}, RC = {true_RC:.4f}")
+
+    print(f"\n  OLS ESTIMATES:")
+    print(f"    T1 = {ols_row['T1_est']:.2f}, b = {ols_row['b']:.4f}, c = {ols_row['c']:.4f}")
+    print(f"    LC = {ols_row['LC_est']:.4f}, RC = {ols_row['RC_est']:.4f}")
+    print(f"    Coefficient Error = {ols_row['true_coefs_error']:.4f}")
+    print(f"    Test MAPE = {ols_row['test_mape']:.4f}")
+    print(f"    R² = {ols_row['r2']:.4f}")
+
+    print(f"\n  PCReg_GCV ESTIMATES:")
+    print(f"    T1 = {pcreg_row['T1_est']:.2f}, b = {pcreg_row['b']:.4f}, c = {pcreg_row['c']:.4f}")
+    print(f"    LC = {pcreg_row['LC_est']:.4f}, RC = {pcreg_row['RC_est']:.4f}")
+    print(f"    Coefficient Error = {pcreg_row['true_coefs_error']:.4f}")
+    print(f"    Test MAPE = {pcreg_row['test_mape']:.4f}")
+    print(f"    R² = {pcreg_row['r2']:.4f}")
+    print(f"    Alpha = {pcreg_row['alpha']:.6f}")
+
+    # Calculate improvements
+    coef_improvement = (ols_row['true_coefs_error'] - pcreg_row['true_coefs_error']) / ols_row['true_coefs_error'] * 100
+    mape_improvement = (ols_row['test_mape'] - pcreg_row['test_mape']) / ols_row['test_mape'] * 100
+
+    print(f"\n  IMPROVEMENT (PCReg_GCV vs OLS):")
+    print(f"    Coefficient Error: {coef_improvement:.1f}% better")
+    print(f"    Test MAPE: {mape_improvement:.1f}% better")
+    print(f"    OLS LC > 1 (impossible): {ols_row['LC_est'] > 1}")
+    print(f"    OLS RC < 0.7 (implausible): {ols_row['RC_est'] < 0.7}")
+    print("="*70)
+
+    # Export head-to-head comparison
+    h2h_comparison = pd.DataFrame([
+        {'Parameter': 'T1_true', 'True': true_T1, 'OLS': ols_row['T1_est'], 'PCReg_GCV': pcreg_row['T1_est']},
+        {'Parameter': 'b_true', 'True': true_b, 'OLS': ols_row['b'], 'PCReg_GCV': pcreg_row['b']},
+        {'Parameter': 'c_true', 'True': true_c, 'OLS': ols_row['c'], 'PCReg_GCV': pcreg_row['c']},
+        {'Parameter': 'LC (2^b)', 'True': true_LC, 'OLS': ols_row['LC_est'], 'PCReg_GCV': pcreg_row['LC_est']},
+        {'Parameter': 'RC (2^c)', 'True': true_RC, 'OLS': ols_row['RC_est'], 'PCReg_GCV': pcreg_row['RC_est']},
+        {'Parameter': 'Coef_Error', 'True': 0, 'OLS': ols_row['true_coefs_error'], 'PCReg_GCV': pcreg_row['true_coefs_error']},
+        {'Parameter': 'Test_MAPE', 'True': 0, 'OLS': ols_row['test_mape'], 'PCReg_GCV': pcreg_row['test_mape']},
+        {'Parameter': 'R2', 'True': 1, 'OLS': ols_row['r2'], 'PCReg_GCV': pcreg_row['r2']},
+    ])
+    h2h_comparison.to_csv(PARENT / "Output_v2" / "pcr_beats_all_ols_vs_pcreg.csv", index=False)
+    print(f"\nOLS vs PCReg_GCV comparison exported to pcr_beats_all_ols_vs_pcreg.csv")
+
+else:
+    print("WARNING: No candidates found where PCReg_GCV beats both baselines.")
+    print("Consider checking if PCReg_ConstrainOnly model ran in simulation.")
+
+# =============================================================================
+# LEGACY: Original Motivating Example (OLS vs PCReg with good coefficients)
+# =============================================================================
+print("\n" + "="*70)
+print("Legacy Motivating Example: PCReg vs OLS (original criteria)")
+print("="*70)
+motivational_example_results = df.sort_values('true_coefs_error').query(
+    "bad_ols_coefs==1 and model_name=='PCReg_GCV' and (.80<LC_est <=.95) and (.80<RC_est<=.95) and alpha>0 and r2>.85 and T1_error <5"
+).reset_index()
 motivational_example_results.to_csv(PARENT / "Output_v2" / "motivational_example_simulation_results.csv", index=False)
 example_seed = motivational_example_results.loc[0, 'seed']
 df_motivational = df_study_data.query("seed==@example_seed")
 
 # write the motivational example data to csv
 df_motivational.to_csv(PARENT / "Output_v2" / "motivational_example_data.csv", index=False)
-motivational_example_results.to_csv(PARENT / "Output_v2" / "motivational_example_simulation_results.csv", index=False)
+# %%
+print("Legacy Motivational example Results:", df.query("seed==@example_seed and model_name.isin(['OLS','PCReg_GCV'])").T)
 
-
-print("Motivational example Results:", df.query("seed==@example_seed").T)
-print("motivational example study data:")
+# %%
+print("Legacy motivational example study data:")
 print(df_study_data.query("seed==@example_seed"))
 
-
+# %%
 
 def DecisionTree(df, feature_columns=None):
     '''Create a decision tree to determine what model to use based on simulation parameters'''
@@ -213,7 +604,7 @@ for i, metric in enumerate(metrics):
         ax = axes[i, j]
         subset = df.query("bad_ols_coefs == @bad_ols")
 
-        for model in df["model_name"].unique():
+        for model in ["OLS", "PCReg_GCV"]:
             model_data = subset.query("model_name == @model")[metric].clip(upper=clip_val)
             sns.kdeplot(data=model_data, ax=ax, label=model, linewidth=2, fill=True, alpha=0.3)
 
@@ -227,4 +618,4 @@ for i, metric in enumerate(metrics):
 fig.suptitle("KDE: Density of Test Metrics by Model", fontsize=14, fontweight='bold', y=1.01)
 plt.tight_layout()
 plt.savefig(PARENT / "Output_v2" / "kde_plots.png", dpi=150, bbox_inches='tight')
-plt.show()
+#plt.show()

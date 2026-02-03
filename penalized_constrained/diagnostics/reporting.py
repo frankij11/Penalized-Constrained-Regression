@@ -455,7 +455,7 @@ def generate_summary_report(
     X,
     y,
     full: bool = False,
-    gdf_method: str = 'hu',
+    gdf_method: str = 'gaines',
     ci_method: str = 'hessian',
     bootstrap: bool = False,
     n_bootstrap: int = 1000,
