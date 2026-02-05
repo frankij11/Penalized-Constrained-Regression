@@ -133,7 +133,7 @@ class ModelDiagnostics:
     >>> report = diag.summary()  # Includes cached alpha trace
     """
 
-    def __init__(self, model, X, y, gdf_method='hu'):
+    def __init__(self, model, X, y, gdf_method='gaines'):
         check_is_fitted(model)
 
         self.model = model
