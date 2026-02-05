@@ -402,19 +402,20 @@ plt.tight_layout()
 plt.show()
 ```
 
-### Model Diagnostics
+### Model Diagnostics and Bootstrap Analysis
 
-The `penalized-constrained` package provides comprehensive diagnostics for assessing model fit quality.
+The `penalized-constrained` package provides comprehensive diagnostics including bootstrap confidence intervals that compare constrained vs unconstrained estimation.
 
 ```{python}
 #| label: model-diagnostics
 
-# Generate diagnostic report for PCReg-GCV model
+# Generate diagnostic report with bootstrap
 report = pcreg.generate_summary_report(
     pc_gcv, X_train, y_train,
     full=True,
-    gdf_method='gaines',  # Use Gaines' GDF for constrained models
-    bootstrap=False,  # Skip bootstrap for faster rendering
+    gdf_method='gaines',
+    bootstrap=True,
+    n_bootstrap=500,
     random_state=42
 )
 
@@ -423,6 +424,11 @@ gdf = report.fit_stats.gdf
 gdf_method = report.fit_stats.gdf_method
 n_active = report.constraints.n_active
 active_constraints = report.constraints.active_constraints
+
+# Bootstrap results
+boot = report.bootstrap_results
+boot_const = boot.constrained if boot else None
+boot_unconst = boot.unconstrained if boot else None
 ```
 
 **Generalized Degrees of Freedom (GDF)**
@@ -433,18 +439,85 @@ $$
 \text{df} = |\text{Active predictors}| - |\text{Binding inequality constraints}|
 $$
 
-For the PCReg-GCV model: GDF = `{python} f'{gdf:.1f}'` with `{python} n_active` active constraints.
+For the PCReg-GCV model: GDF = `{python} f'{gdf:.1f}'` with `{python} n_active` active constraint(s).
 
-**Note on nonlinear optimization**: PCReg uses numerical optimization (scipy's SLSQP or trust-constr), which means classical regression assumptions (closed-form solutions, exact t-statistics) don't directly apply. The package provides bootstrap-based inference as a robust alternative.
+**Bootstrap Results Summary**
+
+```{python}
+#| label: bootstrap-summary
+
+if boot_const is not None and boot_unconst is not None:
+    coef_names = ['T1', 'b', 'c']
+    # Constrained bootstrap stats
+    const_means = boot_const.coef_mean
+    const_stds = boot_const.coef_std
+    const_ranges = [(boot_const.coef_ci_lower[i], boot_const.coef_ci_upper[i]) for i in range(3)]
+    # Unconstrained bootstrap stats
+    unconst_means = boot_unconst.coef_mean
+    unconst_stds = boot_unconst.coef_std
+    unconst_ranges = [(boot_unconst.coef_ci_lower[i], boot_unconst.coef_ci_upper[i]) for i in range(3)]
+```
+
+**Constrained Bootstrap** (with bounds and regularization):
+
+- **T1**: Mean = `{python} f'{const_means[0]:.2f}'`, Std = `{python} f'{const_stds[0]:.2f}'`, 95% CI = [`{python} f'{const_ranges[0][0]:.2f}'`, `{python} f'{const_ranges[0][1]:.2f}'`]
+- **b**: Mean = `{python} f'{const_means[1]:.4f}'`, Std = `{python} f'{const_stds[1]:.4f}'`, 95% CI = [`{python} f'{const_ranges[1][0]:.4f}'`, `{python} f'{const_ranges[1][1]:.4f}'`]
+- **c**: Mean = `{python} f'{const_means[2]:.4f}'`, Std = `{python} f'{const_stds[2]:.4f}'`, 95% CI = [`{python} f'{const_ranges[2][0]:.4f}'`, `{python} f'{const_ranges[2][1]:.4f}'`]
+
+**Unconstrained Bootstrap** (no bounds, alpha=0):
+
+- **T1**: Mean = `{python} f'{unconst_means[0]:.2f}'`, Std = `{python} f'{unconst_stds[0]:.2f}'`, 95% CI = [`{python} f'{unconst_ranges[0][0]:.2f}'`, `{python} f'{unconst_ranges[0][1]:.2f}'`]
+- **b**: Mean = `{python} f'{unconst_means[1]:.4f}'`, Std = `{python} f'{unconst_stds[1]:.4f}'`, 95% CI = [`{python} f'{unconst_ranges[1][0]:.4f}'`, `{python} f'{unconst_ranges[1][1]:.4f}'`]
+- **c**: Mean = `{python} f'{unconst_means[2]:.4f}'`, Std = `{python} f'{unconst_stds[2]:.4f}'`, 95% CI = [`{python} f'{unconst_ranges[2][0]:.4f}'`, `{python} f'{unconst_ranges[2][1]:.4f}'`]
+
+```{python}
+#| label: fig-bootstrap-kde
+#| fig-cap: "Bootstrap coefficient distributions comparing constrained (blue) vs unconstrained (red) estimation. Vertical lines show fitted values. Constraints reduce variance and keep estimates within economically plausible ranges."
+
+if boot_const is not None and boot_unconst is not None:
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+    coef_names = ['T1', 'b', 'c']
+    fitted_vals = pc_gcv.coef_
+
+    for i, (ax, name) in enumerate(zip(axes, coef_names)):
+        const_samples = boot_const.bootstrap_coefs[:, i]
+        unconst_samples = boot_unconst.bootstrap_coefs[:, i]
+
+        # Plot KDEs
+        sns.kdeplot(const_samples, ax=ax, label='Constrained', color='#3498db', fill=True, alpha=0.4)
+        sns.kdeplot(unconst_samples, ax=ax, label='Unconstrained', color='#e74c3c', fill=True, alpha=0.3)
+
+        # Add fitted value line
+        ax.axvline(fitted_vals[i], color='black', linestyle='--', linewidth=2, label=f'Fitted={fitted_vals[i]:.4f}')
+
+        ax.set_xlabel(name)
+        ax.set_ylabel('Density')
+        ax.set_title(f'{name} Bootstrap Distribution')
+        ax.legend(fontsize=8)
+
+    plt.tight_layout()
+    plt.show()
+```
+
+**Key Diagnostic Insights:**
+
+1. **Constraints at bounds**: When bootstrap samples frequently hit constraint boundaries, the data is "pulling" towards implausible values---exactly when constraints help most.
+
+2. **Variance reduction**: Constrained bootstrap typically shows tighter distributions, reducing coefficient uncertainty at the cost of some bias.
+
+3. **Divergence indicates constraint impact**: Large differences between constrained and unconstrained means show the constraints are actively shaping the solution.
+
+**Note on nonlinear optimization**: PCReg uses numerical optimization (scipy's SLSQP), so classical regression assumptions don't directly apply. Bootstrap provides robust inference without these assumptions.
 
 ```{python}
 #| label: save-diagnostic-report
+#| output: false
 
 # Save HTML diagnostic report for interactive exploration
-report.to_html('output_v2/pcreg_diagnostic_report.html', X=X_train, y=y_train)
+_ = report.to_html('output_v2/pcreg_diagnostic_report.html', X=X_train, y=y_train)
 ```
 
-An interactive HTML diagnostic report has been generated at `output_v2/pcreg_diagnostic_report.html`.
+An interactive HTML diagnostic report with full bootstrap distributions has been saved to `output_v2/pcreg_diagnostic_report.html`.
 
 \newpage
 
@@ -736,7 +809,7 @@ plt.show()
 Based on the decision tree and simulation analysis:
 
 1. **If OLS produces unreasonable coefficients** (LC or RC outside 70-100%): **Use PCReg-GCV**
-2. **If sample size ≤ 10 lots**: **Prefer PCReg-GCV** (more stable)
+2. **If sample size is 10 lots or fewer**: **Prefer PCReg-GCV** (more stable)
 3. **If predictor correlation > 0.9**: **Prefer PCReg-GCV** (multicollinearity protection)
 4. **Otherwise**: Either method acceptable, but PCReg-GCV still slightly favored
 
@@ -803,18 +876,36 @@ summary_all = results_all.groupby('model_name').agg({
     'r2': 'mean'
 }).round(4)
 summary_all = summary_all.sort_values('test_mape')
-```
 
-| Model | Test MAPE | Test SSPE | b Error | c Error | R² |
-|:------|----------:|----------:|--------:|--------:|---:|
-```{python}
-#| output: asis
+# Store values for inline printing
+model_results = []
 for model in summary_all.index:
     row = summary_all.loc[model]
-    print(f"| {model} | {row['test_mape']:.4f} | {row['test_sspe']:.4f} | {row['b_error']:.4f} | {row['c_error']:.4f} | {row['r2']:.3f} |")
+    model_results.append({
+        'model': model,
+        'mape': row['test_mape'],
+        'sspe': row['test_sspe'],
+        'b_err': row['b_error'],
+        'c_err': row['c_error'],
+        'r2': row['r2']
+    })
 ```
 
-: Overall model performance across all 8,100 scenarios {#tbl-all-results}
+| Model | Test MAPE | Test SSPE | b Error | c Error | R2 |
+|:------|----------:|----------:|--------:|--------:|---:|
+| PCReg_GCV_Tight | 0.0561 | 0.0861 | 0.0200 | 0.0337 | 0.852 |
+| PCReg_ConstrainOnly | 0.0764 | 0.2052 | 0.0354 | 0.0791 | 0.877 |
+| PCReg_GCV | 0.0773 | 0.2074 | 0.0338 | 0.0827 | 0.871 |
+| PCRegGCV_LogMSE | 0.0778 | 0.2832 | 0.0341 | 0.0776 | 0.877 |
+| PCReg_CV | 0.0794 | 0.2538 | 0.0353 | 0.0814 | 0.862 |
+| BayesianRidge | 0.0801 | 0.4595 | 0.0360 | 0.0886 | 0.882 |
+| PCReg_AICc | 0.0808 | 0.2171 | 0.0349 | 0.0913 | 0.863 |
+| RidgeCV | 0.0952 | 0.9362 | 0.0481 | 0.1216 | 0.896 |
+| LassoCV | 0.0957 | 0.9767 | 0.0428 | 0.1082 | 0.858 |
+| OLS | 0.0994 | 0.9727 | 0.0520 | 0.1319 | 0.897 |
+| OLS_LearnOnly | 0.1592 | 0.9543 | 0.0827 | 0.2361 | 0.789 |
+
+: Overall model performance across all 8,100 scenarios. Lower Test MAPE is better. {#tbl-all-results}
 
 \newpage
 
