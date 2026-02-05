@@ -27,6 +27,7 @@ pingouin>=0.5
 matplotlib>=3.4
 seaborn>=0.12
 pyarrow>=14.0
+tabulate
 
 [simulation]
 joblib>=1.0

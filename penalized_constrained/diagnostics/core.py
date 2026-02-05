@@ -44,35 +44,50 @@ def compute_gdf_hu(n_samples, n_params, n_constraints, n_redundancies=0):
     return n_samples - n_params - n_constraints + n_redundancies
 
 
-def compute_gdf_gaines(n_active_predictors, n_equality_constraints=0,
+def compute_gdf_gaines(n_samples, n_active_predictors, n_equality_constraints=0,
                        n_binding_inequality=0):
     """
     Compute degrees of freedom using Gaines et al. formula.
 
-    df = |Active predictors| - (# equality) - (# binding inequality)
+    GDF = n - p - (# equality) - (# binding inequality)
+
+    where n is the number of samples and p is the number of active predictors
+    (non-zero coefficients). This computes residual degrees of freedom,
+    subtracting the number of estimated parameters and binding constraints
+    from the sample size.
 
     Parameters
     ----------
+    n_samples : int
+        Number of observations.
+
     n_active_predictors : int
-        Number of non-zero coefficients.
+        Number of non-zero coefficients (active parameters being estimated).
 
     n_equality_constraints : int, default=0
         Number of equality constraints.
 
     n_binding_inequality : int, default=0
-        Number of binding inequality constraints (at bounds).
+        Number of binding inequality constraints (coefficients at bounds).
 
     Returns
     -------
-    df : float
-        Effective degrees of freedom.
+    gdf : float
+        Generalized degrees of freedom.
+
+    Notes
+    -----
+    Unlike Hu's method which counts all specified constraints, Gaines' method
+    only counts constraints that are actually binding at the solution. This
+    reflects the intuition that non-binding constraints don't reduce the
+    effective degrees of freedom.
 
     References
     ----------
     Gaines, B.R., Kim, J., & Zhou, H. (2018). "Algorithms for Fitting
     the Constrained Lasso." JCGS, 27(4), 861-871.
     """
-    return n_active_predictors - n_equality_constraints - n_binding_inequality
+    return n_samples - n_active_predictors - n_equality_constraints - n_binding_inequality
 
 
 class ModelDiagnostics:
@@ -172,9 +187,11 @@ class ModelDiagnostics:
                 n_constraints
             )
         elif self.gdf_method == 'gaines':
-            # Gaines' method: only binding constraints count
+            # Gaines' method: GDF = n - p - binding_constraints
+            # where p is the number of active (non-zero) predictors
             n_active = np.sum(np.abs(self.model.coef_) > 1e-10)
             self.gdf = compute_gdf_gaines(
+                self.n_samples,
                 n_active,
                 n_equality_constraints=0,
                 n_binding_inequality=n_binding

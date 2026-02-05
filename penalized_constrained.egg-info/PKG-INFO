@@ -54,6 +54,7 @@ Requires-Dist: pingouin>=0.5; extra == "paper"
 Requires-Dist: matplotlib>=3.4; extra == "paper"
 Requires-Dist: seaborn>=0.12; extra == "paper"
 Requires-Dist: pyarrow>=14.0; extra == "paper"
+Requires-Dist: tabulate; extra == "paper"
 Provides-Extra: simulation
 Requires-Dist: joblib>=1.0; extra == "simulation"
 Requires-Dist: tqdm>=4.0; extra == "simulation"

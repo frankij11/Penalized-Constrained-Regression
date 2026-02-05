@@ -23,6 +23,8 @@ format:
         \usepackage{float}
         \floatplacement{figure}{H}
         \floatplacement{table}{H}
+        \let\oldabstract\abstract
+        \renewcommand{\abstract}{\oldabstract\setcounter{section}{0}}
 bibliography: references.bib
 execute:
   echo: false
@@ -40,8 +42,7 @@ import subprocess
 import sys
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.model_selection import cross_val_score
+import tabulate
 
 # Set plotting style
 plt.style.use('seaborn-v0_8-whitegrid')
@@ -94,50 +95,53 @@ results['c_bias'] = results['c'] - results['c_true']
 
 ## Abstract {.unnumbered}
 
-Small datasets with intercorrelated predictors pose serious challenges to Ordinary Least Squares (OLS) regression, often producing coefficients that are statistically unstable and economically implausible. A motivating example in cost estimation is the learning curve with rate effect, where lot midpoint correlates with lot size as production ramps up, and domain knowledge establishes that learning and rate slopes should be $\leq 100\%$.
+Small datasets with inter-correlated predictors pose serious challenges to Ordinary Least Squares (OLS) regression, often producing coefficients that are statistically unstable and economically implausible. A motivating example in cost estimation is the learning curve with rate effect, where lot midpoint correlates with lot size as production ramps up, and domain knowledge establishes that learning and rate slopes should be $\leq 100\%$.
 
 This paper combines penalized regularization (Lasso, Ridge, Elastic Net) with constrained optimization to ensure economically valid coefficients while maintaining predictive accuracy. Through a Monte Carlo simulation study of 8,100 scenarios using quantity profiles randomly selected from Selected Acquisition Reports (SARs) with simulated average unit costs at varying coefficients of variation, we find that Penalized-Constrained Regression with GCV selection (PCReg-GCV) outperforms OLS in predictive accuracy, with the strongest advantage precisely when OLS produces economically unreasonable coefficients.
 
 **Key Findings:**
 
-- PCReg-GCV provides better out-of-sample predictions even when OLS produces reasonable coefficients
-- OLS with learning variable only (OLS-LearnOnly) performs poorly outside the training range
-- Constraints introduce beneficial bias that improves extrapolation
-- Generalized Cross-Validation (GCV) enables stable hyperparameter selection with as few as 5 observations
+-   PCReg-GCV provides better out-of-sample predictions even when OLS produces reasonable coefficients
+-   OLS with learning variable only (OLS-LearnOnly) performs poorly outside the training range
+-   Constraints introduce beneficial bias that improves extrapolation
+-   Generalized Cross-Validation (GCV) enables stable hyperparameter selection with as few as 5 observations
 
-The research team developed the `penalized-constrained` Python package specifically for the cost estimating community after finding no existing library that combined these capabilities.
+The research team developed the `penalized-constrained` Python package specifically for the cost estimating community after finding no existing library that fully combined these capabilities.
 
 ### Methodological Foundation
 
 The objective function minimized by PCReg combines a loss function with regularization penalties subject to coefficient bounds:
 
 $$
-\min_{\theta} \underbrace{\sum_{i=1}^{n} L(y_i, \hat{y}_i)}_{\text{Loss (e.g., SSPE)}} + \underbrace{\alpha \left[ \rho \|\theta\|_1 + \frac{1-\rho}{2} \|\theta\|_2^2 \right]}_{\text{Elastic Net Penalty}}
+\begin{aligned}
+\text{Objective:} \quad
+& \min \; \underbrace{\sum_{i=1}^{n} L\!\left(y_i, \hat{y}_i\right)}_{\text{Loss}} \;+\;
+\underbrace{\alpha \Big[\, p \, L_1 \;+\; \frac{1-p}{2} \, L_2 \,\Big]}_{\text{Elastic Net Penalty}} \\[10pt]
+\text{s.t.} \quad
+& \theta_{\text{lower}} \le \theta \le \theta_{\text{upper}} \quad \text{(componentwise)} \\[12pt]
+\text{Definitions:} \quad
+& L(y_i, \hat{y}_i): \text{ Loss function measuring prediction error (e.g., squared error or percentage error).} \\[4pt]
+& \theta_{\text{lower}}, \theta_{\text{upper}}: \text{ Elementwise bounds on coefficients.}\\ 
+& L_1 = \|\theta\|_1 = \sum_{j=1}^{d} |\theta_j| \quad \text{(Lasso term: sum of absolute coefficient values).} \\[4pt]
+& L_2 = \|\theta\|_2^2 = \sum_{j=1}^{d} \theta_j^2 \quad \text{(Ridge term: sum of squared coefficient values).} \\[4pt]
+& \alpha \ge 0: \text{ Controls overall penalty strength.} \\[4pt]
+& p \in [0,1]: \text{ Balances L1 vs L2; } p=1 \Rightarrow \text{Lasso only, } p=0 \Rightarrow \text{Ridge only.} \\[4pt]
+\\
+\end{aligned}
 $$
-
-subject to: $\theta_{\text{lower}} \leq \theta \leq \theta_{\text{upper}}$
-
-where $\alpha$ controls penalty strength and $\rho$ balances L1 (Lasso) vs L2 (Ridge) regularization.
 
 **Bounds can be loose or tight:**
 
-- **Loose bounds** (e.g., 70-100%): Allow flexibility while preventing egregious violations
-- **Tight bounds** (e.g., 85-95%): Incorporate strong prior knowledge but risk over-constraining
+-   **Loose bounds** (e.g., 70-100%): Allow flexibility while preventing egregious violations
+-   **Tight bounds** (e.g., 85-95%): Incorporate strong prior knowledge but risk over-constraining
 
-Research foundations include @james2020pac demonstrating that constrained Lasso can achieve optimal prediction under monotonicity assumptions, and classical Ridge regression theory showing that some bias can reduce overall mean squared error when predictors are correlated.
-
-\newpage
+Research foundations include @james2020pac demonstrating that constrained Lasso can achieve optimal prediction when coefficients are constrained (positively or negatively). Classical Ridge regression theory \*\*\* CITE RIDGE PAPER \*\*\* proves that there exists an $\alpha$ penalty that mininizes mean squared error. This paper examines the impact of integrating insights from both studies within the cost estimation context, where regularization and constraints mitigate multicollinearity and prevent violations of domain knowledge. \newpage
 
 ## Introduction
 
-Developing Cost Estimating Relationships (CERs) for small datasets (5-30 data points), a recurring pattern emerges: strong fit statistics (R², CV) but nonsensical coefficients---wrong signs, implausible magnitudes, and poor p-values for critical predictors. As Department of Defense analysts, this story may feel all too familiar.
+While developing Cost Estimating Relationships (CERs) for small datasets (5-30 data points), a recurring pattern emerged. The regression models often showed strong fit statistics with high R² and low standard error, but nonsensical coefficients. Coefficients often had wrong signs, implausible magnitudes, and poor p-values for critical predictors. As Department of Defense analysts, this story may feel all too familiar.
 
-Multicollinear datasets are a frequent presence in cost analysis, causing models to misbehave. The consequences of multicollinearity in small samples are well-documented [@flynn2016multicollinearity]:
-
-- **Unstable coefficient estimates**: Coefficients swing wildly with small data changes
-- **Wrong coefficient signs**: Estimates flip positive/negative contrary to domain knowledge
-- **Unreliable hypothesis testing**: High F-statistic but individually insignificant t-statistics
-- **Inflated variance**: Coefficient variance increases by factor $1/(1-R^2)$ where $R^2$ is the correlation between predictors
+Multicollinear datasets are a frequent presence in cost analysis, causing models to misbehave. Traditional remedies are often impractical (e.g. increase sample size) or fail to completely resolve the issue. Dropping variables comes at a cost for predicting outside the relavant range which is almost always a requirement for DoD programs. Regularization techniques like Ridge and Lasso can help stabilize estimates, but they don't guarantee economically valid coefficients. Constrained optimization can enforce domain knowledge, but without regularization, it may not solve the underlying multicollinearity problem. This paper explores the combination of penalized regularization with coefficient constraints to address these challenges in cost estimation.
 
 ### The Learning Curve Problem
 
@@ -149,27 +153,29 @@ $$ {#eq-learning-curve}
 
 where:
 
-- $T_1$ = theoretical first unit cost
-- $b$ = learning slope (learning rate = $2^b$, typically 70-95%)
-- $c$ = rate slope (rate effect = $2^c$, typically 70-95%)
-- $\varepsilon$ = multiplicative error
+-   $T_1$ = theoretical first unit cost
+-   $b$ = learning slope (learning rate = $2^b$, typically 70-100%)
+-   $c$ = rate slope (rate effect = $2^c$, typically 70-100%)
+-   $\varepsilon$ = multiplicative error
 
-In this specification, lot midpoint (learning variable) is inherently correlated with lot size (rate variable) as production ramps up. Domain knowledge establishes that learning and rate slopes should be $\leq 100\%$---costs should not *increase* with cumulative production experience.
+As DoD programs ramp up production from Engineering Manufacturing Development (EMD) to Full Rate Production (FRP), lot midpoint (learning variable) becomes highly correlated with lot size (rate variable). By definition learning and rate slopes should be $\leq 100\%$ (e.g. costs should not *increase* with cumulative production or lot size).
+
+***Notes***: 1. There are instances where learning and rate effects can be \>100% (e.g. economy of scale inefficiencies, supply chain disruptions, etc.), but these are additional explanatory variables that need to be considered, not a violation of the definition. In practice, analysts often have strong prior beliefs about the plausible ranges for these parameters based on historical data and domain expertise. 2. This problem is not unique to learning curves. Any cost relationship with intercorrelated predictors and/or known coefficient bounds (e.g. cost increases with performance etc.) may benefit from the PCReg approach.
 
 ### Research Contribution
 
 This paper provides a practical guide combining penalized regularization with constrained optimization for cost estimation:
 
-1. **Python package** combining Elastic Net penalties with coefficient bound constraints
-2. **GCV framework** for hyperparameter selection without data splitting
-3. **Simulation benchmarks** comparing PCReg-GCV against OLS across varying sample sizes
-4. **Practical decision rules** for when to use constrained methods
+1.  **Python package** combining Elastic Net penalties with coefficient bound constraints
+2.  **GCV framework** for hyperparameter selection without data splitting
+3.  **Simulation benchmarks** comparing PCReg-GCV against OLS across varying sample sizes
+4.  **Practical decision rules** for when to use constrained methods
 
 \newpage
 
 ## Motivating Example
 
-We demonstrate the problem using a learning curve dataset with only **5 training lots**---the practical minimum for learning curve analysis.
+We demonstrate the problem using a learning curve dataset with only **`python n_train` training lots**.
 
 ```{python}
 #| label: scenario-params
@@ -191,7 +197,7 @@ log_qty = np.log(df_train['lot_quantity'])
 corr = np.corrcoef(log_mp, log_qty)[0, 1]
 
 # Get CV from data
-cv_error = df_example['cv_error'].iloc[0] if 'cv_error' in df_example.columns else 0.10
+cv_error = df_example['cv_error'].iloc[0]
 
 # Calculate true cost curve for plotting
 lot_mp_range = np.linspace(df_example['lot_midpoint'].min() * 0.8,
@@ -203,21 +209,45 @@ true_curve = true_T1 * (lot_mp_range ** true_b) * (median_qty ** true_c)
 
 **Scenario Specifications:**
 
-| Parameter | Value |
-|:----------|------:|
-| Training lots | `{python} n_train` |
-| Test lots | `{python} n_test` |
-| True $T_1$ | `{python} f'{true_T1:.0f}'` |
-| True Learning Rate | `{python} f'{true_lr*100:.1f}'`% |
-| True Rate Effect | `{python} f'{true_re*100:.1f}'`% |
-| Predictor Correlation | `{python} f'{corr:.2f}'` |
-| CV Error | `{python} f'{cv_error}'` |
+| Parameter             |                            Value |
+|:----------------------|---------------------------------:|
+| Training lots         |               `{python} n_train` |
+| Test lots             |                `{python} n_test` |
+| True $T_1$            |      `{python} f'{true_T1:.0f}'` |
+| True Learning Rate    | `{python} f'{true_lr*100:.1f}'`% |
+| True Rate Effect      | `{python} f'{true_re*100:.1f}'`% |
+| Predictor Correlation |         `{python} f'{corr:.2f}'` |
+| CV Error              |         `{python} f'{cv_error}'` |
 
 : Motivating example scenario parameters {#tbl-scenario}
 
 ```{python}
+#| label: tbl-scenario
+#| tbl-cap: "Motivating example dataset with training and test lots."
+#| echo: false
+#| output: asis
+
+from tabulate import tabulate
+
+# Choose and format the columns you want to show
+cols = ["lot_type", "lot_midpoint", "lot_quantity", "observed_cost", "true_cost"]
+df_show = df_example[cols].copy()
+
+# Format floats to a consistent precision
+md = tabulate(
+    df_show,
+    headers="keys",
+    tablefmt="pipe",   # Pandoc-friendly pipe table
+    showindex=False,
+    floatfmt=".3f"
+)
+
+print(md)
+```
+
+```{python}
 #| label: fig-data
-#| fig-cap: "Learning curve data with 5 training lots (blue) and the true underlying cost distribution (dashed line). Point sizes reflect lot quantities. The goal is to predict the true relationship, not just fit the noisy observations."
+#| fig-cap: "Learning curve data with `python n_train` training lots (blue) and the true underlying cost distribution (dashed line). Point sizes reflect lot quantities. The goal is to predict the true relationship, not just fit the noisy observations."
 
 fig, ax = plt.subplots(figsize=(8, 5))
 
@@ -345,7 +375,7 @@ pc_resid_true = y_test_true - pc_pred_test
 ### Results Comparison
 
 | Metric | True | OLS | OLS-LearnOnly | PCReg-GCV |
-|:-------|-----:|----:|--------------:|----------:|
+|:--------------|--------------:|--------------:|--------------:|--------------:|
 | $T_1$ | `{python} f'{true_T1:.0f}'` | `{python} f'{ols_T1:.0f}'` | `{python} f'{ols_learn_T1:.0f}'` | `{python} f'{pc_T1:.0f}'` |
 | Learning Rate | `{python} f'{true_lr*100:.1f}'`% | `{python} f'{ols_lr*100:.1f}'`% | `{python} f'{ols_learn_lr*100:.1f}'`% | `{python} f'{pc_lr*100:.1f}'`% |
 | Rate Effect | `{python} f'{true_re*100:.1f}'`% | `{python} f'{ols_re*100:.1f}'`% | -- | `{python} f'{pc_re*100:.1f}'`% |
@@ -355,7 +385,7 @@ pc_resid_true = y_test_true - pc_pred_test
 
 : Comparison of estimation methods. PCReg-GCV has lower Train R² due to added bias from constraints, but better Test MAPE when predicting the true underlying relationship. {#tbl-comparison}
 
-**Key Insight**: PCReg-GCV achieves a *lower* Train R² (`{python} f'{pc_r2_train:.3f}'`) than OLS (`{python} f'{ols_r2_train:.3f}'`). This is expected---constraints add bias to the training fit. However, this bias *improves* out-of-sample prediction, as shown by the lower Test MAPE against the true distribution.
+**Key Insight**: PCReg-GCV achieves a *lower* Train R² (`{python} f'{pc_r2_train:.3f}'`) than OLS (`{python} f'{ols_r2_train:.3f}'`). This is expected, penalties and constraints add bias to the training fit. However, this bias *improves* out-of-sample prediction, as shown by the lower Test MAPE against the true distribution.
 
 ```{python}
 #| label: fig-residuals
@@ -363,40 +393,33 @@ pc_resid_true = y_test_true - pc_pred_test
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
-# Training residuals
-ax1 = axes[0]
-x_pos = [0, 1, 2]
 models = ['OLS', 'OLS-LearnOnly', 'PCReg-GCV']
-train_rmse = [
-    np.sqrt(np.mean(ols_resid_train**2)),
-    np.sqrt(np.mean(ols_learn_resid_train**2)),
-    np.sqrt(np.mean(pc_resid_train**2))
-]
+x_pos = np.arange(len(models))
 colors = ['#e74c3c', '#9b59b6', '#3498db']
-bars1 = ax1.bar(x_pos, train_rmse, color=colors, edgecolor='black')
+
+# Training residuals scatter
+ax1 = axes[0]
+train_residuals = [ols_resid_train, ols_learn_resid_train, pc_resid_train]
+for i, (resid, color) in enumerate(zip(train_residuals, colors)):
+    jitter = np.random.normal(0, 0.05, size=len(resid))
+    ax1.scatter(np.full_like(resid, x_pos[i]) + jitter, resid, color=color, alpha=0.7, edgecolors='black', s=40)
+ax1.axhline(0, color='black', linestyle='--', linewidth=1)
 ax1.set_xticks(x_pos)
 ax1.set_xticklabels(models)
-ax1.set_ylabel('RMSE ($)')
-ax1.set_title('Training Residuals (RMSE)')
-for bar, val in zip(bars1, train_rmse):
-    ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
-             f'{val:.1f}', ha='center', va='bottom')
+ax1.set_ylabel('Residual ($)')
+ax1.set_title('Training Residuals')
 
-# Test residuals vs true
+# Test residuals scatter (vs true)
 ax2 = axes[1]
-test_rmse = [
-    np.sqrt(np.mean(ols_resid_true**2)),
-    np.sqrt(np.mean(ols_learn_resid_true**2)),
-    np.sqrt(np.mean(pc_resid_true**2))
-]
-bars2 = ax2.bar(x_pos, test_rmse, color=colors, edgecolor='black')
+test_residuals = [ols_resid_true, ols_learn_resid_true, pc_resid_true]
+for i, (resid, color) in enumerate(zip(test_residuals, colors)):
+    jitter = np.random.normal(0, 0.05, size=len(resid))
+    ax2.scatter(np.full_like(resid, x_pos[i]) + jitter, resid, color=color, alpha=0.7, edgecolors='black', s=40)
+ax2.axhline(0, color='black', linestyle='--', linewidth=1)
 ax2.set_xticks(x_pos)
 ax2.set_xticklabels(models)
-ax2.set_ylabel('RMSE ($)')
-ax2.set_title('Test Residuals vs True Distribution (RMSE)')
-for bar, val in zip(bars2, test_rmse):
-    ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
-             f'{val:.1f}', ha='center', va='bottom')
+ax2.set_ylabel('Residual ($)')
+ax2.set_title('Test Residuals vs True Distribution')
 
 plt.tight_layout()
 plt.show()
@@ -436,10 +459,16 @@ boot_unconst = boot.unconstrained if boot else None
 For constrained models, computing proper degrees of freedom requires special consideration. When constraints are *binding* (coefficients at bounds), those parameters effectively lose freedom. Following Gaines et al. (2018):
 
 $$
-\text{df} = |\text{Active predictors}| - |\text{Binding inequality constraints}|
+\text{GDF} = n - p - |\text{Binding inequality constraints}|
 $$
 
+where $n$ is the sample size and $p$ is the number of active predictors (non-zero coefficients).
+
 For the PCReg-GCV model: GDF = `{python} f'{gdf:.1f}'` with `{python} n_active` active constraint(s).
+
+**Note on Hu's Alternative Formula:** Hu (2010) proposes a different approach where *all specified constraints* count against degrees of freedom, not just binding ones:
+ $\text{GDF} = n - p - (\text{\# Constraints}) + (\text{\# Redundancies})$. 
+Hu's method is more conservative, always reducing GDF when constraints are specified, while Gaines' method only penalizes constraints that are actually active at the solution. The `penalized-constrained` package supports both methods via the `gdf_method` parameter.
 
 **Bootstrap Results Summary**
 
@@ -460,15 +489,15 @@ if boot_const is not None and boot_unconst is not None:
 
 **Constrained Bootstrap** (with bounds and regularization):
 
-- **T1**: Mean = `{python} f'{const_means[0]:.2f}'`, Std = `{python} f'{const_stds[0]:.2f}'`, 95% CI = [`{python} f'{const_ranges[0][0]:.2f}'`, `{python} f'{const_ranges[0][1]:.2f}'`]
-- **b**: Mean = `{python} f'{const_means[1]:.4f}'`, Std = `{python} f'{const_stds[1]:.4f}'`, 95% CI = [`{python} f'{const_ranges[1][0]:.4f}'`, `{python} f'{const_ranges[1][1]:.4f}'`]
-- **c**: Mean = `{python} f'{const_means[2]:.4f}'`, Std = `{python} f'{const_stds[2]:.4f}'`, 95% CI = [`{python} f'{const_ranges[2][0]:.4f}'`, `{python} f'{const_ranges[2][1]:.4f}'`]
+-   **T1**: Mean = `{python} f'{const_means[0]:.2f}'`, Std = `{python} f'{const_stds[0]:.2f}'`, 95% CI = \[`{python} f'{const_ranges[0][0]:.2f}'`, `{python} f'{const_ranges[0][1]:.2f}'`\]
+-   **b**: Mean = `{python} f'{const_means[1]:.4f}'`, Std = `{python} f'{const_stds[1]:.4f}'`, 95% CI = \[`{python} f'{const_ranges[1][0]:.4f}'`, `{python} f'{const_ranges[1][1]:.4f}'`\]
+-   **c**: Mean = `{python} f'{const_means[2]:.4f}'`, Std = `{python} f'{const_stds[2]:.4f}'`, 95% CI = \[`{python} f'{const_ranges[2][0]:.4f}'`, `{python} f'{const_ranges[2][1]:.4f}'`\]
 
 **Unconstrained Bootstrap** (no bounds, alpha=0):
 
-- **T1**: Mean = `{python} f'{unconst_means[0]:.2f}'`, Std = `{python} f'{unconst_stds[0]:.2f}'`, 95% CI = [`{python} f'{unconst_ranges[0][0]:.2f}'`, `{python} f'{unconst_ranges[0][1]:.2f}'`]
-- **b**: Mean = `{python} f'{unconst_means[1]:.4f}'`, Std = `{python} f'{unconst_stds[1]:.4f}'`, 95% CI = [`{python} f'{unconst_ranges[1][0]:.4f}'`, `{python} f'{unconst_ranges[1][1]:.4f}'`]
-- **c**: Mean = `{python} f'{unconst_means[2]:.4f}'`, Std = `{python} f'{unconst_stds[2]:.4f}'`, 95% CI = [`{python} f'{unconst_ranges[2][0]:.4f}'`, `{python} f'{unconst_ranges[2][1]:.4f}'`]
+-   **T1**: Mean = `{python} f'{unconst_means[0]:.2f}'`, Std = `{python} f'{unconst_stds[0]:.2f}'`, 95% CI = \[`{python} f'{unconst_ranges[0][0]:.2f}'`, `{python} f'{unconst_ranges[0][1]:.2f}'`\]
+-   **b**: Mean = `{python} f'{unconst_means[1]:.4f}'`, Std = `{python} f'{unconst_stds[1]:.4f}'`, 95% CI = \[`{python} f'{unconst_ranges[1][0]:.4f}'`, `{python} f'{unconst_ranges[1][1]:.4f}'`\]
+-   **c**: Mean = `{python} f'{unconst_means[2]:.4f}'`, Std = `{python} f'{unconst_stds[2]:.4f}'`, 95% CI = \[`{python} f'{unconst_ranges[2][0]:.4f}'`, `{python} f'{unconst_ranges[2][1]:.4f}'`\]
 
 ```{python}
 #| label: fig-bootstrap-kde
@@ -501,11 +530,11 @@ if boot_const is not None and boot_unconst is not None:
 
 **Key Diagnostic Insights:**
 
-1. **Constraints at bounds**: When bootstrap samples frequently hit constraint boundaries, the data is "pulling" towards implausible values---exactly when constraints help most.
+1.  **Constraints at bounds**: When bootstrap samples frequently hit constraint boundaries, the data is "pulling" towards implausible values---exactly when constraints help most.
 
-2. **Variance reduction**: Constrained bootstrap typically shows tighter distributions, reducing coefficient uncertainty at the cost of some bias.
+2.  **Variance reduction**: Constrained bootstrap typically shows tighter distributions, reducing coefficient uncertainty at the cost of some bias.
 
-3. **Divergence indicates constraint impact**: Large differences between constrained and unconstrained means show the constraints are actively shaping the solution.
+3.  **Divergence indicates constraint impact**: Large differences between constrained and unconstrained means show the constraints are actively shaping the solution.
 
 **Note on nonlinear optimization**: PCReg uses numerical optimization (scipy's SLSQP), so classical regression assumptions don't directly apply. Bootstrap provides robust inference without these assumptions.
 
@@ -523,29 +552,50 @@ An interactive HTML diagnostic report with full bootstrap distributions has been
 
 ## Simulation Study
 
-To systematically evaluate when PCReg-GCV outperforms OLS, we conducted a Monte Carlo simulation study with 8,100 scenarios.
+```{python}
+#| label: simulation-design-params
+
+# Extract unique factor levels from results
+n_lots_levels = sorted(results['n_lots'].unique())
+cv_error_levels = sorted(results['cv_error'].unique())
+learning_rate_levels = sorted(results['learning_rate'].unique())
+rate_effect_levels = sorted(results['rate_effect'].unique())
+
+# Calculate simulation size
+n_combinations = len(n_lots_levels) * len(cv_error_levels) * len(learning_rate_levels) * len(rate_effect_levels)
+n_replications = len(results[results['model_name'] == 'OLS']) // n_combinations
+n_scenarios = n_combinations * n_replications
+
+# Format levels for display
+n_lots_str = ', '.join(map(str, n_lots_levels))
+cv_error_str = ', '.join(map(str, cv_error_levels))
+learning_rate_str = ', '.join([f'{lr*100:.0f}%' for lr in learning_rate_levels])
+rate_effect_str = ', '.join([f'{re*100:.0f}%' for re in rate_effect_levels])
+```
+
+To systematically evaluate when PCReg-GCV outperforms OLS, we conducted a Monte Carlo simulation study with `{python} f'{n_scenarios:,}'` scenarios.
 
 ### Design
 
-| Factor | Levels |
-|:-------|:-------|
-| Sample size (n_lots) | 5, 10, 30 |
-| CV error | 0.01, 0.1, 0.2 |
-| Learning rate | 85%, 90%, 95% |
-| Rate effect | 80%, 85%, 90% |
+| Factor               | Levels         |
+|:---------------------|:---------------|
+| Sample size (n_lots) | `{python} n_lots_str` |
+| CV error             | `{python} cv_error_str` |
+| Learning rate        | `{python} learning_rate_str` |
+| Rate effect          | `{python} rate_effect_str` |
 
-: Simulation study factorial design. 81 combinations × 100 replications = 8,100 scenarios. {#tbl-design}
+: Simulation study factorial design. `{python} n_combinations` combinations × `{python} n_replications` replications = `{python} f'{n_scenarios:,}'` scenarios. {#tbl-design}
 
 ### Data Generation
 
 For each scenario, we:
 
-1. **Randomly selected a quantity profile** from the SAR database (actual defense program procurement histories)
-2. **Generated simulated average unit costs** using the learning curve model (@eq-learning-curve) with the scenario's true parameters
-3. **Added multiplicative lognormal noise** with the specified coefficient of variation (CV)
-4. **Split data**: First $n$ lots for training, remaining lots for test
+1.  **Randomly selected a quantity profile** from the SAR database (actual defense program procurement histories)
+2.  **Generated simulated average unit costs** using the learning curve model (@eq-learning-curve) with the scenario's true parameters
+3.  **Added multiplicative lognormal noise** with the specified coefficient of variation (CV)
+4.  **Split data**: First $n$ lots for training, remaining lots for test
 
-This approach ensures realistic lot structures (varying quantities, realistic ramp-up patterns) while controlling the true underlying parameters. Note that the number of test lots varies by scenario depending on the program's total lot history---some programs have many available lots beyond training, others have few. This variability is acceptable as it reflects real-world conditions.
+This approach ensures realistic lot structures (varying quantities, realistic ramp-up patterns) while controlling the true underlying parameters. Note that the number of test lots varies by scenario depending on the program's total lot history. Some programs have many available lots beyond training, others have few or none. This variability is acceptable as it reflects real-world conditions.
 
 \newpage
 
@@ -553,6 +603,9 @@ This approach ensures realistic lot structures (varying quantities, realistic ra
 
 ```{python}
 #| label: analysis-setup
+
+from scipy import stats
+from tabulate import tabulate
 
 # Create comparison dataframe for OLS vs PCReg_GCV
 ols_df = results[results['model_name'] == 'OLS'][['seed', 'test_mape', 'test_sspe', 'ols_reasonable',
@@ -573,6 +626,22 @@ ols_learn_df = ols_learn_df.rename(columns={'test_mape': 'ols_learn_mape', 'test
 # Merge all
 comparison = ols_df.merge(pcreg_df, on='seed').merge(ols_learn_df, on='seed')
 
+# Calculate Learning Curve (LC) and Rate Curve (RC) estimates (slope scale: 2^b)
+comparison['ols_LC'] = 2 ** comparison['ols_b']
+comparison['ols_RC'] = 2 ** comparison['ols_c']
+comparison['pcreg_LC'] = 2 ** comparison['pcreg_b']
+comparison['pcreg_RC'] = 2 ** comparison['pcreg_c']
+comparison['LC_true'] = 2 ** comparison['b_true']
+comparison['RC_true'] = 2 ** comparison['c_true']
+
+# Calculate absolute errors in slope scale (LC/RC)
+comparison['ols_T1_ape'] = np.abs(comparison['ols_T1'] - comparison['T1_true']) / comparison['T1_true']
+comparison['pcreg_T1_ape'] = np.abs(comparison['pcreg_T1'] - comparison['T1_true']) / comparison['T1_true']
+comparison['ols_LC_ae'] = np.abs(comparison['ols_LC'] - comparison['LC_true'])
+comparison['pcreg_LC_ae'] = np.abs(comparison['pcreg_LC'] - comparison['LC_true'])
+comparison['ols_RC_ae'] = np.abs(comparison['ols_RC'] - comparison['RC_true'])
+comparison['pcreg_RC_ae'] = np.abs(comparison['pcreg_RC'] - comparison['RC_true'])
+
 # Calculate win indicators
 comparison['pcreg_wins_mape'] = comparison['pcreg_mape'] < comparison['ols_mape']
 comparison['pcreg_wins_sspe'] = comparison['pcreg_sspe'] < comparison['ols_sspe']
@@ -583,34 +652,146 @@ win_reasonable_mape = comparison[comparison['ols_reasonable'] == True]['pcreg_wi
 win_unreasonable_mape = comparison[comparison['ols_reasonable'] == False]['pcreg_wins_mape'].mean() * 100
 n_reasonable = comparison['ols_reasonable'].sum()
 n_unreasonable = (~comparison['ols_reasonable']).sum()
+pct_unreasonable = n_unreasonable / len(comparison) * 100
 ```
 
-### Finding 1: PCReg-GCV Outperforms OLS Regardless of Coefficient Reasonableness
+Across `{python} f'{len(comparison):,}'` simulation scenarios, OLS produced economically unreasonable coefficients (learning curve or rate effect outside 70-100%) in **`{python} f'{pct_unreasonable:.1f}'`%** of cases (`{python} f'{n_unreasonable:,}'` scenarios).
 
-A key finding is that PCReg-GCV provides better out-of-sample predictions **even when OLS produces reasonable coefficients**.
+### Finding 1a: PCReg-GCV Significantly Outperforms OLS When Coefficients Are Unreasonable
+
+When OLS produces unreasonable coefficients, PCReg-GCV wins **`{python} f'{win_unreasonable_mape:.1f}'`%** of scenarios on Test MAPE.
 
 ```{python}
-#| label: tbl-winrates
+#| label: unreasonable-analysis
+#| output: asis
 
-# Win rate table
-win_table = pd.DataFrame({
-    'OLS Coefficients': ['Reasonable (70-100%)', 'Unreasonable'],
-    'N Scenarios': [n_reasonable, n_unreasonable],
-    'PCReg-GCV Wins (Test MAPE)': [f'{win_reasonable_mape:.1f}%', f'{win_unreasonable_mape:.1f}%'],
-})
+# Filter to unreasonable scenarios
+unreasonable = comparison[comparison['ols_reasonable'] == False].copy()
+
+# Statistical tests for unreasonable scenarios
+wilcox_mape_unreas = stats.wilcoxon(unreasonable['ols_mape'], unreasonable['pcreg_mape'], alternative='greater')
+ttest_mape_unreas = stats.ttest_rel(unreasonable['ols_mape'], unreasonable['pcreg_mape'], alternative='greater')
+
+# Build comparison table for unreasonable scenarios
+metrics_unreas = {
+    'Metric': ['Test MAPE', 'T1 APE', 'LC Abs Error', 'RC Abs Error'],
+    'OLS Mean': [
+        unreasonable['ols_mape'].mean(),
+        unreasonable['ols_T1_ape'].mean(),
+        unreasonable['ols_LC_ae'].mean(),
+        unreasonable['ols_RC_ae'].mean()
+    ],
+    'PCReg Mean': [
+        unreasonable['pcreg_mape'].mean(),
+        unreasonable['pcreg_T1_ape'].mean(),
+        unreasonable['pcreg_LC_ae'].mean(),
+        unreasonable['pcreg_RC_ae'].mean()
+    ],
+    'OLS Median': [
+        unreasonable['ols_mape'].median(),
+        unreasonable['ols_T1_ape'].median(),
+        unreasonable['ols_LC_ae'].median(),
+        unreasonable['ols_RC_ae'].median()
+    ],
+    'PCReg Median': [
+        unreasonable['pcreg_mape'].median(),
+        unreasonable['pcreg_T1_ape'].median(),
+        unreasonable['pcreg_LC_ae'].median(),
+        unreasonable['pcreg_RC_ae'].median()
+    ]
+}
+df_unreas = pd.DataFrame(metrics_unreas)
+
+# Format for display
+df_unreas_display = df_unreas.copy()
+for col in ['OLS Mean', 'PCReg Mean', 'OLS Median', 'PCReg Median']:
+    df_unreas_display[col] = df_unreas_display[col].apply(lambda x: f'{x:.4f}')
+
+print(tabulate(df_unreas_display, headers='keys', tablefmt='pipe', showindex=False))
 ```
 
+: Performance comparison when OLS produces unreasonable coefficients (n=`{python} f'{n_unreasonable:,}'`). Lower values are better. {#tbl-unreasonable}
+
+**Statistical Significance**: Wilcoxon signed-rank test confirms PCReg-GCV significantly outperforms OLS on Test MAPE (p < `{python} f'{wilcox_mape_unreas.pvalue:.2e}'`).
+
+### Finding 1b: PCReg-GCV Performs Comparably When OLS Coefficients Are Reasonable
+
+When OLS produces reasonable coefficients, OLS "wins" on Test MAPE in **`{python} f'{100 - win_reasonable_mape:.1f}'`%** of scenarios. However, the performance differences are negligible in practical terms.
+
+```{python}
+#| label: reasonable-analysis
+#| output: asis
+
+# Filter to reasonable scenarios
+reasonable = comparison[comparison['ols_reasonable'] == True].copy()
+
+# Statistical tests for reasonable scenarios
+wilcox_mape_reas = stats.wilcoxon(reasonable['ols_mape'], reasonable['pcreg_mape'])
+ttest_mape_reas = stats.ttest_rel(reasonable['ols_mape'], reasonable['pcreg_mape'])
+
+# Build comparison table for reasonable scenarios
+metrics_reas = {
+    'Metric': ['Test MAPE', 'T1 APE', 'LC Abs Error', 'RC Abs Error'],
+    'OLS Mean': [
+        reasonable['ols_mape'].mean(),
+        reasonable['ols_T1_ape'].mean(),
+        reasonable['ols_LC_ae'].mean(),
+        reasonable['ols_RC_ae'].mean()
+    ],
+    'PCReg Mean': [
+        reasonable['pcreg_mape'].mean(),
+        reasonable['pcreg_T1_ape'].mean(),
+        reasonable['pcreg_LC_ae'].mean(),
+        reasonable['pcreg_RC_ae'].mean()
+    ],
+    'OLS Median': [
+        reasonable['ols_mape'].median(),
+        reasonable['ols_T1_ape'].median(),
+        reasonable['ols_LC_ae'].median(),
+        reasonable['ols_RC_ae'].median()
+    ],
+    'PCReg Median': [
+        reasonable['pcreg_mape'].median(),
+        reasonable['pcreg_T1_ape'].median(),
+        reasonable['pcreg_LC_ae'].median(),
+        reasonable['pcreg_RC_ae'].median()
+    ]
+}
+df_reas = pd.DataFrame(metrics_reas)
+
+# Format for display
+df_reas_display = df_reas.copy()
+for col in ['OLS Mean', 'PCReg Mean', 'OLS Median', 'PCReg Median']:
+    df_reas_display[col] = df_reas_display[col].apply(lambda x: f'{x:.4f}')
+
+print(tabulate(df_reas_display, headers='keys', tablefmt='pipe', showindex=False))
+```
+
+: Performance comparison when OLS produces reasonable coefficients (n=`{python} f'{n_reasonable:,}'`). {#tbl-reasonable}
+
+```{python}
+#| label: reasonable-diff-calc
+
+# Calculate practical differences
+mape_diff_reas = (reasonable['pcreg_mape'].mean() - reasonable['ols_mape'].mean()) * 100
+mape_diff_reas_pct = mape_diff_reas / (reasonable['ols_mape'].mean() * 100) * 100
+```
+
+**Key Insight**: When OLS coefficients are reasonable, the mean Test MAPE difference is only **`{python} f'{abs(mape_diff_reas):.2f}'` percentage points** (`{python} f'{abs(mape_diff_reas_pct):.1f}'`% relative difference). While statistically detectable (Wilcoxon p=`{python} f'{wilcox_mape_reas.pvalue:.2e}'`), this difference is negligible in practice. OLS's occasional large errors (visible in the heavy right tail) inflate the mean, but the median performance is nearly identical.
+
+### Summary: Win Rates by Coefficient Reasonableness
+
 | OLS Coefficients | N Scenarios | PCReg-GCV Win Rate (Test MAPE) |
-|:-----------------|------------:|-------------------------------:|
+|:-------------------|-----------------:|---------------------------------:|
 | Reasonable (70-100%) | `{python} f'{n_reasonable:,}'` | `{python} f'{win_reasonable_mape:.1f}'`% |
-| Unreasonable (<70% or >100%) | `{python} f'{n_unreasonable:,}'` | `{python} f'{win_unreasonable_mape:.1f}'`% |
+| Unreasonable (\<70% or \>100%) | `{python} f'{n_unreasonable:,}'` | `{python} f'{win_unreasonable_mape:.1f}'`% |
 | **Overall** | `{python} f'{len(comparison):,}'` | `{python} f'{overall_win_mape:.1f}'`% |
 
 : PCReg-GCV win rates against OLS by coefficient reasonableness {#tbl-winrates}
 
 ```{python}
 #| label: fig-kde-mape
-#| fig-cap: "Distribution of Test MAPE for OLS vs PCReg-GCV, stratified by whether OLS produced reasonable coefficients. PCReg-GCV (blue) consistently shows lower MAPE in both cases."
+#| fig-cap: "Distribution of Test MAPE for OLS vs PCReg-GCV, stratified by whether OLS produced reasonable coefficients. When unreasonable (right), OLS shows a heavy right tail of large errors that PCReg-GCV avoids."
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
@@ -650,93 +831,124 @@ ols_learn_worse = (comparison['ols_learn_mape'] > comparison['ols_mape']).mean()
 ols_learn_mean_mape = comparison['ols_learn_mape'].mean() * 100
 ols_mean_mape = comparison['ols_mape'].mean() * 100
 pcreg_mean_mape = comparison['pcreg_mape'].mean() * 100
+
+# PCReg-GCV vs OLS-LearnOnly comparison
+comparison['pcreg_wins_vs_learnonly'] = comparison['pcreg_mape'] < comparison['ols_learn_mape']
+pcreg_vs_learnonly_overall = comparison['pcreg_wins_vs_learnonly'].mean() * 100
+pcreg_vs_learnonly_reasonable = comparison[comparison['ols_reasonable'] == True]['pcreg_wins_vs_learnonly'].mean() * 100
+pcreg_vs_learnonly_unreasonable = comparison[comparison['ols_reasonable'] == False]['pcreg_wins_vs_learnonly'].mean() * 100
 ```
 
 OLS with only the learning variable (OLS-LearnOnly) ignores the rate effect, which leads to poor extrapolation:
 
-| Model | Mean Test MAPE |
-|:------|---------------:|
+| Model         |                           Mean Test MAPE |
+|:--------------|-----------------------------------------:|
 | OLS-LearnOnly | `{python} f'{ols_learn_mean_mape:.1f}'`% |
-| OLS | `{python} f'{ols_mean_mape:.1f}'`% |
-| PCReg-GCV | `{python} f'{pcreg_mean_mape:.1f}'`% |
+| OLS           |       `{python} f'{ols_mean_mape:.1f}'`% |
+| PCReg-GCV     |     `{python} f'{pcreg_mean_mape:.1f}'`% |
 
 : Average Test MAPE by model {#tbl-mape-comparison}
 
 OLS-LearnOnly has worse Test MAPE than full OLS in **`{python} f'{ols_learn_worse:.1f}'`%** of scenarios. While simplifying the model may seem appealing, omitting the rate effect leads to systematic prediction errors outside the training range.
+
+PCReg-GCV outperforms OLS-LearnOnly on Test MAPE in **`{python} f'{pcreg_vs_learnonly_overall:.1f}'`%** of all scenarios:
+
+- When OLS coefficients are **reasonable**: PCReg-GCV wins **`{python} f'{pcreg_vs_learnonly_reasonable:.1f}'`%**
+- When OLS coefficients are **unreasonable**: PCReg-GCV wins **`{python} f'{pcreg_vs_learnonly_unreasonable:.1f}'`%**
+
+Across all scenarios, PCReg-GCV outperforms OLS on Test MAPE in **`{python} f'{overall_win_mape:.1f}'`%** of cases, indicating a consistent predictive advantage even when OLS is competitive.
 
 ### Finding 3: Coefficient Bias Analysis
 
 Constraints introduce bias in coefficient estimates. We analyze whether this bias is systematic and how it affects prediction:
 
 ```{python}
-#| label: bias-analysis
+#| label: tbl-bias
+#| tbl-cap: "Coefficient bias statistics (Estimated - True). Mean/Median near 0 indicates unbiased estimation; lower Std indicates more stable estimates."
 
-# Calculate mean bias for each model and coefficient
-bias_summary = results.groupby('model_name').agg({
-    'T1_bias': 'mean',
-    'b_bias': 'mean',
-    'c_bias': 'mean'
-}).round(4)
+# Calculate statistics for each model and coefficient
+bias_stats = results.groupby('model_name').agg({
+    'T1_bias': ['mean', 'median', 'std'],
+    'b_bias': ['mean', 'median', 'std'],
+    'c_bias': ['mean', 'median', 'std']
+}).T
 
-# For table display
-ols_T1_bias = bias_summary.loc['OLS', 'T1_bias']
-ols_b_bias = bias_summary.loc['OLS', 'b_bias']
-ols_c_bias = bias_summary.loc['OLS', 'c_bias']
-pcreg_T1_bias = bias_summary.loc['PCReg_GCV', 'T1_bias']
-pcreg_b_bias = bias_summary.loc['PCReg_GCV', 'b_bias']
-pcreg_c_bias = bias_summary.loc['PCReg_GCV', 'c_bias']
+# Create clean row structure
+rows = []
+for coef in ['T1_bias', 'b_bias', 'c_bias']:
+    coef_name = coef.replace('_bias', '').replace('T1', '$T_1$').replace('b', '$b$').replace('c', '$c$')
+    for stat in ['mean', 'median', 'std']:
+        row_data = {'Coefficient': coef_name, 'Statistic': stat.capitalize()}
+        for model in ['OLS', 'PCReg_GCV']:
+            if model in bias_stats.columns:
+                val = bias_stats.loc[(coef, stat), model]
+                row_data[model] = f'{val:.2f}' if abs(val) > 0.01 else f'{val:.4f}'
+        rows.append(row_data)
+
+bias_table = pd.DataFrame(rows)
+bias_table = bias_table.rename(columns={'PCReg_GCV': 'PCReg-GCV'})
+
+bias_table
 ```
-
-| Coefficient | OLS Bias | PCReg-GCV Bias |
-|:------------|:--------:|:--------------:|
-| $T_1$ (Mean Error) | `{python} f'{ols_T1_bias:.2f}'` | `{python} f'{pcreg_T1_bias:.2f}'` |
-| $b$ (Mean Error) | `{python} f'{ols_b_bias:.4f}'` | `{python} f'{pcreg_b_bias:.4f}'` |
-| $c$ (Mean Error) | `{python} f'{ols_c_bias:.4f}'` | `{python} f'{pcreg_c_bias:.4f}'` |
-
-: Mean coefficient bias (Estimated - True). Values near 0 indicate unbiased estimation. {#tbl-bias}
 
 ```{python}
 #| label: fig-bias-dist
-#| fig-cap: "Distribution of coefficient errors by model. Vertical line at 0 indicates no bias. PCReg-GCV shows tighter distributions despite some bias, leading to lower variance in predictions."
+#| fig-cap: "Distribution of coefficient errors by model (1st-99th percentile). Vertical line at 0 indicates no bias. PCReg-GCV shows tighter distributions despite some bias, leading to lower variance in predictions."
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+
+# Helper function to get percentile limits
+def get_pct_limits(data1, data2, lower_pct=1, upper_pct=99):
+    combined = pd.concat([data1, data2])
+    return combined.quantile(lower_pct/100), combined.quantile(upper_pct/100)
 
 # T1 bias
 ax1 = axes[0]
 ols_data = results[results['model_name'] == 'OLS']['T1_bias']
 pcreg_data = results[results['model_name'] == 'PCReg_GCV']['T1_bias']
-sns.kdeplot(data=ols_data, ax=ax1, label='OLS', color='#e74c3c', fill=True, alpha=0.3)
-sns.kdeplot(data=pcreg_data, ax=ax1, label='PCReg-GCV', color='#3498db', fill=True, alpha=0.3)
+xlim_low, xlim_high = get_pct_limits(ols_data, pcreg_data)
+ols_filtered = ols_data[(ols_data >= xlim_low) & (ols_data <= xlim_high)]
+pcreg_filtered = pcreg_data[(pcreg_data >= xlim_low) & (pcreg_data <= xlim_high)]
+sns.kdeplot(data=ols_filtered, ax=ax1, label='OLS', color='#e74c3c', fill=True, alpha=0.3)
+sns.kdeplot(data=pcreg_filtered, ax=ax1, label='PCReg-GCV', color='#3498db', fill=True, alpha=0.3)
 ax1.axvline(x=0, color='black', linestyle='--', linewidth=2, label='No Bias')
 ax1.set_xlabel('T1 Error (Est - True)')
 ax1.set_ylabel('Density')
 ax1.set_title('T1 Coefficient Bias')
 ax1.legend()
-ax1.set_xlim(-50, 150)
+ax1.set_xlim(xlim_low, xlim_high)
 
 # b bias
 ax2 = axes[1]
 ols_data = results[results['model_name'] == 'OLS']['b_bias']
 pcreg_data = results[results['model_name'] == 'PCReg_GCV']['b_bias']
-sns.kdeplot(data=ols_data, ax=ax2, label='OLS', color='#e74c3c', fill=True, alpha=0.3)
-sns.kdeplot(data=pcreg_data, ax=ax2, label='PCReg-GCV', color='#3498db', fill=True, alpha=0.3)
+xlim_low, xlim_high = get_pct_limits(ols_data, pcreg_data)
+ols_filtered = ols_data[(ols_data >= xlim_low) & (ols_data <= xlim_high)]
+pcreg_filtered = pcreg_data[(pcreg_data >= xlim_low) & (pcreg_data <= xlim_high)]
+sns.kdeplot(data=ols_filtered, ax=ax2, label='OLS', color='#e74c3c', fill=True, alpha=0.3)
+sns.kdeplot(data=pcreg_filtered, ax=ax2, label='PCReg-GCV', color='#3498db', fill=True, alpha=0.3)
 ax2.axvline(x=0, color='black', linestyle='--', linewidth=2, label='No Bias')
 ax2.set_xlabel('b Error (Est - True)')
 ax2.set_ylabel('Density')
 ax2.set_title('Learning Slope (b) Bias')
 ax2.legend()
+ax2.set_xlim(xlim_low, xlim_high)
 
 # c bias
 ax3 = axes[2]
 ols_data = results[results['model_name'] == 'OLS']['c_bias']
 pcreg_data = results[results['model_name'] == 'PCReg_GCV']['c_bias']
-sns.kdeplot(data=ols_data, ax=ax3, label='OLS', color='#e74c3c', fill=True, alpha=0.3)
-sns.kdeplot(data=pcreg_data, ax=ax3, label='PCReg-GCV', color='#3498db', fill=True, alpha=0.3)
+xlim_low, xlim_high = get_pct_limits(ols_data, pcreg_data)
+ols_filtered = ols_data[(ols_data >= xlim_low) & (ols_data <= xlim_high)]
+pcreg_filtered = pcreg_data[(pcreg_data >= xlim_low) & (pcreg_data <= xlim_high)]
+sns.kdeplot(data=ols_filtered, ax=ax3, label='OLS', color='#e74c3c', fill=True, alpha=0.3)
+sns.kdeplot(data=pcreg_filtered, ax=ax3, label='PCReg-GCV', color='#3498db', fill=True, alpha=0.3)
 ax3.axvline(x=0, color='black', linestyle='--', linewidth=2, label='No Bias')
 ax3.set_xlabel('c Error (Est - True)')
 ax3.set_ylabel('Density')
 ax3.set_title('Rate Slope (c) Bias')
 ax3.legend()
+ax3.set_xlim(xlim_low, xlim_high)
 
 plt.tight_layout()
 plt.show()
@@ -744,92 +956,149 @@ plt.show()
 
 **Key Insight**: While OLS is theoretically unbiased (mean errors near 0), it has high variance---the distribution is wide. PCReg-GCV may have slight bias but much lower variance, leading to better overall prediction accuracy (the classic bias-variance tradeoff).
 
-### Finding 4: Sample Size and Noise Effects
+### Finding 4: Parameter Effects on Model Performance
+
+Beyond coefficient reasonableness, several design factors systematically influence when PCReg-GCV outperforms OLS. We examine sample size, predictor correlation, and noise level.
 
 ```{python}
-#| label: fig-heatmap
-#| fig-cap: "PCReg-GCV win rate by sample size and CV error. Green indicates PCReg-GCV advantage (>50%)."
+#| label: parameter-effects-analysis
+#| output: asis
 
-win_pivot = comparison.groupby(['n_lots', 'cv_error'])['pcreg_wins_mape'].mean().unstack() * 100
+from tabulate import tabulate
 
-fig, ax = plt.subplots(figsize=(7, 4))
-sns.heatmap(win_pivot, annot=True, fmt='.1f', cmap='RdYlGn', center=50,
-            vmin=40, vmax=70, ax=ax, cbar_kws={'label': 'Win Rate (%)'})
-ax.set_xlabel('CV Error')
-ax.set_ylabel('Sample Size (n_lots)')
-ax.set_title('PCReg-GCV Win Rate vs OLS (Test MAPE)')
-plt.tight_layout()
-plt.show()
+# Create correlation bins for analysis
+comparison['corr_bin'] = pd.cut(comparison['actual_correlation'], 
+                                 bins=[0, 0.8, 0.9, 0.95, 1.0],
+                                 labels=['<0.80', '0.80-0.90', '0.90-0.95', '>0.95'])
+
+# === Table 1: Win Rate by OLS Reasonableness (recap) ===
+reason_table = comparison.groupby('ols_reasonable').agg(
+    n_scenarios=('pcreg_wins_mape', 'count'),
+    win_rate=('pcreg_wins_mape', 'mean'),
+    mean_ols_mape=('ols_mape', 'mean'),
+    mean_pcreg_mape=('pcreg_mape', 'mean')
+).reset_index()
+reason_table['ols_reasonable'] = reason_table['ols_reasonable'].map({True: 'Reasonable (70-100%)', False: 'Unreasonable'})
+reason_table['win_rate'] = (reason_table['win_rate'] * 100).round(1).astype(str) + '%'
+reason_table['mean_ols_mape'] = (reason_table['mean_ols_mape'] * 100).round(1).astype(str) + '%'
+reason_table['mean_pcreg_mape'] = (reason_table['mean_pcreg_mape'] * 100).round(1).astype(str) + '%'
+reason_table.columns = ['OLS Coefficients', 'N', 'PCReg Win Rate', 'OLS Mean MAPE', 'PCReg Mean MAPE']
+
+print("**By OLS Coefficient Reasonableness:**\n")
+print(tabulate(reason_table, headers='keys', tablefmt='pipe', showindex=False))
+print("\n")
+
+# === Table 2: Win Rate by Sample Size ===
+n_table = comparison.groupby('n_lots').agg(
+    n_scenarios=('pcreg_wins_mape', 'count'),
+    win_rate=('pcreg_wins_mape', 'mean'),
+    pct_unreasonable=('ols_reasonable', lambda x: (~x).mean()),
+    mean_ols_mape=('ols_mape', 'mean'),
+    mean_pcreg_mape=('pcreg_mape', 'mean')
+).reset_index()
+n_table['win_rate'] = (n_table['win_rate'] * 100).round(1).astype(str) + '%'
+n_table['pct_unreasonable'] = (n_table['pct_unreasonable'] * 100).round(1).astype(str) + '%'
+n_table['mean_ols_mape'] = (n_table['mean_ols_mape'] * 100).round(1).astype(str) + '%'
+n_table['mean_pcreg_mape'] = (n_table['mean_pcreg_mape'] * 100).round(1).astype(str) + '%'
+n_table.columns = ['Sample Size', 'N', 'PCReg Win Rate', '% OLS Unreasonable', 'OLS Mean MAPE', 'PCReg Mean MAPE']
+
+print("**By Sample Size (n_lots):**\n")
+print(tabulate(n_table, headers='keys', tablefmt='pipe', showindex=False))
+print("\n")
+
+# === Table 3: Win Rate by Correlation ===
+corr_table = comparison.groupby('corr_bin', observed=True).agg(
+    n_scenarios=('pcreg_wins_mape', 'count'),
+    win_rate=('pcreg_wins_mape', 'mean'),
+    pct_unreasonable=('ols_reasonable', lambda x: (~x).mean()),
+    mean_ols_mape=('ols_mape', 'mean'),
+    mean_pcreg_mape=('pcreg_mape', 'mean')
+).reset_index()
+corr_table['win_rate'] = (corr_table['win_rate'] * 100).round(1).astype(str) + '%'
+corr_table['pct_unreasonable'] = (corr_table['pct_unreasonable'] * 100).round(1).astype(str) + '%'
+corr_table['mean_ols_mape'] = (corr_table['mean_ols_mape'] * 100).round(1).astype(str) + '%'
+corr_table['mean_pcreg_mape'] = (corr_table['mean_pcreg_mape'] * 100).round(1).astype(str) + '%'
+corr_table.columns = ['Correlation', 'N', 'PCReg Win Rate', '% OLS Unreasonable', 'OLS Mean MAPE', 'PCReg Mean MAPE']
+
+print("**By Predictor Correlation:**\n")
+print(tabulate(corr_table, headers='keys', tablefmt='pipe', showindex=False))
+print("\n")
+
+# === Table 4: Win Rate by CV Error ===
+cv_table = comparison.groupby('cv_error').agg(
+    n_scenarios=('pcreg_wins_mape', 'count'),
+    win_rate=('pcreg_wins_mape', 'mean'),
+    pct_unreasonable=('ols_reasonable', lambda x: (~x).mean()),
+    mean_ols_mape=('ols_mape', 'mean'),
+    mean_pcreg_mape=('pcreg_mape', 'mean')
+).reset_index()
+cv_table['win_rate'] = (cv_table['win_rate'] * 100).round(1).astype(str) + '%'
+cv_table['pct_unreasonable'] = (cv_table['pct_unreasonable'] * 100).round(1).astype(str) + '%'
+cv_table['mean_ols_mape'] = (cv_table['mean_ols_mape'] * 100).round(1).astype(str) + '%'
+cv_table['mean_pcreg_mape'] = (cv_table['mean_pcreg_mape'] * 100).round(1).astype(str) + '%'
+cv_table.columns = ['CV Error', 'N', 'PCReg Win Rate', '% OLS Unreasonable', 'OLS Mean MAPE', 'PCReg Mean MAPE']
+
+print("**By Noise Level (CV Error):**\n")
+print(tabulate(cv_table, headers='keys', tablefmt='pipe', showindex=False))
 ```
+
+```{python}
+#| label: parameter-effects-summary
+
+# Calculate key statistics for inline text
+win_by_n = comparison.groupby('n_lots')['pcreg_wins_mape'].mean() * 100
+win_n5 = win_by_n.get(5, win_by_n.iloc[0])
+win_n30 = win_by_n.get(30, win_by_n.iloc[-1])
+
+win_by_corr = comparison.groupby('corr_bin', observed=True)['pcreg_wins_mape'].mean() * 100
+win_low_corr = win_by_corr.iloc[0] if len(win_by_corr) > 0 else 50
+win_high_corr = win_by_corr.iloc[-1] if len(win_by_corr) > 0 else 50
+
+unreasonable_by_n = comparison.groupby('n_lots')['ols_reasonable'].apply(lambda x: (~x).mean() * 100)
+unreasonable_n5 = unreasonable_by_n.get(5, unreasonable_by_n.iloc[0])
+unreasonable_n30 = unreasonable_by_n.get(30, unreasonable_by_n.iloc[-1])
+```
+
+**Key Observations:**
+
+1. **Sample Size Effect**: As sample size decreases, OLS becomes less stable. With n=5 lots, PCReg-GCV wins **`{python} f'{win_n5:.1f}'`%** of scenarios compared to **`{python} f'{win_n30:.1f}'`%** at n=30. The rate of unreasonable OLS coefficients also increases from **`{python} f'{unreasonable_n30:.1f}'`%** to **`{python} f'{unreasonable_n5:.1f}'`%** as sample size decreases.
+
+2. **Correlation Effect**: Higher predictor correlation destabilizes OLS. At correlation >0.95, PCReg-GCV wins **`{python} f'{win_high_corr:.1f}'`%** of scenarios versus **`{python} f'{win_low_corr:.1f}'`%** at lower correlations. This is the multicollinearity effect. When predictors are highly correlated, OLS coefficient estimates become unstable and constraints provide crucial stability.
+
+3. **Noise Level Effect**: Higher CV error increases the advantage of PCReg-GCV. With more noise, OLS has greater difficulty separating learning and rate effects, leading to more unreasonable coefficient estimates.
+
+4. **Compounding Effects**: These factors interact---small samples with high correlation and high noise represent the most challenging scenarios for OLS, where PCReg-GCV provides the greatest benefit.
 
 \newpage
 
 ## Recommendations: When to Use PCReg-GCV
 
-We trained a decision tree to identify conditions where PCReg-GCV is most beneficial, using only features available to practitioners (not true parameter values):
-
-```{python}
-#| label: decision-tree
-
-# Prepare features for decision tree
-# Use only features that would be known to the analyst
-comparison['ols_cv'] = np.sqrt(np.exp(comparison['ols_sspe']) - 1)  # Proxy for CV
-
-features = comparison[['n_lots', 'actual_correlation', 'ols_reasonable']].copy()
-features['ols_reasonable'] = features['ols_reasonable'].astype(int)
-target = comparison['pcreg_wins_mape'].astype(int)
-
-# Train decision tree
-dt = DecisionTreeClassifier(max_depth=3, min_samples_leaf=100, random_state=42)
-dt.fit(features, target)
-
-# Cross-validation accuracy
-cv_scores = cross_val_score(dt, features, target, cv=5)
-```
-
-```{python}
-#| label: fig-decision-tree
-#| fig-cap: "Decision tree for model selection. Green nodes favor PCReg-GCV; orange nodes favor OLS. The tree uses only information available to the analyst."
-
-fig, ax = plt.subplots(figsize=(14, 8))
-plot_tree(dt,
-          feature_names=['n_lots', 'correlation', 'ols_reasonable'],
-          class_names=['Use OLS', 'Use PCReg-GCV'],
-          filled=True,
-          rounded=True,
-          fontsize=10,
-          ax=ax)
-ax.set_title(f'Model Selection Decision Tree (CV Accuracy: {cv_scores.mean():.1%})')
-plt.tight_layout()
-plt.show()
-```
-
 **Practical Decision Rules:**
 
-Based on the decision tree and simulation analysis:
+1.  **If OLS produces unreasonable coefficients** (LC or RC outside 70-100%): **Use PCReg-GCV**, it significantly outperforms OLS in these scenarios
+2.  **For small samples (n ≤ 5 or 10 lots) with noisy data**: **Prefer PCReg-GCV**, it wins 60-67% of scenarios
+3.  **For large samples (n ≥ 30 lots)**: **OLS is generally preferred**, it wins ~80% of scenarios
+4.  **For intermediate cases**: Either method is acceptable; PCReg-GCV provides insurance against unreasonable coefficients with minimal downside
 
-1. **If OLS produces unreasonable coefficients** (LC or RC outside 70-100%): **Use PCReg-GCV**
-2. **If sample size is 10 lots or fewer**: **Prefer PCReg-GCV** (more stable)
-3. **If predictor correlation > 0.9**: **Prefer PCReg-GCV** (multicollinearity protection)
-4. **Otherwise**: Either method acceptable, but PCReg-GCV still slightly favored
+**Bottom line**: The difference between OLS and PCReg is typically small and can be controlled by explicitly defining loose constraints and arbitrarily small penalties.
 
 ### Software
 
-The `penalized-constrained` Python package was developed specifically for the cost estimating community:
+The `penalized-constrained` Python package was developed specifically for the cost estimating community. As of this paper's publication, the software is in active development but has achieved stable functionality.
 
-```bash
-pip install penalized-constrained
+**Installation:** While we anticipate release to PyPI for convenient installation via `pip install penalized-constrained`, the package is currently available via GitHub. To install from the development repository:
+
+``` bash
+pip install git+https://github.com/frankij11/Penalized-Constrained-Regression.git
 ```
 
-\newpage
+For quick-start guides and basic usage examples, see the package documentation on GitHub or @sec-appendix-software in the appendices.
 
-## Conclusions
+A key advantage of this framework is that **PCReg collapses to OLS** when no constraints are defined, no penalties are applied (α=0), and a linear functional form is used. This allows analysts to use a single, cohesive library for all regression analysis. From standard OLS to fully constrained penalized models with custom prediction functions all without switching tools or workflows. This library is designed to integrate seamlessly Python's scikit-learn data science workflows and allow machine learning techniques to solve for optimal parameters.
 
-1. **PCReg-GCV improves out-of-sample prediction** even when OLS produces reasonable coefficients
-2. **Constraints introduce beneficial bias** that reduces prediction variance
-3. **OLS-LearnOnly performs poorly** outside the training range---don't oversimplify
-4. **GCV enables reliable hyperparameter selection** with as few as 5 training observations
-5. **Simple decision rule**: When in doubt, use PCReg-GCV; the downside is minimal
+### Summary
+
+Our simulation study demonstrates that PCReg-GCV provides meaningful advantages in small-sample, high-noise scenarios where OLS is most likely to produce unreasonable coefficients, while large samples favor standard OLS. The constraints introduce beneficial bias that reduces prediction variance—a classic bias-variance tradeoff that works in the analyst's favor when data are limited. With GCV enabling reliable hyperparameter selection using as few as 5 observations and OLS-LearnOnly's poor extrapolation performance reinforcing that omitting the rate effect oversimplifies the problem, analysts have clear guidance: match the method to the sample size and data quality, with PCReg-GCV serving as effective insurance when uncertainty is high.
 
 ## References {.unnumbered}
 
@@ -845,19 +1114,19 @@ pip install penalized-constrained
 
 For each of the 8,100 scenarios:
 
-1. **Select quantity profile**: Randomly sample a defense program from the SAR database with sufficient lot history
-2. **Extract lot structure**: Use actual procurement quantities and calculate lot midpoints
-3. **Generate true costs**: Apply learning curve model with scenario parameters
-4. **Add noise**: Multiply true costs by lognormal error: $Y_{obs} = Y_{true} \cdot e^{\epsilon}$ where $\epsilon \sim N(-\sigma^2/2, \sigma^2)$
-5. **Split data**: First $n$ lots for training, **all remaining lots** for test (variable test set size)
+1.  **Select quantity profile**: Randomly sample a defense program from the SAR database with sufficient lot history
+2.  **Extract lot structure**: Use actual procurement quantities and calculate lot midpoints
+3.  **Generate true costs**: Apply learning curve model with scenario parameters
+4.  **Add noise**: Multiply true costs by lognormal error: $Y_{obs} = Y_{true} \cdot e^{\epsilon}$ where $\epsilon \sim N(-\sigma^2/2, \sigma^2)$
+5.  **Split data**: First $n$ lots for training, **all remaining lots** for test (variable test set size)
 
 ## Model Specifications
 
-| Model | Description | Constraints |
-|:------|:------------|:-----------:|
-| OLS | Standard log-log OLS | No |
-| OLS_LearnOnly | OLS with learning variable only | No |
-| PCReg_GCV | GCV-selected penalty + constraints | Yes |
+| Model         | Description                        | Constraints |
+|:--------------|:-----------------------------------|:-----------:|
+| OLS           | Standard log-log OLS               |     No      |
+| OLS_LearnOnly | OLS with learning variable only    |     No      |
+| PCReg_GCV     | GCV-selected penalty + constraints |     Yes     |
 
 : Models compared in main paper {#tbl-models-main}
 
@@ -891,19 +1160,19 @@ for model in summary_all.index:
     })
 ```
 
-| Model | Test MAPE | Test SSPE | b Error | c Error | R2 |
-|:------|----------:|----------:|--------:|--------:|---:|
-| PCReg_GCV_Tight | 0.0561 | 0.0861 | 0.0200 | 0.0337 | 0.852 |
-| PCReg_ConstrainOnly | 0.0764 | 0.2052 | 0.0354 | 0.0791 | 0.877 |
-| PCReg_GCV | 0.0773 | 0.2074 | 0.0338 | 0.0827 | 0.871 |
-| PCRegGCV_LogMSE | 0.0778 | 0.2832 | 0.0341 | 0.0776 | 0.877 |
-| PCReg_CV | 0.0794 | 0.2538 | 0.0353 | 0.0814 | 0.862 |
-| BayesianRidge | 0.0801 | 0.4595 | 0.0360 | 0.0886 | 0.882 |
-| PCReg_AICc | 0.0808 | 0.2171 | 0.0349 | 0.0913 | 0.863 |
-| RidgeCV | 0.0952 | 0.9362 | 0.0481 | 0.1216 | 0.896 |
-| LassoCV | 0.0957 | 0.9767 | 0.0428 | 0.1082 | 0.858 |
-| OLS | 0.0994 | 0.9727 | 0.0520 | 0.1319 | 0.897 |
-| OLS_LearnOnly | 0.1592 | 0.9543 | 0.0827 | 0.2361 | 0.789 |
+| Model               | Test MAPE | Test SSPE | b Error | c Error |    R2 |
+|:--------------------|----------:|----------:|--------:|--------:|------:|
+| PCReg_GCV_Tight     |    0.0561 |    0.0861 |  0.0200 |  0.0337 | 0.852 |
+| PCReg_ConstrainOnly |    0.0764 |    0.2052 |  0.0354 |  0.0791 | 0.877 |
+| PCReg_GCV           |    0.0773 |    0.2074 |  0.0338 |  0.0827 | 0.871 |
+| PCRegGCV_LogMSE     |    0.0778 |    0.2832 |  0.0341 |  0.0776 | 0.877 |
+| PCReg_CV            |    0.0794 |    0.2538 |  0.0353 |  0.0814 | 0.862 |
+| BayesianRidge       |    0.0801 |    0.4595 |  0.0360 |  0.0886 | 0.882 |
+| PCReg_AICc          |    0.0808 |    0.2171 |  0.0349 |  0.0913 | 0.863 |
+| RidgeCV             |    0.0952 |    0.9362 |  0.0481 |  0.1216 | 0.896 |
+| LassoCV             |    0.0957 |    0.9767 |  0.0428 |  0.1082 | 0.858 |
+| OLS                 |    0.0994 |    0.9727 |  0.0520 |  0.1319 | 0.897 |
+| OLS_LearnOnly       |    0.1592 |    0.9543 |  0.0827 |  0.2361 | 0.789 |
 
 : Overall model performance across all 8,100 scenarios. Lower Test MAPE is better. {#tbl-all-results}
 
@@ -913,7 +1182,7 @@ for model in summary_all.index:
 
 ## Installation
 
-```bash
+``` bash
 pip install penalized-constrained
 ```
 
@@ -942,7 +1211,7 @@ model.fit(X_train, y_train)
 
 ## Citation
 
-```bibtex
+``` bibtex
 @inproceedings{joy2026pcreg,
   title={Penalized-Constrained Regression: Combining Regularization
          and Domain Constraints for Cost Estimation},

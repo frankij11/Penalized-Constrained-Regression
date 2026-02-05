@@ -19,7 +19,8 @@ else:
 ]
 
 METRICS_TO_COMPARE = [
-    "test_mape","test_mse", "b_error","c_error","T1_error"
+    "test_mape","test_mse", "b_error","c_error","T1_error",
+    "b_bias", "c_bias", "T1_bias"
 ]
 
 
@@ -314,6 +315,47 @@ def export_motivating_example(seed, example_results, example_data, summary_stats
     print("=" * 70)
 
 
+def calculate_bias(df, df_study_data=None):
+    """
+    Calculate bias for b, c, and T1 estimates.
+
+    Bias = estimated - true
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Simulation results with model estimates (b, c, T1_est).
+        May already contain b_true, c_true, T1_true columns.
+    df_study_data : pd.DataFrame, optional
+        Study data with true values (b_true, c_true, T1_true).
+        Only used if true values are not already in df.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with bias columns added (b_bias, c_bias, T1_bias)
+    """
+    df = df.copy()
+
+    # Check if true values already exist in df
+    has_true_values = all(col in df.columns for col in ['b_true', 'c_true', 'T1_true'])
+
+    if not has_true_values and df_study_data is not None:
+        # Get unique true values per seed from study data
+        true_values = (df_study_data
+                       .groupby('seed')[['b_true', 'c_true', 'T1_true']]
+                       .first()
+                       .reset_index())
+        # Merge true values into results
+        df = df.merge(true_values, on='seed', how='left')
+
+    # Calculate bias (estimated - true)
+    df['b_bias'] = df['b'] - df['b_true']
+    df['c_bias'] = df['c'] - df['c_true']
+    df['T1_bias'] = df['T1_est'] - df['T1_true']
+
+    return df
+
 def rank_models(df, criteria='test_mape'):
     df = df.copy()
     df["rank_"+ criteria] = df.groupby(["seed"])[criteria].rank(method="average", ascending=True)
@@ -339,283 +381,314 @@ def get_subset_of_models(df, models, all_models=True):
     else:
         return df.query("model_name in @models")
 
-df = (pd.read_parquet(RESULTS_PATH)
-      .pipe(get_subset_of_models, MODELS_TO_COMPARE, CONFIG.all_models)
-      .pipe(find_bad_ols_coefs)
-      .pipe(rank_models, criteria='test_mape')
-      .pipe(pct_beats_ols, criteria='test_mape')
-      .pipe(find_good_pcreg_fits)
-      .pipe(rank_models, criteria='b_error')
-      .pipe(rank_models, criteria='c_error')
-      .pipe(rank_models, criteria='T1_error')
-)
-filename = "All_Models" if CONFIG.all_models else "OLS_vs_PCReg"
-df.to_csv(PARENT / "Output_v2" / f"simulation_results_extended_{filename}.csv", index=False)
 
+if __name__ == "__main__":
+    # Load study data first (needed for bias calculation)
+    df_study_data = pd.read_parquet(RESULTS_PATH.parent / "simulation_study_data.parquet")
 
-df_study_data = pd.read_parquet(RESULTS_PATH.parent / "simulation_study_data.parquet")
-
-# =============================================================================
-# MOTIVATING EXAMPLE: PCReg beats BOTH Constraints-Only AND Ridge-Only
-# =============================================================================
-# Primary criterion: lower true_coefs_error (coefficient recovery)
-# Secondary criterion: lower test_mape (predictive accuracy)
-print("\n" + "="*70)
-print("Finding Motivating Example: PCReg vs Constraints-Only vs Ridge")
-print("="*70)
-
-# Add true_coefs_error to df for analysis
-df = df.assign(true_coefs_error=lambda x: x['T1_error'] + x['b_error'] + x['c_error'])
-
-# Find candidates where PCReg_GCV beats both baselines on coefficient error
-candidates = find_pcreg_beats_all_baselines(df)
-
-print(f"Found {len(candidates)} candidates where PCReg_GCV beats both baselines on coef error")
-print(f"  - Of these, {candidates['beats_both_mape'].sum()} also beat both on test_mape")
-
-if len(candidates) > 0:
-    # Select best example
-    best_seed, example_results, example_data, summary = select_best_motivating_example(
-        candidates, df, df_study_data
+    df = (pd.read_parquet(RESULTS_PATH)
+          .pipe(get_subset_of_models, MODELS_TO_COMPARE, CONFIG.all_models)
+          .pipe(calculate_bias, df_study_data)
+          .pipe(find_bad_ols_coefs)
+          .pipe(rank_models, criteria='test_mape')
+          .pipe(pct_beats_ols, criteria='test_mape')
+          .pipe(find_good_pcreg_fits)
+          .pipe(rank_models, criteria='b_error')
+          .pipe(rank_models, criteria='c_error')
+          .pipe(rank_models, criteria='T1_error')
+          .pipe(rank_models, criteria='b_bias')
+          .pipe(rank_models, criteria='c_bias')
+          .pipe(rank_models, criteria='T1_bias')
     )
-
-    # Export
-    export_motivating_example(
-        best_seed, example_results, example_data, summary,
-        output_dir=PARENT / "Output_v2",
-        prefix="pcr_beats_all"
-    )
-
-    # Also export top 10 candidates for reference
-    candidates.head(10).to_csv(PARENT / "Output_v2" / "pcr_beats_all_top_candidates.csv")
-    print(f"\nTop 10 candidates exported to pcr_beats_all_top_candidates.csv")
-
-    # Print comparison table
-    print("\nModel Comparison for Best Example (sorted by true_coefs_error):")
-    key_models = ['OLS', 'RidgeCV', 'PCReg_ConstrainOnly', 'PCReg_GCV']
-    print(example_results[example_results['model_name'].isin(key_models)][
-        ['model_name', 'true_coefs_error', 'test_mape', 'LC_est', 'RC_est', 'T1_est', 'r2']
-    ].sort_values('true_coefs_error').to_string())
+    filename = "All_Models" if CONFIG.all_models else "OLS_vs_PCReg"
+    df.to_csv(PARENT / "Output_v2" / f"simulation_results_extended_{filename}.csv", index=False)
 
     # =============================================================================
-    # HEAD-TO-HEAD: OLS vs PCReg_GCV for the motivating example
+    # MOTIVATING EXAMPLE: PCReg beats BOTH Constraints-Only AND Ridge-Only
+    # =============================================================================
+    # Primary criterion: lower true_coefs_error (coefficient recovery)
+    # Secondary criterion: lower test_mape (predictive accuracy)
+    print("\n" + "="*70)
+    print("Finding Motivating Example: PCReg vs Constraints-Only vs Ridge")
+    print("="*70)
+
+    # Add true_coefs_error to df for analysis
+    df = df.assign(true_coefs_error=lambda x: x['T1_error'] + x['b_error'] + x['c_error'])
+
+    # Find candidates where PCReg_GCV beats both baselines on coefficient error
+    candidates = find_pcreg_beats_all_baselines(df)
+
+    print(f"Found {len(candidates)} candidates where PCReg_GCV beats both baselines on coef error")
+    print(f"  - Of these, {candidates['beats_both_mape'].sum()} also beat both on test_mape")
+
+    if len(candidates) > 0:
+        # Select best example
+        best_seed, example_results, example_data, summary = select_best_motivating_example(
+            candidates, df, df_study_data
+        )
+
+        # Export
+        export_motivating_example(
+            best_seed, example_results, example_data, summary,
+            output_dir=PARENT / "Output_v2",
+            prefix="pcr_beats_all"
+        )
+
+        # Also export top 10 candidates for reference
+        candidates.head(10).to_csv(PARENT / "Output_v2" / "pcr_beats_all_top_candidates.csv")
+        print(f"\nTop 10 candidates exported to pcr_beats_all_top_candidates.csv")
+
+        # Print comparison table
+        print("\nModel Comparison for Best Example (sorted by true_coefs_error):")
+        key_models = ['OLS', 'RidgeCV', 'PCReg_ConstrainOnly', 'PCReg_GCV']
+        print(example_results[example_results['model_name'].isin(key_models)][
+            ['model_name', 'true_coefs_error', 'test_mape', 'LC_est', 'RC_est', 'T1_est', 'r2']
+        ].sort_values('true_coefs_error').to_string())
+
+        # =============================================================================
+        # HEAD-TO-HEAD: OLS vs PCReg_GCV for the motivating example
+        # =============================================================================
+        print("\n" + "="*70)
+        print(f"HEAD-TO-HEAD: OLS vs PCReg_GCV (seed={best_seed})")
+        print("="*70)
+
+        ols_row = example_results[example_results['model_name'] == 'OLS'].iloc[0]
+        pcreg_row = example_results[example_results['model_name'] == 'PCReg_GCV'].iloc[0]
+
+        # Get true parameters from the study data
+        true_b = example_data['b_true'].iloc[0]
+        true_c = example_data['c_true'].iloc[0]
+        true_T1 = example_data['T1_true'].iloc[0]
+        true_LC = 2 ** true_b
+        true_RC = 2 ** true_c
+
+        print(f"\n  TRUE PARAMETERS:")
+        print(f"    T1 = {true_T1:.2f}, b = {true_b:.4f}, c = {true_c:.4f}")
+        print(f"    LC = {true_LC:.4f}, RC = {true_RC:.4f}")
+
+        print(f"\n  OLS ESTIMATES:")
+        print(f"    T1 = {ols_row['T1_est']:.2f}, b = {ols_row['b']:.4f}, c = {ols_row['c']:.4f}")
+        print(f"    LC = {ols_row['LC_est']:.4f}, RC = {ols_row['RC_est']:.4f}")
+        print(f"    Coefficient Error = {ols_row['true_coefs_error']:.4f}")
+        print(f"    Test MAPE = {ols_row['test_mape']:.4f}")
+        print(f"    R² = {ols_row['r2']:.4f}")
+
+        print(f"\n  PCReg_GCV ESTIMATES:")
+        print(f"    T1 = {pcreg_row['T1_est']:.2f}, b = {pcreg_row['b']:.4f}, c = {pcreg_row['c']:.4f}")
+        print(f"    LC = {pcreg_row['LC_est']:.4f}, RC = {pcreg_row['RC_est']:.4f}")
+        print(f"    Coefficient Error = {pcreg_row['true_coefs_error']:.4f}")
+        print(f"    Test MAPE = {pcreg_row['test_mape']:.4f}")
+        print(f"    R² = {pcreg_row['r2']:.4f}")
+        print(f"    Alpha = {pcreg_row['alpha']:.6f}")
+
+        # Calculate improvements
+        coef_improvement = (ols_row['true_coefs_error'] - pcreg_row['true_coefs_error']) / ols_row['true_coefs_error'] * 100
+        mape_improvement = (ols_row['test_mape'] - pcreg_row['test_mape']) / ols_row['test_mape'] * 100
+
+        print(f"\n  IMPROVEMENT (PCReg_GCV vs OLS):")
+        print(f"    Coefficient Error: {coef_improvement:.1f}% better")
+        print(f"    Test MAPE: {mape_improvement:.1f}% better")
+        print(f"    OLS LC > 1 (impossible): {ols_row['LC_est'] > 1}")
+        print(f"    OLS RC < 0.7 (implausible): {ols_row['RC_est'] < 0.7}")
+        print("="*70)
+
+        # Export head-to-head comparison
+        h2h_comparison = pd.DataFrame([
+            {'Parameter': 'T1_true', 'True': true_T1, 'OLS': ols_row['T1_est'], 'PCReg_GCV': pcreg_row['T1_est']},
+            {'Parameter': 'b_true', 'True': true_b, 'OLS': ols_row['b'], 'PCReg_GCV': pcreg_row['b']},
+            {'Parameter': 'c_true', 'True': true_c, 'OLS': ols_row['c'], 'PCReg_GCV': pcreg_row['c']},
+            {'Parameter': 'LC (2^b)', 'True': true_LC, 'OLS': ols_row['LC_est'], 'PCReg_GCV': pcreg_row['LC_est']},
+            {'Parameter': 'RC (2^c)', 'True': true_RC, 'OLS': ols_row['RC_est'], 'PCReg_GCV': pcreg_row['RC_est']},
+            {'Parameter': 'Coef_Error', 'True': 0, 'OLS': ols_row['true_coefs_error'], 'PCReg_GCV': pcreg_row['true_coefs_error']},
+            {'Parameter': 'Test_MAPE', 'True': 0, 'OLS': ols_row['test_mape'], 'PCReg_GCV': pcreg_row['test_mape']},
+            {'Parameter': 'R2', 'True': 1, 'OLS': ols_row['r2'], 'PCReg_GCV': pcreg_row['r2']},
+        ])
+        h2h_comparison.to_csv(PARENT / "Output_v2" / "pcr_beats_all_ols_vs_pcreg.csv", index=False)
+        print(f"\nOLS vs PCReg_GCV comparison exported to pcr_beats_all_ols_vs_pcreg.csv")
+
+    else:
+        print("WARNING: No candidates found where PCReg_GCV beats both baselines.")
+        print("Consider checking if PCReg_ConstrainOnly model ran in simulation.")
+
+    # =============================================================================
+    # LEGACY: Original Motivating Example (OLS vs PCReg with good coefficients)
     # =============================================================================
     print("\n" + "="*70)
-    print(f"HEAD-TO-HEAD: OLS vs PCReg_GCV (seed={best_seed})")
+    print("Legacy Motivating Example: PCReg vs OLS (original criteria)")
+    print("="*70)
+    pcreg_beats_ols_test_mape=df.pivot_table(index="seed", columns="model_name", values="test_mape").assign(
+        pcreg_beats_ols_test_mape=lambda x: x['PCReg_GCV'] < x['OLS']
+    ).query("pcreg_beats_ols_test_mape==True").reset_index()
+    motivational_example_results = df.assign(pcreg_beats_ols_test_mape=lambda x: x.seed.isin(pcreg_beats_ols_test_mape.seed.unique())).sort_values('true_coefs_error').query(
+        "pcreg_beats_ols_test_mape==1 and bad_ols_coefs==1 and model_name=='PCReg_GCV' and (.80<LC_est <=.999) and (.80<RC_est<=.999) and alpha>0 and r2>.7"
+    ).reset_index()
+    print(f"Found {len(motivational_example_results)} candidates for legacy motivational example")
+    print(motivational_example_results[['seed','pcreg_beats_ols_test_mape', 'r2', 'test_mape', "learning_rate", "rate_effect", 'LC_est', 'RC_est', 'alpha']])
+    motivational_example_results.to_csv(PARENT / "Output_v2" / "motivational_example_simulation_results.csv", index=False)
+    example_seed = motivational_example_results.loc[2, 'seed']
+    df_motivational = df_study_data.query("seed==@example_seed")
+
+    # write the motivational example data to csv
+    df_motivational.to_csv(PARENT / "Output_v2" / "motivational_example_data.csv", index=False)
+    # %%
+    print("Legacy Motivational example Results:", df.query("seed==@example_seed and model_name.isin(['OLS','PCReg_GCV'])").T)
+
+    # %%
+    print("Legacy motivational example study data:")
+    print(df_study_data.query("seed==@example_seed"))
+
+    # %%
+
+    def DecisionTree(df, feature_columns=None):
+        '''Create a decision tree to determine what model to use based on simulation parameters'''
+        from sklearn.tree import DecisionTreeClassifier
+        from sklearn.model_selection import train_test_split
+        feature_cols = ['bad_ols_coefs', 'T', 'b_sd', 'c_sd', 'T1_sd', 'LC_true', 'RC_true', 'sigma']
+        X = df[feature_cols]
+
+
+    print("Number of simulations where OLS produces bad coefficients but PCReg improves:",
+    df.query("bad_ols_coefs==1 and pcreg_improves_bad_ols_coef==1").shape[0],
+            "out of", df.query("bad_ols_coefs==1").shape[0],
+            f"({df.query('bad_ols_coefs==1 and pcreg_improves_bad_ols_coef==1').shape[0]/df.query('bad_ols_coefs==1').shape[0]*100:.2f}%)"
+    )
+    print("Test MAPE gorupby bad ols coefs:")
+    print(df.groupby(["bad_ols_coefs", "model_name"])['test_mape'].describe().sort_values(['bad_ols_coefs','mean']))
+    print("Rank Test MAPE groupby bad ols coefs:")
+    print(df.groupby(['bad_ols_coefs','model_name'])['rank_test_mape'].describe().sort_values(['bad_ols_coefs','mean']))
+    print("Percentage beats OLS Test MAPE groupby bad ols coefs:")
+    print(df.query("model_name!='OLS'").assign(beats_ols_test_mape = lambda x: x.beats_ols_test_mape.astype(int)).groupby(['bad_ols_coefs','model_name'])['beats_ols_test_mape'].describe().sort_values(['bad_ols_coefs','mean'], ascending=(True,False)))
+
+    print("Number of times each model is ranked 1:")
+    print((df.query("rank_test_mape==1").groupby("model_name").size()).sort_values(ascending=False))
+
+    print("Number of times each model is ranked 1:")
+    print((df.query("rank_test_mape==1").groupby(['bad_ols_coefs',"model_name"]).size()).sort_values(ascending=False))
+
+
+    # percentage of time each model is ranked 1
+    # need to add the ability to see when they tied for first place
+    print("Percentage of time each model is ranked 1:")
+    print((df.query("rank_test_mape==1").groupby(["bad_ols_coefs","model_name"]).size() / df.query('rank_test_mape.notna()')["seed"].nunique()).sort_values(ascending=False))
+
+    print("Average Test MAPE by n_lots:")
+    print(df.groupby(['n_lots','model_name'])['test_mape'].describe().sort_values(['n_lots','mean']))
+
+    print("Average Test MAPE by correlation:")
+    print(df.assign(actual_correlation=lambda x: np.round(x.actual_correlation,1)).groupby(['actual_correlation','model_name'])['test_mape'].describe().sort_values(['actual_correlation','mean']))
+
+    # Visualization options for comparing model variation
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    metrics = ["test_mape", "test_mse", "test_sspe"]
+    bad_ols_values = sorted(df["bad_ols_coefs"].unique())
+    CLIP_PERCENTILE = 99
+
+    # ============================================================
+    # Option 1: Violin plots - shows full distribution shape + quartiles
+    # ============================================================
+    fig, axes = plt.subplots(len(metrics), len(bad_ols_values),
+                             figsize=(10, 3.5 * len(metrics)),
+                             sharex='row', sharey='row')
+
+    for i, metric in enumerate(metrics):
+        clip_val = df[metric].quantile(CLIP_PERCENTILE / 100)
+        df[f"{metric}_clipped"] = df[metric].clip(upper=clip_val)
+
+        for j, bad_ols in enumerate(bad_ols_values):
+            ax = axes[i, j]
+            subset = df.query("bad_ols_coefs == @bad_ols")
+
+            sns.violinplot(data=subset, x="model_name", y=f"{metric}_clipped",
+                           ax=ax, cut=0, inner="quartile", palette="Set2")
+
+            if i == 0:
+                ax.set_title(f"bad_ols_coefs={bad_ols}", fontsize=11, fontweight='bold')
+            ax.set_xlabel("")
+            ax.set_ylabel(metric if j == 0 else "")
+
+    fig.suptitle("Violin Plots: Distribution of Test Metrics by Model", fontsize=14, fontweight='bold', y=1.01)
+    plt.tight_layout()
+    plt.savefig(PARENT / "Output_v2" / "violin_plots.png", dpi=150, bbox_inches='tight')
+    #plt.show()
+
+    # ============================================================
+    # Option 2: ECDF (Cumulative Distribution) - shows % below threshold
+    # ============================================================
+    fig, axes = plt.subplots(len(metrics), len(bad_ols_values),
+                             figsize=(10, 3.5 * len(metrics)),
+                             sharex='row')
+
+    for i, metric in enumerate(metrics):
+        clip_val = df[metric].quantile(CLIP_PERCENTILE / 100)
+
+        for j, bad_ols in enumerate(bad_ols_values):
+            ax = axes[i, j]
+            subset = df.query("bad_ols_coefs == @bad_ols")
+
+            for model in df["model_name"].unique():
+                model_data = subset.query("model_name == @model")[metric].clip(upper=clip_val)
+                sns.ecdfplot(data=model_data, ax=ax, label=model, linewidth=2)
+
+            if i == 0:
+                ax.set_title(f"bad_ols_coefs={bad_ols}", fontsize=11, fontweight='bold')
+            ax.set_xlabel(metric if i == len(metrics) - 1 else "")
+            ax.set_ylabel("Cumulative %" if j == 0 else "")
+            if i == 0 and j == 1:
+                ax.legend(loc='lower right', fontsize=9)
+
+    fig.suptitle("ECDF: Cumulative Distribution of Test Metrics", fontsize=14, fontweight='bold', y=1.01)
+    plt.tight_layout()
+    plt.savefig(PARENT / "Output_v2" / "ecdf_plots.png", dpi=150, bbox_inches='tight')
+    #plt.show()
+
+    # ============================================================
+    # Option 3: KDE overlay - smooth density comparison
+    # ============================================================
+    fig, axes = plt.subplots(len(metrics), len(bad_ols_values),
+                             figsize=(10, 3.5 * len(metrics)),
+                             sharex='row')
+
+    for i, metric in enumerate(metrics):
+        clip_val = df[metric].quantile(CLIP_PERCENTILE / 100)
+
+        for j, bad_ols in enumerate(bad_ols_values):
+            ax = axes[i, j]
+            subset = df.query("bad_ols_coefs == @bad_ols")
+
+            for model in ["OLS", "PCReg_GCV"]:
+                model_data = subset.query("model_name == @model")[metric].clip(upper=clip_val)
+                sns.kdeplot(data=model_data, ax=ax, label=model, linewidth=2, fill=True, alpha=0.3)
+
+            if i == 0:
+                ax.set_title(f"bad_ols_coefs={bad_ols}", fontsize=11, fontweight='bold')
+            ax.set_xlabel(metric if i == len(metrics) - 1 else "")
+            ax.set_ylabel("Density" if j == 0 else "")
+            if i == 0 and j == 1:
+                ax.legend(loc='upper right', fontsize=9)
+
+    fig.suptitle("KDE: Density of Test Metrics by Model", fontsize=14, fontweight='bold', y=1.01)
+    plt.tight_layout()
+    plt.savefig(PARENT / "Output_v2" / "kde_plots.png", dpi=150, bbox_inches='tight')
+    #plt.show()
+
+    # ============================================================
+    # Bias Analysis
+    # ============================================================
+    print("\n" + "="*70)
+    print("BIAS ANALYSIS: Estimated - True")
     print("="*70)
 
-    ols_row = example_results[example_results['model_name'] == 'OLS'].iloc[0]
-    pcreg_row = example_results[example_results['model_name'] == 'PCReg_GCV'].iloc[0]
+    print("\nBias Summary by Model (mean bias across all simulations):")
+    bias_summary = df.groupby('model_name')[['b_bias', 'c_bias', 'T1_bias']].agg(['mean', 'std', 'median'])
+    print(bias_summary.round(4))
 
-    # Get true parameters from the study data
-    true_b = example_data['b_true'].iloc[0]
-    true_c = example_data['c_true'].iloc[0]
-    true_T1 = example_data['T1_true'].iloc[0]
-    true_LC = 2 ** true_b
-    true_RC = 2 ** true_c
+    print("\nBias Summary by Model and Bad OLS Coefficients:")
+    bias_by_bad_ols = df.groupby(['bad_ols_coefs', 'model_name'])[['b_bias', 'c_bias', 'T1_bias']].mean()
+    print(bias_by_bad_ols.round(4))
 
-    print(f"\n  TRUE PARAMETERS:")
-    print(f"    T1 = {true_T1:.2f}, b = {true_b:.4f}, c = {true_c:.4f}")
-    print(f"    LC = {true_LC:.4f}, RC = {true_RC:.4f}")
-
-    print(f"\n  OLS ESTIMATES:")
-    print(f"    T1 = {ols_row['T1_est']:.2f}, b = {ols_row['b']:.4f}, c = {ols_row['c']:.4f}")
-    print(f"    LC = {ols_row['LC_est']:.4f}, RC = {ols_row['RC_est']:.4f}")
-    print(f"    Coefficient Error = {ols_row['true_coefs_error']:.4f}")
-    print(f"    Test MAPE = {ols_row['test_mape']:.4f}")
-    print(f"    R² = {ols_row['r2']:.4f}")
-
-    print(f"\n  PCReg_GCV ESTIMATES:")
-    print(f"    T1 = {pcreg_row['T1_est']:.2f}, b = {pcreg_row['b']:.4f}, c = {pcreg_row['c']:.4f}")
-    print(f"    LC = {pcreg_row['LC_est']:.4f}, RC = {pcreg_row['RC_est']:.4f}")
-    print(f"    Coefficient Error = {pcreg_row['true_coefs_error']:.4f}")
-    print(f"    Test MAPE = {pcreg_row['test_mape']:.4f}")
-    print(f"    R² = {pcreg_row['r2']:.4f}")
-    print(f"    Alpha = {pcreg_row['alpha']:.6f}")
-
-    # Calculate improvements
-    coef_improvement = (ols_row['true_coefs_error'] - pcreg_row['true_coefs_error']) / ols_row['true_coefs_error'] * 100
-    mape_improvement = (ols_row['test_mape'] - pcreg_row['test_mape']) / ols_row['test_mape'] * 100
-
-    print(f"\n  IMPROVEMENT (PCReg_GCV vs OLS):")
-    print(f"    Coefficient Error: {coef_improvement:.1f}% better")
-    print(f"    Test MAPE: {mape_improvement:.1f}% better")
-    print(f"    OLS LC > 1 (impossible): {ols_row['LC_est'] > 1}")
-    print(f"    OLS RC < 0.7 (implausible): {ols_row['RC_est'] < 0.7}")
-    print("="*70)
-
-    # Export head-to-head comparison
-    h2h_comparison = pd.DataFrame([
-        {'Parameter': 'T1_true', 'True': true_T1, 'OLS': ols_row['T1_est'], 'PCReg_GCV': pcreg_row['T1_est']},
-        {'Parameter': 'b_true', 'True': true_b, 'OLS': ols_row['b'], 'PCReg_GCV': pcreg_row['b']},
-        {'Parameter': 'c_true', 'True': true_c, 'OLS': ols_row['c'], 'PCReg_GCV': pcreg_row['c']},
-        {'Parameter': 'LC (2^b)', 'True': true_LC, 'OLS': ols_row['LC_est'], 'PCReg_GCV': pcreg_row['LC_est']},
-        {'Parameter': 'RC (2^c)', 'True': true_RC, 'OLS': ols_row['RC_est'], 'PCReg_GCV': pcreg_row['RC_est']},
-        {'Parameter': 'Coef_Error', 'True': 0, 'OLS': ols_row['true_coefs_error'], 'PCReg_GCV': pcreg_row['true_coefs_error']},
-        {'Parameter': 'Test_MAPE', 'True': 0, 'OLS': ols_row['test_mape'], 'PCReg_GCV': pcreg_row['test_mape']},
-        {'Parameter': 'R2', 'True': 1, 'OLS': ols_row['r2'], 'PCReg_GCV': pcreg_row['r2']},
-    ])
-    h2h_comparison.to_csv(PARENT / "Output_v2" / "pcr_beats_all_ols_vs_pcreg.csv", index=False)
-    print(f"\nOLS vs PCReg_GCV comparison exported to pcr_beats_all_ols_vs_pcreg.csv")
-
-else:
-    print("WARNING: No candidates found where PCReg_GCV beats both baselines.")
-    print("Consider checking if PCReg_ConstrainOnly model ran in simulation.")
-
-# =============================================================================
-# LEGACY: Original Motivating Example (OLS vs PCReg with good coefficients)
-# =============================================================================
-print("\n" + "="*70)
-print("Legacy Motivating Example: PCReg vs OLS (original criteria)")
-print("="*70)
-motivational_example_results = df.sort_values('true_coefs_error').query(
-    "bad_ols_coefs==1 and model_name=='PCReg_GCV' and (.80<LC_est <=.95) and (.80<RC_est<=.95) and alpha>0 and r2>.85 and T1_error <5"
-).reset_index()
-motivational_example_results.to_csv(PARENT / "Output_v2" / "motivational_example_simulation_results.csv", index=False)
-example_seed = motivational_example_results.loc[0, 'seed']
-df_motivational = df_study_data.query("seed==@example_seed")
-
-# write the motivational example data to csv
-df_motivational.to_csv(PARENT / "Output_v2" / "motivational_example_data.csv", index=False)
-# %%
-print("Legacy Motivational example Results:", df.query("seed==@example_seed and model_name.isin(['OLS','PCReg_GCV'])").T)
-
-# %%
-print("Legacy motivational example study data:")
-print(df_study_data.query("seed==@example_seed"))
-
-# %%
-
-def DecisionTree(df, feature_columns=None):
-    '''Create a decision tree to determine what model to use based on simulation parameters'''
-    from sklearn.tree import DecisionTreeClassifier
-    from sklearn.model_selection import train_test_split
-    feature_cols = ['bad_ols_coefs', 'T', 'b_sd', 'c_sd', 'T1_sd', 'LC_true', 'RC_true', 'sigma']
-    X = df[feature_cols]
-
-
-print("Number of simulations where OLS produces bad coefficients but PCReg improves:",
-df.query("bad_ols_coefs==1 and pcreg_improves_bad_ols_coef==1").shape[0],
-        "out of", df.query("bad_ols_coefs==1").shape[0],
-        f"({df.query('bad_ols_coefs==1 and pcreg_improves_bad_ols_coef==1').shape[0]/df.query('bad_ols_coefs==1').shape[0]*100:.2f}%)"
-)
-print("Test MAPE gorupby bad ols coefs:")
-print(df.groupby(["bad_ols_coefs", "model_name"])['test_mape'].describe().sort_values(['bad_ols_coefs','mean']))
-print("Rank Test MAPE groupby bad ols coefs:")
-print(df.groupby(['bad_ols_coefs','model_name'])['rank_test_mape'].describe().sort_values(['bad_ols_coefs','mean']))
-print("Percentage beats OLS Test MAPE groupby bad ols coefs:")
-print(df.query("model_name!='OLS'").assign(beats_ols_test_mape = lambda x: x.beats_ols_test_mape.astype(int)).groupby(['bad_ols_coefs','model_name'])['beats_ols_test_mape'].describe().sort_values(['bad_ols_coefs','mean'], ascending=(True,False)))
-
-print("Number of times each model is ranked 1:")
-print((df.query("rank_test_mape==1").groupby("model_name").size()).sort_values(ascending=False))
-
-print("Number of times each model is ranked 1:")
-print((df.query("rank_test_mape==1").groupby(['bad_ols_coefs',"model_name"]).size()).sort_values(ascending=False))
-
-
-# percentage of time each model is ranked 1
-# need to add the ability to see when they tied for first place
-print("Percentage of time each model is ranked 1:")
-print((df.query("rank_test_mape==1").groupby(["bad_ols_coefs","model_name"]).size() / df.query('rank_test_mape.notna()')["seed"].nunique()).sort_values(ascending=False))
-
-print("Average Test MAPE by n_lots:")
-print(df.groupby(['n_lots','model_name'])['test_mape'].describe().sort_values(['n_lots','mean']))
-
-print("Average Test MAPE by correlation:")
-print(df.assign(actual_correlation=lambda x: np.round(x.actual_correlation,1)).groupby(['actual_correlation','model_name'])['test_mape'].describe().sort_values(['actual_correlation','mean']))
-
-# Visualization options for comparing model variation
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-metrics = ["test_mape", "test_mse", "test_sspe"]
-bad_ols_values = sorted(df["bad_ols_coefs"].unique())
-CLIP_PERCENTILE = 99
-
-# ============================================================
-# Option 1: Violin plots - shows full distribution shape + quartiles
-# ============================================================
-fig, axes = plt.subplots(len(metrics), len(bad_ols_values),
-                         figsize=(10, 3.5 * len(metrics)),
-                         sharex='row', sharey='row')
-
-for i, metric in enumerate(metrics):
-    clip_val = df[metric].quantile(CLIP_PERCENTILE / 100)
-    df[f"{metric}_clipped"] = df[metric].clip(upper=clip_val)
-
-    for j, bad_ols in enumerate(bad_ols_values):
-        ax = axes[i, j]
-        subset = df.query("bad_ols_coefs == @bad_ols")
-
-        sns.violinplot(data=subset, x="model_name", y=f"{metric}_clipped",
-                       ax=ax, cut=0, inner="quartile", palette="Set2")
-
-        if i == 0:
-            ax.set_title(f"bad_ols_coefs={bad_ols}", fontsize=11, fontweight='bold')
-        ax.set_xlabel("")
-        ax.set_ylabel(metric if j == 0 else "")
-
-fig.suptitle("Violin Plots: Distribution of Test Metrics by Model", fontsize=14, fontweight='bold', y=1.01)
-plt.tight_layout()
-plt.savefig(PARENT / "Output_v2" / "violin_plots.png", dpi=150, bbox_inches='tight')
-#plt.show()
-
-# ============================================================
-# Option 2: ECDF (Cumulative Distribution) - shows % below threshold
-# ============================================================
-fig, axes = plt.subplots(len(metrics), len(bad_ols_values),
-                         figsize=(10, 3.5 * len(metrics)),
-                         sharex='row')
-
-for i, metric in enumerate(metrics):
-    clip_val = df[metric].quantile(CLIP_PERCENTILE / 100)
-
-    for j, bad_ols in enumerate(bad_ols_values):
-        ax = axes[i, j]
-        subset = df.query("bad_ols_coefs == @bad_ols")
-
-        for model in df["model_name"].unique():
-            model_data = subset.query("model_name == @model")[metric].clip(upper=clip_val)
-            sns.ecdfplot(data=model_data, ax=ax, label=model, linewidth=2)
-
-        if i == 0:
-            ax.set_title(f"bad_ols_coefs={bad_ols}", fontsize=11, fontweight='bold')
-        ax.set_xlabel(metric if i == len(metrics) - 1 else "")
-        ax.set_ylabel("Cumulative %" if j == 0 else "")
-        if i == 0 and j == 1:
-            ax.legend(loc='lower right', fontsize=9)
-
-fig.suptitle("ECDF: Cumulative Distribution of Test Metrics", fontsize=14, fontweight='bold', y=1.01)
-plt.tight_layout()
-plt.savefig(PARENT / "Output_v2" / "ecdf_plots.png", dpi=150, bbox_inches='tight')
-#plt.show()
-
-# ============================================================
-# Option 3: KDE overlay - smooth density comparison
-# ============================================================
-fig, axes = plt.subplots(len(metrics), len(bad_ols_values),
-                         figsize=(10, 3.5 * len(metrics)),
-                         sharex='row')
-
-for i, metric in enumerate(metrics):
-    clip_val = df[metric].quantile(CLIP_PERCENTILE / 100)
-
-    for j, bad_ols in enumerate(bad_ols_values):
-        ax = axes[i, j]
-        subset = df.query("bad_ols_coefs == @bad_ols")
-
-        for model in ["OLS", "PCReg_GCV"]:
-            model_data = subset.query("model_name == @model")[metric].clip(upper=clip_val)
-            sns.kdeplot(data=model_data, ax=ax, label=model, linewidth=2, fill=True, alpha=0.3)
-
-        if i == 0:
-            ax.set_title(f"bad_ols_coefs={bad_ols}", fontsize=11, fontweight='bold')
-        ax.set_xlabel(metric if i == len(metrics) - 1 else "")
-        ax.set_ylabel("Density" if j == 0 else "")
-        if i == 0 and j == 1:
-            ax.legend(loc='upper right', fontsize=9)
-
-fig.suptitle("KDE: Density of Test Metrics by Model", fontsize=14, fontweight='bold', y=1.01)
-plt.tight_layout()
-plt.savefig(PARENT / "Output_v2" / "kde_plots.png", dpi=150, bbox_inches='tight')
-#plt.show()
+    # Export bias summary
+    bias_summary.to_csv(PARENT / "Output_v2" / "bias_summary_by_model.csv")
+    bias_by_bad_ols.to_csv(PARENT / "Output_v2" / "bias_summary_by_model_and_bad_ols.csv")
+    print(f"\nBias summaries exported to Output_v2/")
