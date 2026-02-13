@@ -102,16 +102,16 @@ Small datasets with intercorrelation pose serious challenges to the stability of
 
 While developing Cost Estimating Relationships (CERs) for small datasets (5-30 data points), a recurring pattern emerged. The regression models often showed strong fit statistics with high R² and low standard error, but nonsensical coefficients. Coefficients often had wrong signs, implausible magnitudes, and poor p-values. As Department of Defense (DoD) analysts, this story may feel all too familiar.
 
-Intercorrelated datasets are a frequent presence in cost analysis, causing regression models to misbehave. This is especially true for Learning Curve with Rate Effect analysis, where datasets are typically small and the lot midpoint is correlated to lot quantity. Traditional remedies for multicollinearity can be insufficient for learning curve datasets. Increasing sample size is infeasible as it requires waiting years for additional production lots and cost data to become available. Dropping explanatory variables, such as rate effect, leads to model misspecification that ignores a fundamental cost driver. This issue is compounded when predicting outside the relevant range which is very common. Even when these remedies are employed, OLS can still produce implausible coefficients with the wrong signs, such as learning curve slopes \>100%. Regularization techniques like Ridge, Lasso, and Elastic Net can help stabilize estimates, but they don't guarantee plausible coefficients. Constrained optimization can enforce domain knowledge, but without regularization, it may not solve the underlying multicollinearity problem. This paper explores the combination of penalized regularization and constrained optimization to address both challenges.
+Intercorrelated datasets are a frequent presence in cost analysis, causing regression models to misbehave. This is especially true for Learning Curve with Rate Effect analysis, where datasets are typically small and the lot midpoint is usually correlated to lot quantity. Traditional remedies for multicollinearity can be insufficient for learning curve datasets. Increasing sample size is infeasible as it requires waiting years for additional production lots and cost data to become available. Dropping explanatory variables, such as rate effect, leads to model misspecification that ignores a fundamental cost driver. This issue is compounded when predicting outside the relevant range which is very common. Even when these remedies are employed, OLS can still produce implausible coefficients with the wrong signs, such as learning curve slopes \>100%. Regularization techniques like Ridge, Lasso, and Elastic Net can help stabilize estimates, but they don't guarantee plausible coefficients. Constrained optimization can enforce domain knowledge, but without regularization, it may not solve the underlying multicollinearity problem. This paper explores the combination of penalized regularization and constrained optimization to address both challenges.
 
-For our research, we reviewed existing literature on multicollinearity, regularization, constrained optimization, and learning theory. Drawing on these foundations, we developed Penalized-Constrained Regression (PCReg), which integrates Elastic Net penalties with domain-knowledge coefficient constraints. We then used Monte Carlo simulation to evaluate PCReg's accuracy estimating the true parameters and compared it's performance against OLS across a range of sample sizes and collinearity conditions, measuring both coefficient recovery and out-of-sample prediction accuracy.
+For our research, we reviewed existing literature on multicollinearity, regularization, constrained optimization, and learning theory. Drawing on these foundations, we developed the Penalized-Constrained Regression (PCReg) framework, which integrates Elastic Net penalties with domain-knowledge coefficient constraints. We then used Monte Carlo simulation to evaluate PCReg's accuracy estimating the true parameters and compared it's performance against OLS across a range of sample sizes and collinearity conditions, measuring both coefficient recovery and out-of-sample prediction accuracy.
 
 This paper develops and validates Penalized-Constrained Regression for cost estimation, providing:
 
-1.  **Python package** combining Elastic Net penalties with coefficient bound constraints
-2.  **GCV framework** for hyperparameter selection without data splitting
-3.  **Simulation benchmarks** comparing PCReg against OLS across varying sample sizes
-4.  **Practical decision rules** for when to use constrained methods
+1.  **PCReg Python Package** PCReg application in Python
+2.  **PCReg Excel Template** PCReg application in Excel
+3.  **Cross Validation framework** for hyperparameter selection without data splitting
+4.  **Practical Guidance** for when to use PCReg and how to assess model fit
 
 \newpage
 
@@ -121,18 +121,20 @@ This paper develops and validates Penalized-Constrained Regression for cost esti
 
 The motivating example for this research is the learning curve with rate effect:
 
-$$ \text{Average Unit Cost} = T_1 \cdot (\text{Lot Midpoint})^b \cdot (\text{Lot Quantity})^c \cdot \varepsilon $$
+$$
+\begin{aligned}
+\text{Average Unit Cost} &= T_1 \cdot (\text{Lot Midpoint})^b \cdot (\text{Lot Quantity})^c \cdot \varepsilon \\
+\\
+\text{where: } T_1 &= \text{theoretical first unit cost} \\
+b &= \text{learning slope in log space} \\
+c &= \text{rate slope in log space} \\
+\varepsilon &= \text{multiplicative error}
+\end{aligned}
+$$
 
-where:
+$b$ and $c$ are both slopes in log space. When transformed to unit space, they become the learning curve slope (LCS = $2^b$) and the rate effect ($2^c$), both typically ranging from 70-100%. As DoD programs ramp up production from Engineering Manufacturing Development (EMD) to Full Rate Production (FRP), lot midpoint (the learning predictor) becomes highly correlated with lot quantity (the rate predictor). By definition LCS and Rate Effect are $\leq 100\%$, meaning costs strictly decrease with cumulative production or lot quantity.
 
--   $T_1$ = theoretical first unit cost
--   $b$ = learning slope in log space
--   $c$ = rate slope in log space
--   $\varepsilon$ = multiplicative error
-
-$b$ and $c$ are both slopes in log space. When transformed to unit space, they become the learning curve slope (LCS = $2^b$) and the rate effect ($2^c$), both typically ranging from 70-100%. As DoD programs ramp up production from Engineering Manufacturing Development (EMD) to Full Rate Production (FRP), lot midpoint (the learning predictor) becomes highly correlated with lot quantity (the rate predictor). By definition LCS and Rate Effect are $\leq 100\%$, meaning costs decrease, not increase, with cumulative production or lot quantity.
-
-If estimated LCS or Rate Effect are \>100% this is often an indicator that other explanatory variables such as supply chain disruptions or diseconomies of scale are missing and need to be modeled, not a violation of the definition. Once these factors are properly modeled as separate explanatory variables, estimated LCS and Rate Effect should be $\leq 100\%$, consistent with their definition.
+If estimated LCS or Rate Effect are \>100% this is often an indicator of multicollinearity or that other explanatory variables such as supply chain disruptions or diseconomies of scale are missing and need to be modeled, not a violation of the definition. Once these factors are properly modeled as separate explanatory variables, estimated LCS and Rate Effect should be $\leq 100\%$, consistent with their definition. It is the analyst's responsibility to ensure the model is properly specified and includes all relevant cost drivers. 
 
 ## Example Scenario
 
@@ -204,12 +206,18 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.metrics import r2_score, mean_absolute_percentage_error, mean_squared_error
 import penalized_constrained as pcreg
 
+
+
 X_train = df_train[['lot_midpoint', 'lot_quantity']].values
 y_train = df_train['observed_cost'].values
 X_test = df_test[['lot_midpoint', 'lot_quantity']].values
 y_test_true = df_test['true_cost'].values  # True underlying values
 y_test_obs = df_test['observed_cost'].values  # Noisy observations
 
+# ==== OLS Stats Model ===
+import statsmodels.formula.api as smf
+ols_sm = smf.ols(formula="np.log(observed_cost) ~ np.log(lot_midpoint) + np.log(lot_quantity)", data=df_train).fit()
+    
 # === OLS ===
 ols = TransformedTargetRegressor(
     regressor=Pipeline([
@@ -301,9 +309,44 @@ n_active = _report_early.constraints.n_active
 | Learning Rate | `{python} f'{ols_lr*100:.1f}'`% |
 | Rate Effect   | `{python} f'{ols_re*100:.1f}'`% |
 
-We see find that by using OLS this example dataset yields invalid coefficents, specifcally a LCS of `{python} f'{ols_lr*100:.1f}'`% which violates our definiton of LCS being $\leq 100\%$.
+```{python}
+#| label: ols-stats model summary fit
+#| echo: false
+#| output: asis
+print(ols_sm.summary().as_latex())
+```
 
-# Method
+We see find that by using OLS this example dataset yields invalid coefficents, specifcally a LCS of `{python} f'{ols_lr*100:.1f}'`% which violates our definiton of LCS being $\leq 100\%$. But otherwise this is a good fit with strong R² (`{python} f'{ols_r2_train:.2f}'`) and significant F-statistic. This is a common pattern in cost estimating where OLS produces good fit statistics but implausible coefficients. The next section introduces the Penalized-Constrained Regression (PCReg) framework which addresses this issue by combining regularization penalties with domain-knowledge constraints to stabilize coefficient estimates while ensuring they remain within plausible ranges.
+\newpage
+
+# Research
+## Ridge Paper
+## Constrained Lasso Paper
+## Generalized Degrees of Freedom
+Constrained optimization techniques must account for the effects of constraints. Based on the available research there are two main approaches to calculating degrees of freedom for constrained regression models:
+### Gaines et al. (2018)
+### Hu (2010) 
+Gap: no existing package is available to cost analysts that need more control over constraints and that provides built in diagnostics appropriate for optimization-based regression models. This paper fills this gap by developing the `penalized-constrained` framework as a Python package which implements the PCReg framework and provides built-in diagnostics such as Generalized DF and bootstrap confidence intervals.
+
+# Framework
+
+The Penalized-Constrained Regression (PCReg) framework integrates regularization penalties (L1 and L2) with domain-knowledge box-constraints ($\theta_{\text{lower}} \leq \theta \leq \theta_{\text{upper}}$) to stabilize coefficient estimates, while ensuring they remain within plausible ranges. 
+
+The python framework extends scikit-learn, adopting its naming conventions, and comes in two variants:
+
+- **`PenalizedConstrainedRegression`** (`PCReg`): The base estimator that minimizes a penalized loss function subject to coefficient bounds. Users specify penalty strength (`alpha`) and mixing ratio (`l1_ratio`) to balance L1 (Lasso) and L2 (Ridge) regularization.
+
+- **`PenalizedConstrainedCV`** (`PCRegCV`): Extends the base estimator with cross-validation (CV) to automatically select optimal hyperparameters (`alpha` and `l1_ratio`) from user-specified grids. The python package supports multiple selection criteria including k-fold CV, leave-one-out CV, AIC, AICc (recommended for small samples), BIC, and GCV.
+
+Both variants provide a flexible framework where users specify:
+
+- **Prediction function**: Defaults to linear (`X @ coef + intercept`), but supports custom non-linear functions
+- **Loss function**: Sum of Squared Percentage Errors (SSPE, default), Sum of Squared Errors (SSE), Mean Squared Error (MSE), or custom loss functions
+- **Coefficient bounds**: Componentwise constraints that encode domain knowledge (e.g., learning curve slopes between -1 and 0)
+- **Penalty exclusion**: Option to exclude specific coefficients from regularization while still applying bounds
+- **Optimizer**: Defaults to SLSQP for constrained optimization [*reference needed*]
+
+
 
 ## Objective Function
 
@@ -330,13 +373,18 @@ Our research builds on the contributions of many others. \*\*\* CITE RIDGE PAPER
 
 ## PCReg
 
+The framework maximizes flexibility and collapses to known regression techniques in special cases:
+- OLS when prediction function is linear, `alpha=0`, and bounds are not specified
+- Ridge when prediction function is linear, `alpha>0` and l1_ratio=0
+- Lasso when prediction function is linear, `alpha>1` and l1_ratio=1
+- Elastic Net when prediction function is linear, `alpha>0` and `0 < l1_ratio < 1`
+- Constrained regression when bounds are specified but `alpha=0`
 
-### Scikit-learn
+This paper employs PCReg with Cross Validation using the Generalized Cross Validation (GCV) method with the nonlinear prediction function defined in the motivational example with bounds and in based on bounds and regularization to OLS to demonstrate the benefits of the combined approach.
 
+### Model Diagnostic Framework
+We developed a model diagnostic framework for PCReg calculating fit statistics such as R²,  MAPE, and residuals, but also statistics specific to optimization-based regression models such as Generalized Degrees of Freedom (GDF) and bootstrap confidence intervals for constrained vs unconstrained estimation.
 
-### GCV
-
-***Need some discussion of GCV**
 
 ### Generalized Degrees of Freedom (GDF)
 
@@ -466,6 +514,7 @@ An interactive HTML diagnostic report with full bootstrap distributions has been
 \newpage
 
 # Simulation Study
+
 ```{python}
 #| label: simulation-design-params
 
@@ -511,7 +560,7 @@ This approach ensures realistic lot structures (varying quantities, realistic ra
 
 ## Example Scenario
 
-We return to the example scenario which was introduce in ***insert cross reference***. Below we see the scenario specifications which generated our example scenario dataset. 
+We return to the example scenario which was introduce in ***insert cross reference***. Below we see the scenario specifications which generated our example scenario dataset.
 
 | Parameter             |                            Value |
 |:----------------------|---------------------------------:|
@@ -525,8 +574,7 @@ We return to the example scenario which was introduce in ***insert cross referen
 
 : Example scenario parameters {#tbl-scenario}
 
-Here is the example dataset with the training data from ***insert crossreferece** highlighted green: 
-
+Here is the example dataset with training and test lots (training data matches the dataset shown earlier in \***insert crossreference**):
 
 ```{python}
 #| label: tbl-scenario-example-simulation
@@ -540,22 +588,20 @@ from tabulate import tabulate
 cols = ["lot_type", "lot_midpoint", "lot_quantity", "observed_cost", "true_cost"]
 df_show = df_example[cols].copy()
 
-# Columns that match the motivating example table
-highlight_cols = ["lot_midpoint", "lot_quantity", "observed_cost"]
-
-# Format and shade training rows for traceability
-for col in df_show.columns:
-    df_show[col] = df_show[col].apply(
-        lambda x: f"{x:.3f}" if isinstance(x, float) else str(x)
-    )
-
-# Shade the training rows green across the highlighted columns
+# Format values
 train_mask = df_show['lot_type'] == 'train'
-for col in highlight_cols:
-    df_show.loc[train_mask, col] = '<span style="background-color: lightgreen">' + df_show.loc[train_mask, col] + '</span>'
 
-# Shade the training lot_type label too
-df_show.loc[train_mask, 'lot_type'] = '<span style="background-color: lightgreen">' + df_show.loc[train_mask, 'lot_type'] + '</span>'
+# Hide observed costs for test rows
+df_show.loc[~train_mask, 'observed_cost'] = '—'
+
+# Format numeric columns
+for col in ['lot_midpoint', 'lot_quantity', 'true_cost']:
+    df_show[col] = df_show[col].apply(lambda x: f"{x:.3f}" if isinstance(x, float) else str(x))
+
+# Format observed_cost only for training rows (test rows already have '—')
+df_show.loc[train_mask, 'observed_cost'] = df_show.loc[train_mask, 'observed_cost'].apply(
+    lambda x: f"{x:.3f}" if isinstance(x, float) else str(x)
+)
 
 md = tabulate(
     df_show,
