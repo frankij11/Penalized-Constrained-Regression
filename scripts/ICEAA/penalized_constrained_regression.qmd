@@ -275,6 +275,8 @@ pc_gcv = pcreg.PenalizedConstrainedCV(
     prediction_fn=prediction_fn,
     fit_intercept=False,
     x0=[100, -0.1, -0.1],
+    alphas=np.linspace(0, 5, 10),
+    l1_ratios= [0.0, 0.5, 1.0],
     selection='gcv',
     loss='sspe',
     penalty_exclude=['T1'],
@@ -313,65 +315,62 @@ n_active = _report_early.constraints.n_active
 #| label: ols-stats model summary fit
 #| echo: false
 #| output: asis
+
+ols_sm_summary = ols_sm.summary2()
 print(ols_sm.summary().as_latex())
 ```
 
 We see find that by using OLS this example dataset yields invalid coefficents, specifcally a LCS of `{python} f'{ols_lr*100:.1f}'`% which violates our definiton of LCS being $\leq 100\%$. But otherwise this is a good fit with strong R² (`{python} f'{ols_r2_train:.2f}'`) and significant F-statistic. This is a common pattern in cost estimating where OLS produces good fit statistics but implausible coefficients. The next section introduces the Penalized-Constrained Regression (PCReg) framework which addresses this issue by combining regularization penalties with domain-knowledge constraints to stabilize coefficient estimates while ensuring they remain within plausible ranges.
 \newpage
 
-# Research
-## Ridge Paper
-## Constrained Lasso Paper
-## Generalized Degrees of Freedom
-Constrained optimization techniques must account for the effects of constraints. Based on the available research there are two main approaches to calculating degrees of freedom for constrained regression models:
-### Gaines et al. (2018)
-### Hu (2010) 
-Gap: no existing package is available to cost analysts that need more control over constraints and that provides built in diagnostics appropriate for optimization-based regression models. This paper fills this gap by developing the `penalized-constrained` framework as a Python package which implements the PCReg framework and provides built-in diagnostics such as Generalized DF and bootstrap confidence intervals.
+# Theoretical Foundation
+
+## Regularization: Optimality of Ridge Penalty
+**Theobald-Farebrother Theorem [@theobald1974ridge; @farebrother1976further]:** For any OLS problem, there exists a ridge parameter $\lambda^* > 0$ such that the ridge estimator has strictly lower mean squared error (MSE) than OLS. This result holds for population MSE (true prediction risk), not merely training error. The optimal $\lambda^*$ depends on unknown population parameters, which cross-validation estimates empirically.
+
+## Constrained Methods: Superior Performance Under Misspecification
+@james2020pac demonstrated that penalized and constrained (PAC) methods remain superior to unconstrained alternatives even when constraints are imperfectly specified within the Website Advertising domain:
+
+> *"PAC and relaxed PAC are surprisingly robust to random violations in the constraints... they were still both superior to their unconstrained counterparts for all values [of constraint error] and all settings."*
 
 # Framework
+The Penalized-Constrained Regression (PCReg) framework applies the theoretical and experimental foundations to the cost estimation domain. PCReg consists of two major components:
+- the penalized-constrained regression model and
+- the model diagnostics
 
-The Penalized-Constrained Regression (PCReg) framework integrates regularization penalties (L1 and L2) with domain-knowledge box-constraints ($\theta_{\text{lower}} \leq \theta \leq \theta_{\text{upper}}$) to stabilize coefficient estimates, while ensuring they remain within plausible ranges. 
+## Penalized-Constrained Regression (PCReg) Model
 
-The python framework extends scikit-learn, adopting its naming conventions, and comes in two variants:
+The Penalized-Constrained Regression (PCReg) Model integrates regularization penalties (L1 and L2) with domain-knowledge box-constraints ($\theta_{\text{lower}} \leq \theta \leq \theta_{\text{upper}}$) to stabilize coefficient estimates, while ensuring they remain within plausible ranges. 
 
-- **`PenalizedConstrainedRegression`** (`PCReg`): The base estimator that minimizes a penalized loss function subject to coefficient bounds. Users specify penalty strength (`alpha`) and mixing ratio (`l1_ratio`) to balance L1 (Lasso) and L2 (Ridge) regularization.
-
-- **`PenalizedConstrainedCV`** (`PCRegCV`): Extends the base estimator with cross-validation (CV) to automatically select optimal hyperparameters (`alpha` and `l1_ratio`) from user-specified grids. The python package supports multiple selection criteria including k-fold CV, leave-one-out CV, AIC, AICc (recommended for small samples), BIC, and GCV.
-
-Both variants provide a flexible framework where users specify:
-
-- **Prediction function**: Defaults to linear (`X @ coef + intercept`), but supports custom non-linear functions
-- **Loss function**: Sum of Squared Percentage Errors (SSPE, default), Sum of Squared Errors (SSE), Mean Squared Error (MSE), or custom loss functions
-- **Coefficient bounds**: Componentwise constraints that encode domain knowledge (e.g., learning curve slopes between -1 and 0)
-- **Penalty exclusion**: Option to exclude specific coefficients from regularization while still applying bounds
-- **Optimizer**: Defaults to SLSQP for constrained optimization [*reference needed*]
-
-
-
-## Objective Function
+### Objective Function
 
 The objective function minimized by PCReg combines a loss function with regularization penalties subject to coefficient bounds:
 
-$$ \begin{aligned} \text{Objective:} \quad & \underset{\theta}{\arg\min} \; \underbrace{\sum_{i=1}^{n} L\!\left(y_i, \hat{y}_i\right)}_{\text{Loss}} \;+\; \underbrace{\lambda \Big[\, \alpha \, L_1 \;+\; \frac{1-\alpha}{2} \, L_2 \,\Big]}_{\text{Elastic Net Penalty}} \\[10pt] \text{Subject To:} \quad & \theta_{\text{lower}} \le \theta \le \theta_{\text{upper}} \quad \text{(Componentwise)} \\[12pt]\end{aligned} $$
-
-where:
-
--   $L(y_i, \hat{y}_i)$ = Loss function measuring prediction error
--   $\theta_{\text{lower}}, \theta_{\text{upper}}$ = Componentwise bounds on coefficients
--   $\lambda$ = Regularization parameter
--   $L_1$ = Lasso penalty term
--   $L_2$ = Ridge penalty term
--   $\alpha$ = Mixing parameter, determining balance between L1 vs L2
+$$
+\begin{aligned}
+\text{Objective:} \quad & \underset{\theta}{\arg\min} \; \underbrace{\sum_{i=1}^{n} L\!\left(y_i, \hat{y}_i\right)}_{\text{Loss}} \;+\; \underbrace{\lambda \Big[\, \alpha \, \|\theta\|_1 \;+\; \frac{1-\alpha}{2} \, \|\theta\|_2^2 \,\Big]}_{\text{Elastic Net Penalty}} \\[10pt]
+\text{Subject to:} \quad & \theta_{\text{lower}} \le \theta \le \theta_{\text{upper}} \quad \text{(componentwise bounds)} \\[12pt]
+\text{where:} \quad & L(y_i, \hat{y}_i) = \text{loss function (e.g., SSE, SSPE)} \\
+& \lambda \ge 0 = \text{regularization strength} \\
+& \alpha \in [0,1] = \text{L1/L2 mixing parameter} \\
+& \|\theta\|_1 = \sum_j |\theta_j| \quad \text{(Lasso penalty)} \\
+& \|\theta\|_2^2 = \sum_j \theta_j^2 \quad \text{(Ridge penalty)}
+\end{aligned}
+$$
 
 The lower and upper bounds ($\theta_{lower}$ and $\theta_{upper}$) can be set to achieve loose bounds or tight bounds for the coefficient:
 
 -   **Loose bounds** (e.g., 70-100%): Wide range which allows flexibility while preventing egregious coefficient violations
 -   **Tight bounds** (e.g., 85-95%): Narrower range which incorporates strong prior knowledge but risks over-constraining coefficients
 
-Our research builds on the contributions of many others. \*\*\* CITE RIDGE PAPER \*\*\* established Classical Ridge regression theory and proves that there exists a $\lambda$ penalty that minimizes mean squared error. More recently @james2020pac demonstrated that constrained Lasso can achieve optimal prediction when coefficients are constrained (positively or negatively).
+### Model Specification
+The users can specify the following components of the PCReg model:
+- **Prediction function**: Defaults to linear (`X @ coef + intercept`), but supports custom non-linear functions
+- **Loss function**: Sum of Squared Percentage Errors (SSPE, default), Sum of Squared Errors (SSE), Mean Squared Error (MSE), or custom loss functions
+- **Coefficient bounds**: Componentwise constraints that encode domain knowledge (e.g., learning curve slopes between -1 and 0)
+- **Penalty exclusion**: Option to exclude specific coefficients from regularization while still applying bounds
+- **Optimizer**: Defaults to SLSQP for constrained optimization
 
-
-## PCReg
 
 The framework maximizes flexibility and collapses to known regression techniques in special cases:
 - OLS when prediction function is linear, `alpha=0`, and bounds are not specified
@@ -380,33 +379,141 @@ The framework maximizes flexibility and collapses to known regression techniques
 - Elastic Net when prediction function is linear, `alpha>0` and `0 < l1_ratio < 1`
 - Constrained regression when bounds are specified but `alpha=0`
 
-This paper employs PCReg with Cross Validation using the Generalized Cross Validation (GCV) method with the nonlinear prediction function defined in the motivational example with bounds and in based on bounds and regularization to OLS to demonstrate the benefits of the combined approach.
+### Cross Validation (CV) for Hyperparameter Selection
 
-### Model Diagnostic Framework
-We developed a model diagnostic framework for PCReg calculating fit statistics such as R²,  MAPE, and residuals, but also statistics specific to optimization-based regression models such as Generalized Degrees of Freedom (GDF) and bootstrap confidence intervals for constrained vs unconstrained estimation.
+Finding the optimal penalty parameters for penalized-constrained regression requires testing different values rather than using a formula. Cross Validation (CV) is a method that evaluates how well a model predicts new data by testing it on observations not used during training. The CV process evaluates all combinations of user-specified penalties ($\lambda$) and L1 ratio values ($\alpha$) to find the hyperparameters that produce the best out-of-sample predictions.
 
+Traditional K-Fold CV splits the training data into K subsets, repeatedly training on K-1 subsets and validating on the remaining one. For small datasets, this approach further reduces the already limited training sample size.
 
-### Generalized Degrees of Freedom (GDF)
-
-For constrained models, computing proper degrees of freedom requires special consideration. When constraints are *binding* (coefficients at bounds), those parameters effectively lose freedom. Following Gaines et al. (2018):
+We implement both K-Fold CV and Generalized Cross Validation (GCV), with GCV as the default for small datasets. GCV approximates leave-one-out cross validation using a mathematical formula rather than actually splitting data [@golub1979generalized]. It estimates prediction error based on training residuals adjusted by model complexity (degrees of freedom), making it efficient for small samples. For each combination of penalty parameters, the GCV score is calculated as:
 
 $$
-\text{GDF} = n - p - |\text{Binding inequality constraints}|
+\begin{aligned}
+\text{GCV} &= \frac{n \cdot \text{RSS}}{(n - \text{df})^2} \\[6pt]
+\text{where:} \quad & \text{RSS} = \text{residual sum of squared errors} \\
+& n = \text{number of observations} \\
+& \text{df} = \text{effective degrees of freedom}
+\end{aligned}
 $$
 
-where $n$ is the sample size and $p$ is the number of active predictors (non-zero coefficients).
-
-For the PCReg model: GDF = `{python} f'{gdf:.1f}'` with `{python} n_active` active constraint(s).
-
-**Note on Hu's Alternative Formula:** Hu (2010) proposes a different approach where *all specified constraints* count against degrees of freedom, not just binding ones: $\text{GDF} = n - p - (\text{\# Constraints}) + (\text{\# Redundancies})$. Hu's method is more conservative, always reducing GDF when constraints are specified, while Gaines' method only penalizes constraints that are actually active at the solution. The `penalized-constrained` package supports both methods via the `gdf_method` parameter.
+The optimal penalty parameters are those that minimize the GCV score.
 
 ## Model Diagnostics
 
-***List Model Diagnostics***
+The flexibility of penalized-constrained regression means goodness of fit statitics cannot gurantee classical inference (p-values and F-statistic) apply due to supporting coefficient bounds, regularization penalties, custom loss functions and custom prediction functions. No single inference framework covers all scenarios. When coefficients are at bounds (from constraints or L1 penalties), classical theory breaks down. Additionally, introducing custom loss and prediction functions require specifiying their corresponding distributional assumptions as in Generalized Linear Models.  We therefore focus on fit statistics that are robust and informative across model specifications:
 
-## Bootstrap Analysis
+### In-Sample Fit Statistics
+Standard in-sample fit measures remain valid across all model configurations, including R² (coefficient of determination), SSE (sum of squared errors), RMSE (root mean squared error), MAE (mean absolute error), MAPE (mean absolute percentage error), and residual diagnostics.
 
-The `penalized-constrained` package provides bootstrap confidence intervals that compare constrained vs unconstrained estimation.
+
+### Generalized Degrees of Freedom (GDF)-adjusted fit statistics
+Classical degrees of freedom ($df=n - p$) assumes unconstrained estimation. GDF suggests that optimization based models ought to lose degrees of freedom to take into account the constraints. We implement both @gaines2018constrained and @hu2010gdf GDF formulas to properly adjust fit statistics (SEE, SPE, Adjusted R²) and account for the effective model complexity.
+
+**Gaines et al. (2018) Formula (Default):** @gaines2018constrained derive degrees of freedom for constrained Lasso by counting only constraints that are actually binding at the solution:
+
+$$
+\text{GDF}_{\text{Gaines}} = n - |\text{Active predictors}| - |\text{Equality constraints}| - |\text{Binding inequality constraints}|
+$$
+
+where $n$ is the sample size and active predictors are non-zero coefficients. This reflects the intuition that non-binding constraints don't reduce effective degrees of freedom.
+
+**Hu (2010) Alternative Formula:** @hu2010gdf proposes a more conservative approach where *all specified constraints* count against degrees of freedom, regardless of whether they bind:
+
+$$
+\text{GDF}_{\text{Hu}} = n - p - (\text{\# Constraints}) + (\text{\# Redundancies})
+$$
+
+where $p$ is the total number of estimated parameters (including intercept if fitted). Hu's method always reduces GDF when constraints are specified, making it appropriate for ZMPE-type CERs where constraints fundamentally shape the solution.
+
+### Bootstrap Confidence Intervals
+Standard bootstrap confidence intervals can be misleading for penalized regression [@goeman2025penalized], as they assume interior solutions and no regularization bias. Our framework addresses this by computing **both** constrained and unconstrained bootstrap resampling:
+
+- **Constrained bootstrap**: Resamples data and refits the model *with* the specified bounds and regularization (penalized-constrained estimation), quantifying coefficient stability under the imposed modeling constraints
+
+- **Unconstrained bootstrap**: Resamples data and fits OLS *without* bounds or penalization (pure unconstrained estimation), showing coefficient variability in the absence of constraints and regularization. This serves as a baseline for comparison.
+
+
+### Software Implementation
+
+#### Python Package
+We developed a full feature complete Python package, `penalized_constrained`, following scikit-learn conventions and API design principles. The package provides a comprehensive implementation of the PCReg framework with support for model fitting, hyperparameter selection via cross-validation, diagnostic reporting with GDF-adjusted fit statistics, and bootstrap confidence intervals. See the Appendix for detailed documentation and usage examples.
+
+#### Excel Template
+To make the methodology accessible to practitioners without programming expertise, we developed an Excel template that implements a simplified version of the PCReg algorithm. This template provides an intuitive interface for applying penalized-constrained regression to cost estimation problems.
+
+# Example Scenario Revisited with PCReg
+
+Given the framework for PCReg we can now model the same motivational example but now using **Penalized-Constrained Regression with Generalized Cross-Validation** (PCReg_GCV). This specification combines the theoretical foundations with practical hyperparameter selection.
+
+## PCReg_GCV Model Specification
+
+The PCReg_GCV specification applies the framework to our learning curve problem with the following configuration:
+
+```{python}
+#| label: pcreg-gcv-spec-revisited
+#| echo: true
+#| eval: false
+
+# Define the nonlinear prediction function
+def prediction_fn(X, params):
+    """Learning curve with rate effect: T1 * (midpoint^b) * (quantity^c)"""
+    T1, b, c = params
+    return T1 * (X[:, 0] ** b) * (X[:, 1] ** c)
+
+# Configure PCReg_GCV model
+pc_gcv = pcreg.PenalizedConstrainedCV(
+    coef_names=['T1', 'b', 'c'],
+    bounds={'T1': (0, None), 'b': (-0.5, 0), 'c': (-0.5, 0)},
+    prediction_fn=prediction_fn,
+    fit_intercept=False,
+    x0=[100, -0.1, -0.1],
+    alphas=np.linspace(0, 5, 10),  # Range of lambda values to test
+    l1_ratios= [0.0, 0.5, 1.0],  # Test Ridge, Elastic Net, and Lasso penalties
+    selection='gcv',           # Generalized Cross-Validation
+    loss='sspe',               # Sum of Squared Percentage Errors
+    penalty_exclude=['T1'],    # Don't penalize the intercept
+    n_jobs=1
+)
+
+# Fit the model
+pc_gcv.fit(X_train, y_train)
+```
+
+**Key Specification Details:**
+***note*** Unfortunately, due to scikit-learn API design, we relabel $\lambda$ as `alpha` and $\alpha$ as `l1_ratio` in the code to fit within the Elastic Net framework, but they correspond to the regularization strength and L1 ratio respectively in the theoretical formulation.:
+
+- **Coefficients**: $T_1$ (first unit cost), $b$ (learning slope), $c$ (rate slope)
+- **Bounds**: $T_1 > 0$, $-0.5 \leq b \leq 0$, $-0.5 \leq c \leq 0$
+- **alphas (penalty)**: Range between 0 and 5 using linear spacing to explore Lasso, Ridge, and Elastic Net penalties
+- **l1_ratios**: Range between 0 and 1 to explore different mixes of L1 and L2 regularization
+- **Penalty Selection**: GCV automatically selects optimal $\lambda$ without data splitting
+- **Loss Function**: SSPE minimizes percentage errors (appropriate for cost data)
+- **Penalty Exclusion**: $T_1$ is not penalized (only slopes are regularized)
+
+
+| Metric        |                             OLS |                       PCReg_GCV |
+|:--------------|--------------------------------:|--------------------------------:|
+| $T_1$         |      `{python} f'{ols_T1:.0f}'` |      `{python} f'{pc_T1:.0f}'` |
+| Learning Rate | `{python} f'{ols_lr*100:.1f}'`% | `{python} f'{pc_lr*100:.1f}'`% |
+| Rate Effect   | `{python} f'{ols_re*100:.1f}'`% | `{python} f'{pc_re*100:.1f}'`% |
+| R² (Train)     |      `{python} f'{ols_r2_train:.2f}'` |      `{python} f'{pc_r2_train:.2f}'` |
+
+
+
+: Comparison of OLS and PCReg_GCV coefficient estimates {#tbl-ols-pcreg-comparison}
+
+| Specification        |                             OLS |                       PCReg_GCV |
+|:--------------|--------------------------------:|--------------------------------:|
+| loss function   |                                 SSE | SSPE |
+| prediction function   |                                 Linear | Nonlinear (Learning Curve) |
+| lambda (penalty) |                                 N/A | `{python} f'{pc_gcv.alpha_:.4f}'` |
+| alpha (L1 ratio) |                                 N/A | `{python} f'{pc_gcv.l1_ratio_:.2f}'` |
+: Comparison of OLS and PCReg_GCV coefficient Specification {#tbl-ols-pcreg-comparison}
+
+
+## Model Diagnostics
+We were able to find a reasonable solution with PCReg_GCV that satisfies our domain knowledge constraints (LCS and Rate Effect $\leq 100\%$) and we still have a reasonble (albeit worse) R². But how stable are the coefficients. The PCReg_GCV model includes bootstrap diagnostics to assess coefficient stability and the impact of constraints. Comparing constrained and unconstrained bootstrap distributions reveals the impact of constraints on coefficient stability. Large divergence indicates constraints are actively shaping the solution, while similar distributions suggest the data naturally satisfies the constraints. 
+
 
 ```{python}
 #| label: model-diagnostics
@@ -499,17 +606,15 @@ if boot_const is not None and boot_unconst is not None:
 
 3.  **Divergence indicates constraint impact**: Large differences between constrained and unconstrained means show the constraints are actively shaping the solution.
 
-**Note on nonlinear optimization**: PCReg uses numerical optimization (scipy's SLSQP), so classical regression assumptions don't directly apply. Bootstrap provides robust inference without these assumptions.
-
 ```{python}
 #| label: save-diagnostic-report
 #| output: false
 
 # Save HTML diagnostic report for interactive exploration
-_ = report.to_html('output_v2/pcreg_diagnostic_report.html', X=X_train, y=y_train)
+_ = report.to_html('pcreg_gcv_diagnostic_report.html', X=X_train, y=y_train)
 ```
 
-An interactive HTML diagnostic report with full bootstrap distributions has been saved to `output_v2/pcreg_diagnostic_report.html`.
+A comprehensive diagnostic report with full model specifications and bootstrap distributions is provided in Appendix A. An interactive HTML version has also been saved to `pcreg_gcv_diagnostic_report.html` for detailed exploration.
 
 \newpage
 
@@ -560,7 +665,7 @@ This approach ensures realistic lot structures (varying quantities, realistic ra
 
 ## Example Scenario
 
-We return to the example scenario which was introduce in ***insert cross reference***. Below we see the scenario specifications which generated our example scenario dataset.
+We return to the example scenario which was introduce in [#tbl-design]. Below we see the scenario specifications which generated our example scenario dataset.
 
 | Parameter             |                            Value |
 |:----------------------|---------------------------------:|
@@ -574,7 +679,7 @@ We return to the example scenario which was introduce in ***insert cross referen
 
 : Example scenario parameters {#tbl-scenario}
 
-Here is the example dataset with training and test lots (training data matches the dataset shown earlier in \***insert crossreference**):
+Here is the example dataset with training and test lots (training data matches the dataset shown earlier in [#tbl-design], but now we also see the test lots with their true underlying costs):
 
 ```{python}
 #| label: tbl-scenario-example-simulation
@@ -590,6 +695,9 @@ df_show = df_example[cols].copy()
 
 # Format values
 train_mask = df_show['lot_type'] == 'train'
+
+# Convert observed_cost to object type to allow mixed string/numeric values
+df_show['observed_cost'] = df_show['observed_cost'].astype(object)
 
 # Hide observed costs for test rows
 df_show.loc[~train_mask, 'observed_cost'] = '—'
@@ -849,7 +957,7 @@ pct_unreasonable = n_unreasonable / len(comparison) * 100
 
 Across `{python} f'{len(comparison):,}'` simulation scenarios, OLS produced economically unreasonable coefficients (learning curve or rate effect outside 70-100%) in **`{python} f'{pct_unreasonable:.1f}'`%** of cases (`{python} f'{n_unreasonable:,}'` scenarios).
 
-## Finding 1a: PCReg Significantly Outperforms OLS When Coefficients Are Unreasonable
+## PCReg Significantly Outperforms OLS When Coefficients Are Unreasonable
 
 When OLS produces unreasonable coefficients, PCReg wins **`{python} f'{win_unreasonable_mape:.1f}'`%** of scenarios on Test MAPE.
 
@@ -906,7 +1014,7 @@ print(tabulate(df_unreas_display, headers='keys', tablefmt='pipe', showindex=Fal
 
 **Statistical Significance**: Wilcoxon signed-rank test confirms PCReg significantly outperforms OLS on Test MAPE (p \< `{python} f'{wilcox_mape_unreas.pvalue:.2e}'`).
 
-## Finding 1b: PCReg Performs Comparably When OLS Coefficients Are Reasonable
+## PCReg Performs Comparably When OLS Coefficients Are Reasonable
 
 When OLS produces reasonable coefficients, OLS "wins" on Test MAPE in **`{python} f'{100 - win_reasonable_mape:.1f}'`%** of scenarios. However, the performance differences are negligible in practical terms.
 
@@ -1013,7 +1121,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-## Finding 2: OLS-LearnOnly Performs Poorly Outside Training Range
+## OLS-LearnOnly Performs Poorly Outside Training Range
 
 ```{python}
 #| label: ols-learn-analysis
@@ -1050,7 +1158,7 @@ PCReg outperforms OLS-LearnOnly on Test MAPE in **`{python} f'{pcreg_vs_learnonl
 
 Across all scenarios, PCReg outperforms OLS on Test MAPE in **`{python} f'{overall_win_mape:.1f}'`%** of cases, indicating a consistent predictive advantage even when OLS is competitive.
 
-### Finding 3: Coefficient Bias Analysis
+### Coefficient Bias Analysis
 
 Constraints introduce bias in coefficient estimates. We analyze whether this bias is systematic and how it affects prediction:
 
@@ -1148,7 +1256,7 @@ plt.show()
 
 **Key Insight**: While OLS is theoretically unbiased (mean errors near 0), it has high variance---the distribution is wide. PCReg may have slight bias but much lower variance, leading to better overall prediction accuracy (the classic bias-variance tradeoff).
 
-## Finding 4: Parameter Effects on Model Performance
+## Parameter Effects on Model Performance
 
 Beyond coefficient reasonableness, several design factors systematically influence when PCReg outperforms OLS. We examine sample size, predictor correlation, and noise level.
 
@@ -1411,4 +1519,415 @@ model.fit(X_train, y_train)
   booktitle={ICEAA Professional Development \& Training Workshop},
   year={2026}
 }
+```
+
+\newpage
+
+# Appendix D: Cross Validation Methods {#sec-appendix-cv}
+
+## Overview
+
+Cross Validation (CV) is a resampling technique used to evaluate how well a statistical model generalizes to independent data. In the context of penalized-constrained regression, CV helps us select optimal penalty parameters ($\lambda$ and $\alpha$) that balance model fit against overfitting. This appendix provides technical details on the CV methods implemented in our framework.
+
+## K-Fold Cross Validation
+
+### Methodology
+
+K-Fold CV divides the training data into K roughly equal-sized subsets (folds). The model is trained K times, each time using K-1 folds for training and the remaining fold for validation. The CV score is the average prediction error across all K validation folds.
+
+### Algorithm
+
+For each candidate penalty parameter value:
+
+1. Partition training data into K folds: $D = \{F_1, F_2, ..., F_K\}$
+2. For each fold $k = 1, ..., K$:
+   - Train model on $D \setminus F_k$ (all data except fold k)
+   - Predict on validation fold $F_k$
+   - Calculate validation error: $E_k = \sum_{i \in F_k} L(y_i, \hat{y}_i)$
+3. Compute CV score: $\text{CV}_K = \frac{1}{K} \sum_{k=1}^K E_k$
+4. Select penalty parameters that minimize $\text{CV}_K$
+
+### Choice of K
+
+- **K=5 or K=10**: Common choices balancing bias and variance
+- **Leave-One-Out (LOO, K=n)**: Minimum bias but high computational cost and high variance
+- **Smaller K**: Less computation, higher bias (less training data per fold), lower variance
+- **Larger K**: More computation, lower bias (more training data per fold), higher variance
+
+### Advantages
+
+- Directly estimates out-of-sample prediction error
+- Straightforward interpretation
+- Well-established in machine learning literature
+- Provides robust estimates when data is sufficient
+
+### Disadvantages
+
+- Reduces effective training sample size (uses only $(K-1)/K$ of data per fold)
+- Problematic for small datasets (n < 20)
+- Computationally expensive (requires K model fits per penalty value)
+- Can have high variance when K is large or n is small
+- May produce unstable penalty selection with small samples
+
+## Generalized Cross Validation (GCV)
+
+### Motivation
+
+GCV [@golub1979generalized; @craven1978smoothing] was developed to approximate Leave-One-Out (LOO) cross validation without the computational burden of fitting n separate models. For small datasets common in cost estimation (n=5-20), GCV provides penalty selection without further reducing the training sample.
+
+### Mathematical Formulation
+
+GCV estimates the prediction error using the full training data and a degrees-of-freedom adjustment:
+
+$$
+\text{GCV} = \frac{n \cdot \text{RSS}}{(n - \text{df})^2}
+$$
+
+where:
+
+- $n$ = sample size
+- $\text{RSS} = \sum_{i=1}^n (y_i - \hat{y}_i)^2$ = residual sum of squares on training data
+- $\text{df}$ = effective degrees of freedom (Generalized Degrees of Freedom, GDF)
+
+The penalty parameters that minimize GCV are selected as optimal.
+
+### Degrees of Freedom Adjustment
+
+The denominator $(n - \text{df})^2$ penalizes model complexity. For penalized-constrained regression, we use the Gaines et al. (2018) GDF formula:
+
+$$
+\text{df} = |\text{Active predictors}| + |\text{Equality constraints}| + |\text{Binding inequality constraints}|
+$$
+
+This accounts for the effective number of parameters after accounting for regularization and active constraints.
+
+### GCV as LOO Approximation
+
+GCV approximates the LOO cross validation score:
+
+$$
+\text{LOO} = \frac{1}{n} \sum_{i=1}^n \left(y_i - \hat{y}_i^{(-i)}\right)^2
+$$
+
+where $\hat{y}_i^{(-i)}$ is the prediction for observation $i$ from a model trained without observation $i$.
+
+The key approximation is:
+
+$$
+y_i - \hat{y}_i^{(-i)} \approx \frac{y_i - \hat{y}_i}{1 - h_i}
+$$
+
+where $h_i$ is the leverage (diagonal element of the hat matrix). GCV replaces individual leverages with the average: $h_i \approx \text{df}/n$.
+
+### Advantages
+
+- **No data splitting**: Uses full training sample, crucial for small datasets
+- **Efficient computation**: Single model fit per penalty value (vs. K fits for K-Fold)
+- **Deterministic**: No randomness from fold assignments
+- **Asymptotically equivalent to LOO**: Converges to LOO as n increases
+- **Optimal for small samples**: Maintains training power when n < 20
+
+### Disadvantages
+
+- Requires differentiable loss and prediction functions to compute GDF
+- Approximation quality depends on leverage uniformity
+- Less intuitive than K-Fold CV
+- May be unstable if GDF calculation is unreliable
+- Not applicable to all model types (works well for penalized regression)
+
+## Assumptions and Limitations
+
+### Common Assumptions (Both K-Fold and GCV)
+
+1. **Independence**: Observations are independent and identically distributed (i.i.d.)
+   - Violation: Time series data, clustered data, or spatial correlation
+   - Impact: CV may underestimate prediction error
+
+2. **Stationarity**: The data generation process remains stable
+   - Violation: Non-stationary processes or regime changes
+   - Impact: Past data may not predict future well
+
+3. **Representative samples**: Training data represents the population of interest
+   - Violation: Selection bias, small unrepresentative samples
+   - Impact: Selected penalties may not generalize
+
+4. **No data leakage**: Validation data must be truly held out
+   - Violation: Feature engineering on full dataset before CV
+   - Impact: Overly optimistic error estimates
+
+### Specific to K-Fold CV
+
+- **Sufficient data**: Requires enough observations to create meaningful folds (typically n > 50 for K=10)
+- **Balanced folds**: Folds should be representative of full dataset
+
+### Specific to GCV
+
+- **Smooth loss function**: GCV derivation assumes differentiable loss
+- **Accurate GDF**: Requires reliable degrees of freedom calculation
+- **Linear-like behavior**: Works best for models with relatively smooth penalty effects
+
+## Comparison and Recommendations
+
+| Criterion | K-Fold CV | GCV | Recommendation |
+|:----------|:---------|:----|:---------------|
+| **Sample size n < 10** | Poor | Good | **Use GCV** |
+| **Sample size 10 ≤ n < 20** | Fair | Good | **Prefer GCV** |
+| **Sample size 20 ≤ n < 50** | Good | Good | Either acceptable |
+| **Sample size n ≥ 50** | Good | Good | **Prefer K-Fold** (more robust) |
+| **Computational cost** | High (K fits) | Low (1 fit) | GCV faster |
+| **Interpretability** | High | Moderate | K-Fold clearer |
+| **Deterministic** | No (random folds) | Yes | GCV if reproducibility critical |
+
+: Comparison of K-Fold CV and GCV {#tbl-cv-comparison}
+
+### Practical Guidance for Cost Estimation
+
+1. **Small samples (n=5-15 lots)**: Use GCV (default in our implementation)
+   - Preserves full training data
+   - More stable penalty selection
+   - Computationally efficient
+
+2. **Medium samples (n=15-30 lots)**: Either method acceptable
+   - GCV for consistency with small-sample cases
+   - K-Fold (K=5) for more conservative penalty selection
+
+3. **Large samples (n>30 lots)**: Use K-Fold CV (K=10)
+   - More robust to model assumptions
+   - Direct estimate of out-of-sample error
+   - Standard practice in machine learning
+
+4. **When GDF is unreliable**: Fall back to K-Fold CV
+   - Non-differentiable loss functions
+   - Highly constrained solutions with uncertain active set
+
+## Implementation in PCReg
+
+The `PenalizedConstrainedCV` class supports both methods:
+
+```python
+# GCV (default for small datasets)
+model_gcv = pcreg.PenalizedConstrainedCV(
+    selection='gcv',  # Generalized Cross Validation
+    ...
+)
+
+# K-Fold CV
+model_kfold = pcreg.PenalizedConstrainedCV(
+    selection='cv',   # K-Fold Cross Validation
+    cv_folds=5,      # Number of folds (default=5)
+    ...
+)
+```
+
+The implementation automatically handles:
+- GDF calculation for GCV
+- Stratified fold assignment for K-Fold CV
+- Grid search over penalty parameter space
+- Selection of optimal penalty values
+
+## References for Cross Validation
+
+Key papers on cross validation methods:
+
+- @golub1979generalized: Original GCV formulation
+- @craven1978smoothing: Theoretical foundations of GCV
+- @stone1974cross: Cross-validatory choice of prediction rules
+- @hastie2009elements: Comprehensive treatment in Section 7.10
+
+\newpage
+
+# Appendix A: Detailed Diagnostic Report {.appendix}
+
+This appendix provides comprehensive diagnostic information for the PCReg_GCV model fit from the motivating example.
+
+## Model Specification
+
+```{python}
+#| label: appendix-model-spec
+#| output: asis
+#| echo: false
+
+from tabulate import tabulate
+import pandas as pd
+
+# Model specification details
+spec_data = {
+    'Parameter': [
+        'Model Type',
+        'Loss Function',
+        'Alpha ($\\lambda$)',
+        'L1 Ratio ($\\alpha$)',
+        'Fit Intercept',
+        'Optimization Method',
+        'Convergence Status',
+        'GDF Method'
+    ],
+    'Value': [
+        report.model_spec.model_type,
+        report.model_spec.loss_function,
+        f'{report.model_spec.alpha:.6f}',
+        f'{report.model_spec.l1_ratio:.4f}',
+        str(report.model_spec.fit_intercept),
+        report.model_spec.method,
+        'Yes' if report.model_spec.converged else 'No',
+        report.fit_stats.gdf_method
+    ]
+}
+
+df_spec = pd.DataFrame(spec_data)
+print(df_spec.to_markdown(index=False))
+```
+
+## Coefficient Estimates
+
+```{python}
+#| label: appendix-coefficients
+#| output: asis
+#| echo: false
+
+# Extract coefficient information
+coef_data = []
+for coef in report.coefficients:
+    coef_data.append({
+        'Parameter': coef.name,
+        'Estimate': f'{coef.value:.6f}',
+        'Bootstrap SE': f'{coef.bootstrap_se:.6f}' if coef.bootstrap_se is not None else 'N/A',
+        '95% CI Lower': f'{coef.bootstrap_ci_lower:.6f}' if coef.bootstrap_ci_lower is not None else 'N/A',
+        '95% CI Upper': f'{coef.bootstrap_ci_upper:.6f}' if coef.bootstrap_ci_upper is not None else 'N/A',
+        'Lower Bound': f'{coef.lower_bound}' if coef.lower_bound != -np.inf else 'None',
+        'Upper Bound': f'{coef.upper_bound}' if coef.upper_bound != np.inf else 'None',
+        'Status': coef.bound_status
+    })
+
+df_coef = pd.DataFrame(coef_data)
+print(df_coef.to_markdown(index=False))
+```
+
+## Fit Statistics
+
+```{python}
+#| label: appendix-fit-stats
+#| output: asis
+#| echo: false
+
+# Fit statistics
+fit_data = {
+    'Statistic': [
+        'R²',
+        'Adjusted R²',
+        'SEE',
+        'SPE',
+        'MAPE',
+        'RMSE',
+        'CV',
+        'GDF'
+    ],
+    'Value': [
+        f'{report.fit_stats.r2:.6f}',
+        f'{report.fit_stats.adj_r2:.6f}',
+        f'{report.fit_stats.see:.6f}',
+        f'{report.fit_stats.spe:.6f}',
+        f'{report.fit_stats.mape:.4f}',
+        f'{report.fit_stats.rmse:.6f}',
+        f'{report.fit_stats.cv:.6f}',
+        f'{report.fit_stats.gdf:.2f}'
+    ]
+}
+
+df_fit = pd.DataFrame(fit_data)
+print(df_fit.to_markdown(index=False))
+```
+
+## Constraint Summary
+
+```{python}
+#| label: appendix-constraints
+#| output: asis
+#| echo: false
+
+print(f"**Number of specified bounds:** {report.constraints.n_specified}\n")
+print(f"**Number of active constraints:** {report.constraints.n_active}\n")
+
+if report.constraints.active_constraints:
+    print("\n**Active constraints:**\n")
+    for param, bound_type in report.constraints.active_constraints:
+        print(f"- {param} at {bound_type} bound")
+else:
+    print("\nNo constraints are active (all parameters are in the interior).")
+```
+
+## Bootstrap Results
+
+```{python}
+#| label: appendix-bootstrap
+#| output: asis
+#| echo: false
+
+if report.bootstrap_results is not None:
+    boot = report.bootstrap_results
+
+    print(f"**Number of bootstrap samples:** {boot.n_bootstrap}\n")
+    print(f"**Confidence level:** {boot.confidence*100:.0f}%\n")
+    print(f"**Successful constrained fits:** {boot.constrained.n_successful}\n")
+    if boot.unconstrained is not None:
+        print(f"**Successful unconstrained fits:** {boot.unconstrained.n_successful}\n")
+
+    print("\n### Bootstrap Summary Statistics\n")
+
+    # Create comparison table
+    boot_summary = boot.summary_dataframe(include_unconstrained=True)
+    print(boot_summary.to_markdown(index=False, floatfmt='.6f'))
+else:
+    print("Bootstrap confidence intervals were not computed for this model.")
+```
+
+## Data Summary
+
+```{python}
+#| label: appendix-data-summary
+#| output: asis
+#| echo: false
+
+data_info = {
+    'Property': [
+        'Number of samples',
+        'Number of features',
+        'Target mean',
+        'Target std',
+        'Target min',
+        'Target max'
+    ],
+    'Value': [
+        report.data_summary.n_samples,
+        report.data_summary.n_features,
+        f'{report.data_summary.y_mean:.4f}',
+        f'{report.data_summary.y_std:.4f}',
+        f'{report.data_summary.y_min:.4f}',
+        f'{report.data_summary.y_max:.4f}'
+    ]
+}
+
+df_data = pd.DataFrame(data_info)
+print(df_data.to_markdown(index=False))
+```
+
+## Model Equation
+
+```{python}
+#| label: appendix-equation
+#| output: asis
+#| echo: false
+
+if report.equation is not None:
+    if report.equation.is_custom:
+        print("**Custom Prediction Function:**\n")
+        print("```python")
+        if report.equation.source:
+            print(report.equation.source)
+        print("```\n")
+
+    if report.equation.latex:
+        print(f"\n**Model Equation:** ${report.equation.latex}$\n")
+    elif report.equation.text:
+        print(f"\n**Model Equation:** `{report.equation.text}`\n")
 ```

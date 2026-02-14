@@ -1,5 +1,20 @@
 % BibTeX references for ICEAA 2026 Paper
 % Penalized-Constrained Regression for Cost Estimation
+%
+% Research Folder Mapping (scripts/ICEAA/research/):
+% - PAC.pdf → @james2020pac
+% - Algorithms for fitting the constrained lasso_nihms-1504786.pdf → @gaines2018constrained
+% - Penalized and constrained LAD estimation...pdf → @wu2022pclad
+% - ridge_regression_biased estimation...1970.pdf → @hoerl1970ridge
+% - Generalizations of Mean Square Error...jpg → @theobald1974ridge
+% - const_opt.pdf → @boyd2004convex
+% - MM06-Paper-Hu-Generalized-Degrees.pdf → @hu2010gdf
+% - why-zpme-when-you-can-mupe.pdf → @hu2007zmpe
+% - ANA02-ppt-Schiavoni-Assessing-Regression-Methods.pdf → @schiavoni2021regression
+% - PA04-paper-Collinearity-Kill-Chain.pdf → @technomics2016collinearity
+% - penalized.pdf → @goeman2025penalized
+% - penalty.pdf → @park2007l1 (glmpath algorithm)
+% Note: Lecture files (Lecture7, lecture-18, ML03-Roye) are not formally citable
 
 % ============================================================================
 % Core Method Papers
@@ -41,6 +56,17 @@
 % Foundational Theory
 % ============================================================================
 
+@article{hoerl1970ridge,
+  author = {Hoerl, Arthur E. and Kennard, Robert W.},
+  title = {Ridge Regression: Biased Estimation for Nonorthogonal Problems},
+  journal = {Technometrics},
+  volume = {12},
+  number = {1},
+  pages = {55--67},
+  year = {1970},
+  doi = {10.1080/00401706.1970.10488634}
+}
+
 @article{theobald1974ridge,
   author = {Theobald, C. M.},
   title = {Generalizations of Mean Square Error Applied to Ridge Regression},
@@ -59,6 +85,14 @@
   number = {2},
   pages = {248--250},
   year = {1976}
+}
+
+@book{boyd2004convex,
+  author = {Boyd, Stephen and Vandenberghe, Lieven},
+  title = {Convex Optimization},
+  publisher = {Cambridge University Press},
+  year = {2004},
+  isbn = {978-0521833783}
 }
 
 % ============================================================================
@@ -94,9 +128,60 @@
   year = {2021}
 }
 
+@techreport{technomics2016collinearity,
+  author = {{Technomics, Inc.}},
+  title = {The Collinearity Kill Chain},
+  institution = {Technomics, Inc.},
+  year = {2016},
+  type = {White Paper},
+  number = {PA04},
+  url = {https://www.technomics.net/sites/default/files/whitepapers/PA04-The-Collinearity-Kill-Chain.pdf}
+}
+
 % ============================================================================
 % Machine Learning / Statistics
 % ============================================================================
+
+@article{golub1979generalized,
+  author = {Golub, Gene H. and Heath, Michael and Wahba, Grace},
+  title = {Generalized Cross-Validation as a Method for Choosing a Good Ridge Parameter},
+  journal = {Technometrics},
+  volume = {21},
+  number = {2},
+  pages = {215--223},
+  year = {1979},
+  doi = {10.1080/00401706.1979.10489751}
+}
+
+@article{craven1978smoothing,
+  author = {Craven, Peter and Wahba, Grace},
+  title = {Smoothing Noisy Data with Spline Functions: Estimating the Correct Degree of Smoothing by the Method of Generalized Cross-Validation},
+  journal = {Numerische Mathematik},
+  volume = {31},
+  pages = {377--403},
+  year = {1978},
+  doi = {10.1007/BF01404567}
+}
+
+@article{stone1974cross,
+  author = {Stone, Mervyn},
+  title = {Cross-Validatory Choice and Assessment of Statistical Predictions},
+  journal = {Journal of the Royal Statistical Society: Series B (Methodological)},
+  volume = {36},
+  number = {2},
+  pages = {111--147},
+  year = {1974}
+}
+
+@book{hastie2009elements,
+  author = {Hastie, Trevor and Tibshirani, Robert and Friedman, Jerome},
+  title = {The Elements of Statistical Learning: Data Mining, Inference, and Prediction},
+  edition = {2nd},
+  publisher = {Springer},
+  year = {2009},
+  isbn = {978-0387848570},
+  doi = {10.1007/978-0-387-84858-7}
+}
 
 @article{mackay1992bayesian,
   author = {MacKay, David J. C.},
@@ -137,6 +222,28 @@
   year = {2005}
 }
 
+@article{park2007l1,
+  author = {Park, Mee Young and Hastie, Trevor},
+  title = {{L1}-Regularization Path Algorithm for Generalized Linear Models},
+  journal = {Journal of the Royal Statistical Society: Series B (Statistical Methodology)},
+  volume = {69},
+  number = {4},
+  pages = {659--677},
+  year = {2007},
+  doi = {10.1111/j.1467-9868.2007.00607.x}
+}
+
+@article{friedman2010glmnet,
+  author = {Friedman, Jerome and Hastie, Trevor and Tibshirani, Rob},
+  title = {Regularization Paths for Generalized Linear Models via Coordinate Descent},
+  journal = {Journal of Statistical Software},
+  volume = {33},
+  number = {1},
+  pages = {1--22},
+  year = {2010},
+  doi = {10.18637/jss.v033.i01}
+}
+
 % ============================================================================
 % Software
 % ============================================================================
@@ -148,4 +255,12 @@
   volume = {12},
   pages = {2825--2830},
   year = {2011}
+}
+
+@manual{goeman2025penalized,
+  title = {penalized: {L1} (Lasso and Fused Lasso) and {L2} (Ridge) Penalized Estimation in {GLMs} and in the {Cox} Model},
+  author = {Goeman, Jelle J.},
+  year = {2025},
+  note = {R package version 0.9-53},
+  url = {https://CRAN.R-project.org/package=penalized}
 }
