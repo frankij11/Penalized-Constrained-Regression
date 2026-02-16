@@ -3,9 +3,13 @@ title: "Penalized-Constrained Regression"
 subtitle: "Combining Regularization and Domain Constraints for Cost Estimation"
 author:
   - name: Kevin Joy
-    affiliation: Herren Associates
+    affiliations:
+    - id: herren
+      name: Herren Associates
   - name: Max Watstein
-    affiliation: Herren Associates
+    affiliations:
+     - ref: herren
+
 date: today
 format:
   pdf:
@@ -30,7 +34,6 @@ format:
       text: |
         \newpage
         \pagenumbering{roman}
-    include-after-body: ""
 bibliography: references.bib
 execute:
   echo: false
@@ -114,17 +117,16 @@ Intercorrelated datasets are a frequent presence in cost analysis, causing regre
 
 For our research, we reviewed existing literature on multicollinearity, regularization, constrained optimization, and learning theory. Drawing on these foundations, we developed the Penalized-Constrained Regression (PCReg) framework, which integrates Elastic Net penalties with domain-knowledge coefficient constraints. We then used Monte Carlo simulation to evaluate PCReg's accuracy estimating the true parameters and compared its performance against OLS across a range of sample sizes and collinearity conditions, measuring both coefficient recovery and out-of-sample prediction accuracy.
 
-This paper develops and validates PCReg for cost estimation, providing:
+This paper develops and validates PCReg for cost estimation, providing PCReg:
 
-1.  **PCReg framework**: integration of Elastic Net penalties and constraint optimization
-2.  **Cross Validation framework**: hyperparameter selection without data splitting
-3.  **Bootstrap Confidence Intervals**: UPDATE
-4.  **Practical Guidance**: when to use PCReg and how to assess model fit
+1.  **Model**: integration of Elastic Net penalties and constraint optimization
+1.  **Diagnostic**: Boostrap confidence intervals and GDF-adjusted fit statistics for optimization-based regression
+1.  **Practical Guidance**: when to use PCReg and how to assess model fit
 
-Additionally, we have developed the following tools for the DoD cost estimating community to apply PCReg:
+Additionally, we have developed the following tools for the cost estimating community to apply PCReg:
 
-1.  **PCReg Python Package**: PCReg application in Python
-2.  **PCReg Excel Template**: PCReg application in Excel
+1.  **Python Package**: PCReg application in Python
+2.  **Excel Template**: PCReg application in Excel with limited implementation
 
 \newpage
 
@@ -318,25 +320,27 @@ gdf = _report_early.fit_stats.gdf
 n_active = _report_early.constraints.n_active
 ```
 
-| Metric        |                               OLS |
-|:--------------|----------------------------------:|
-| $T_1$         |        `{python} f'{ols_T1:.0f}'` |
-| Learning Rate |   `{python} f'{ols_lr*100:.1f}'`% |
-| Rate Effect   |   `{python} f'{ols_re*100:.1f}'`% |
-| R²            | `{python} f'{ols_r2_train:.1f}'`% |
-| F-statistic   | `{python} f'{ols_sm.fvalue:.1f}'` |
+| Metric        |                                OLS |
+|:--------------|-----------------------------------:|
+| $T_1$         |`{python} f'{ols_T1:.0f}'` |
+| Learning Rate |`{python} f'{ols_lr*100:.1f}'`% |
+| Rate Effect   |`{python} f'{ols_re*100:.1f}'`% |
+| R²            |`{python} f'{ols_r2_train:.2f}'` |
+| F-statistic   |`{python} f'{ols_sm.fvalue:.1f} (p={ols_sm.f_pvalue:.2})'` |
 
 : Example Scenario OLS Results {#tbl-ols-results}
 
-We see find that by using OLS this example dataset yields invalid coefficents, specifcally a LCS of `{python} f'{ols_lr*100:.1f}'`% which violates our definiton of LCS being $\leq 100\%$. But otherwise this is a good fit with strong R² (`{python} f'{ols_r2_train:.2f}'`) and significant F-statistic. This is a common pattern in cost estimating where OLS produces good fit statistics but implausible coefficients. \newpage \newpage \# Theoretical Foundations {#sec-theory}
+We find that by using OLS this example dataset yields invalid coefficents, specifcally a LCS of `{python} f'{ols_lr*100:.1f}'`% which violates our definiton of LCS being $\leq 100\%$. But otherwise this is a good fit with strong R² (`{python} f'{ols_r2_train:.2f}'`) and significant F-statistic (`{python} f'p={ols_sm.f_pvalue:.2}'`). This is a common pattern in cost estimating where OLS produces good fit statistics but implausible coefficients. \newpage \newpage
 
-## Regularization
+# Theoretical Foundations {#sec-theory}
 
-C. M. Theobald, in *Generalizations of Mean Square Error Applied to Ridge Regression* [@theobald1974ridge], showed that for any OLS problem there exists a ridge parameter $\lambda^* > 0$ such that the ridge estimator has strictly lower mean squared error (MSE) than OLS. R. W. Farebrother, in *Further Results on the Mean Square Error of Ridge Regression* [@farebrother1976ridge], extended Theobald's result to broader classes of weighted MSE criteria. Together, these results establish that ridge shrinkage can always improve on OLS in terms of population MSE—not merely training error. The optimal $\lambda^*$ depends on unknown population parameters, which cross-validation estimates empirically.
+## Ridge Regularization
 
-## Regularization and Constrained Optimization
+C. M. Theobald, in *Generalizations of Mean Square Error Applied to Ridge Regression* [@theobald1974ridge], showed that for any OLS problem there exists a ridge parameter $\lambda^* > 0$ such that the ridge estimator has strictly lower mean squared error (MSE) than OLS. R. W. Farebrother, in *Further Results on the Mean Square Error of Ridge Regression* [@farebrother1976ridge], extended Theobald's result to broader classes of weighted MSE criteria. Together, these results establish that ridge shrinkage can always improve on OLS in terms of population MSE, not merely training error. The optimal $\lambda^*$ depends on unknown population parameters, which cross-validation estimates empirically.
 
-Our paper is not the first to explore combining regularization with constraint optimization. @james2020pac developed the *Penalized and Constrained* optimization method (PAC) to compute the solution path for high-dimensional, linearly-constrained criteria. The paper demonstrated that PAC methods remain superior to unconstrained alternatives even when constraints are imperfectly specified:
+## Lasso Regularization and Constrained Optimization
+
+Our paper is not the first to explore combining regularization (L1 penalties) with constraint optimization. @james2020pac developed the *Penalized and Constrained* optimization method (PAC) to compute the solution path for high-dimensional, linearly-constrained criteria. The paper demonstrated that PAC methods remain superior to unconstrained alternatives even when constraints are imperfectly specified:
 
 > *"PAC and relaxed PAC are surprisingly robust to random violations in the constraints... they were still both superior to their unconstrained counterparts for all values \[of constraint error\] and all settings."*
 
@@ -344,11 +348,15 @@ Our paper is not the first to explore combining regularization with constraint o
 
 # PCReg Framework
 
-The PCReg framework addresses the Learning Curve Problem, highlighted by our @sec-example, by applying the @sec-theory to the cost estimation domain. Because PCReg uses optimization rather than closed-form estimation, traditional OLS diagnostics are not directly available, so PCReg also provides specialized model diagnostics based on bootstrap inference and cross-validation.
+The PCReg framework addresses the Learning Curve Problem, highlighted by our @sec-example, by applying the @sec-theory research findings to the cost estimation domain. Because PCReg uses optimization rather than closed-form estimation, traditional OLS diagnostics are not directly available, so PCReg also provides specialized model diagnostics based on generalized degrees of freedom, bootstrap inference, and cross-validation.
 
 ## PCReg Model
 
 The PCReg Model integrates regularization penalties (L1 and L2) with domain-knowledge constraints ($\theta_{\text{lower}} \leq \theta \leq \theta_{\text{upper}}$) to stabilize coefficient estimates, while ensuring they remain within plausible ranges.
+
+::: {.callout-note appearance="minimal"}
+**Notation:** We use $\theta$ (rather than $\beta$) to emphasize that PCReg handles both linear regression and nonlinear optimization problems. For standard linear models, $\theta$ represents regression coefficients; for nonlinear models (e.g., learning curves), $\theta$ represents the optimized parameters. See @sec-pcreg-notation in the Appendix for complete notation details.
+:::
 
 ### Objective Function
 
@@ -357,11 +365,12 @@ The objective function minimized by PCReg combines a loss function with regulari
 $$
 \begin{aligned}
 \text{Objective:} \quad & \underset{\theta}{\arg\min} \; \underbrace{\sum_{i=1}^{n} L\!\left(y_i, \hat{y}_i\right)}_{\text{Loss}} \;+\; \underbrace{\lambda \Big[\, \alpha \, \|\theta\|_1 \;+\; \frac{1-\alpha}{2} \, \|\theta\|_2^2 \,\Big]}_{\text{Elastic Net Penalty}} \\[10pt]
-\text{Subject to:} \quad & \theta_{\text{lower}} \le \theta \le \theta_{\text{upper}} \quad \text{(componentwise bounds)} \\[12pt]
+\text{Subject to:} \quad & \theta_{\text{lower}} \le \theta \le \theta_{\text{upper}} \quad \text{(parameter bounds)} \\[12pt]
 \text{where:} \quad & \begin{array}[t]{rl}
+\hat{y}_i = f(X_i, \theta) &= \text{predicted value (linear or nonlinear)} \\[4pt]
 L(y_i, \hat{y}_i) &= \text{loss function (e.g., SSE, SSPE)} \\[4pt]
-\lambda \ge 0 &= \text{regularization strength} \\[4pt]
-\alpha \in [0,1] &= \text{L1/L2 mixing parameter} \\[4pt]
+\lambda \ge 0 &= \text{regularization penalty} \\[4pt]
+\alpha \in [0,1] &= \text{L1/L2 ratio} \\[4pt]
 \|\theta\|_1 = \sum_j |\theta_j| &= \text{Lasso penalty} \\[4pt]
 \|\theta\|_2^2 = \sum_j \theta_j^2 &= \text{Ridge penalty}
 \end{array}
@@ -412,11 +421,23 @@ n &= \text{number of observations} \\[4pt]
 \end{aligned}
 $$
 
-The optimal penalty parameters are those that minimize the GCV score.
+The optimal penalty parameters are those that minimize the GCV score. See @sec-generalized-degrees-freedom for how PCReg calculates effective degrees of freedom for constrained and penalized models.
+
+
+## Model Diagnostics
+
+The flexibility of PCReg means goodness of fit statitics cannot gurantee classical inference (p-values and F-statistic) apply due to supporting coefficient bounds, regularization penalties, custom loss functions and custom functional forms. No single inference framework covers all scenarios. When coefficients are at bounds (from constraints or L1 penalties), classical theory breaks down. Additionally, introducing custom loss and functional forms require specifiying their corresponding distributional assumptions as in Generalized Linear Models (GLMs). We therefore focus on fit statistics that are robust and informative across model specifications:
+
+### Optimization Diagnostics
+We report optimization diagnostics such as convergence status, number of iterations, and whether a parameter is at a bound. When coefficients are at bounds, this indicates that constraints are actively shaping the solution. Note: we have found that applying constraints can change parameters without forcing to a bound. Just because a coefficient is not at a bound does not mean it is unaffected by the constraints; constraints can still significantly impact the optimization process. When coefficients are not at bounds, this suggests that the data naturally satisfies the constraints.
+
+### In-Sample Fit Statistics
+
+Standard in-sample fit measures remain valid across all model configurations, including Coefficient of Determination (R²), SSE, Root Mean Squared Error (RMSE), Mean Absolute Error (MAE), Mean Absolute Percentage Error (MAPE), and residual diagnostics.
 
 ### Generalized Degrees of Freedom (GDF)-adjusted fit statistics
 
-Classical degrees of freedom ($df=n - p$) assumes unconstrained estimation. GDF suggests that optimization based models ought to lose degrees of freedom to take into account the constraints. We implement both @gaines2018constrained and @hu2010gdf GDF formulas to properly adjust fit statistics (SEE, SPE, Adjusted R²) and account for the effective model complexity.
+Generalized Cross Validation (GCV), Standard Error of Estimate (SEE), and Adjusted R² all rely on degrees of freedom. However, classical degrees of freedom ($df=n - p$) assumes unconstrained estimation. GDF suggests that optimization based models ought to lose degrees of freedom to take into account the constraints. We implement both @gaines2018constrained and @hu2010gdf GDF formulas to properly adjust fit statistics (SEE, SPE, Adjusted R²) and account for the effective model complexity.
 
 **Gaines et al. (2018) Formula (Default):** @gaines2018constrained derive degrees of freedom for constrained Lasso by counting only constraints that are actually binding at the solution:
 
@@ -434,13 +455,6 @@ $$
 
 where $p$ is the total number of estimated parameters (including intercept if fitted). Hu's method always reduces GDF when constraints are specified, making it appropriate for ZMPE-type CERs where constraints fundamentally shape the solution.
 
-## Model Diagnostics
-
-The flexibility of PCReg means goodness of fit statitics cannot gurantee classical inference (p-values and F-statistic) apply due to supporting coefficient bounds, regularization penalties, custom loss functions and custom functional forms. No single inference framework covers all scenarios. When coefficients are at bounds (from constraints or L1 penalties), classical theory breaks down. Additionally, introducing custom loss and functional forms require specifiying their corresponding distributional assumptions as in Generalized Linear Models (GLMs). We therefore focus on fit statistics that are robust and informative across model specifications:
-
-### In-Sample Fit Statistics
-
-Standard in-sample fit measures remain valid across all model configurations, including Coefficient of Determination (R²), SSE, Root Mean Squared Error (RMSE), Mean Absolute Error (MAE), Mean Absolute Percentage Error (MAPE), and residual diagnostics.
 
 ### Bootstrap Confidence Intervals
 
@@ -512,15 +526,14 @@ pc_gcv.fit(X_train, y_train)
 -   **Loss Function**: SSPE minimizes percentage errors (appropriate for cost data)
 -   **Penalty Exclusion**: $T_1$ is not penalized (only slopes are regularized)
 
-
 Below is a comparison of OLS and PCReg specifications used for this example scenario:
 
-| Specification    |    OLS |                            PCReg |
-|:-----------------|-------:|-------------------------------------:|
-| loss function    |    SSE |                                 SSPE |
+| Specification    |        OLS |                                PCReg |
+|:-----------------|-----------:|-------------------------------------:|
+| loss function    |        SSE |                                 SSPE |
 | functional form  | Log-Linear |           Nonlinear (Learning Curve) |
-| lambda (penalty) |    N/A |    `{python} f'{pc_gcv.alpha_:.4f}'` |
-| alpha (L1 ratio) |    N/A | `{python} f'{pc_gcv.l1_ratio_:.2f}'` |
+| lambda (penalty) |        N/A |    `{python} f'{pc_gcv.alpha_:.4f}'` |
+| alpha (L1 ratio) |        N/A | `{python} f'{pc_gcv.l1_ratio_:.2f}'` |
 
 : Comparison of OLS and PCReg coefficient Specification {#tbl-ols-pcreg-comparison}
 
@@ -566,7 +579,6 @@ boot_const = boot.constrained if boot else None
 boot_unconst = boot.unconstrained if boot else None
 ```
 
-
 ```{python}
 #| label: bootstrap-summary
 
@@ -583,18 +595,18 @@ if boot_const is not None and boot_unconst is not None:
 ```
 
 | Coefficient | Mean | Std | 95% CI |
-|:------------|-----:|----:|:-------|
-| $T_1$ | `{python} f'{const_means[0]:.2f}'` | `{python} f'{const_stds[0]:.2f}'` | [`{python} f'{const_ranges[0][0]:.2f}'`, `{python} f'{const_ranges[0][1]:.2f}'`] |
-| $b$ | `{python} f'{const_means[1]:.4f}'` | `{python} f'{const_stds[1]:.4f}'` | [`{python} f'{const_ranges[1][0]:.4f}'`, `{python} f'{const_ranges[1][1]:.4f}'`] |
-| $c$ | `{python} f'{const_means[2]:.4f}'` | `{python} f'{const_stds[2]:.4f}'` | [`{python} f'{const_ranges[2][0]:.4f}'`, `{python} f'{const_ranges[2][1]:.4f}'`] |
+|:--------------------|----------------:|----------------:|:----------------|
+| $T_1$ | `{python} f'{const_means[0]:.2f}'` | `{python} f'{const_stds[0]:.2f}'` | \[`{python} f'{const_ranges[0][0]:.2f}'`, `{python} f'{const_ranges[0][1]:.2f}'`\] |
+| $b$ | `{python} f'{const_means[1]:.4f}'` | `{python} f'{const_stds[1]:.4f}'` | \[`{python} f'{const_ranges[1][0]:.4f}'`, `{python} f'{const_ranges[1][1]:.4f}'`\] |
+| $c$ | `{python} f'{const_means[2]:.4f}'` | `{python} f'{const_stds[2]:.4f}'` | \[`{python} f'{const_ranges[2][0]:.4f}'`, `{python} f'{const_ranges[2][1]:.4f}'`\] |
 
 : Constrained Bootstrap (with bounds and regularization) {#tbl-boot-constrained}
 
 | Coefficient | Mean | Std | 95% CI |
-|:------------|-----:|----:|:-------|
-| $T_1$ | `{python} f'{unconst_means[0]:.2f}'` | `{python} f'{unconst_stds[0]:.2f}'` | [`{python} f'{unconst_ranges[0][0]:.2f}'`, `{python} f'{unconst_ranges[0][1]:.2f}'`] |
-| $b$ | `{python} f'{unconst_means[1]:.4f}'` | `{python} f'{unconst_stds[1]:.4f}'` | [`{python} f'{unconst_ranges[1][0]:.4f}'`, `{python} f'{unconst_ranges[1][1]:.4f}'`] |
-| $c$ | `{python} f'{unconst_means[2]:.4f}'` | `{python} f'{unconst_stds[2]:.4f}'` | [`{python} f'{unconst_ranges[2][0]:.4f}'`, `{python} f'{unconst_ranges[2][1]:.4f}'`] |
+|:--------------------|----------------:|----------------:|:----------------|
+| $T_1$ | `{python} f'{unconst_means[0]:.2f}'` | `{python} f'{unconst_stds[0]:.2f}'` | \[`{python} f'{unconst_ranges[0][0]:.2f}'`, `{python} f'{unconst_ranges[0][1]:.2f}'`\] |
+| $b$ | `{python} f'{unconst_means[1]:.4f}'` | `{python} f'{unconst_stds[1]:.4f}'` | \[`{python} f'{unconst_ranges[1][0]:.4f}'`, `{python} f'{unconst_ranges[1][1]:.4f}'`\] |
+| $c$ | `{python} f'{unconst_means[2]:.4f}'` | `{python} f'{unconst_stds[2]:.4f}'` | \[`{python} f'{unconst_ranges[2][0]:.4f}'`, `{python} f'{unconst_ranges[2][1]:.4f}'`\] |
 
 : Unconstrained Bootstrap (no bounds, $\alpha$=0) {#tbl-boot-unconstrained}
 
@@ -631,19 +643,19 @@ if boot_const is not None and boot_unconst is not None:
 
 The bootstrap results above reveal three key diagnostic insights:
 
-1. **Constraints at bounds:** When bootstrap samples frequently hit constraint boundaries, the data is pulling towards implausible values, which is exactly when constraints help most. 
-1. **Variance reduction:** The constrained bootstrap shows tighter distributions than the unconstrained, reducing coefficient uncertainty at the cost of some bias. 
-1. **Divergence indicates constraint impact:** The differences between constrained and unconstrained means indicate how much the constraints are actively shaping the solution.
+1.  **Constraints at bounds:** When bootstrap samples frequently hit constraint boundaries, the data is pulling towards implausible values, which is exactly when constraints help most.
+2.  **Variance reduction:** The constrained bootstrap shows tighter distributions than the unconstrained, reducing coefficient uncertainty at the cost of some bias.
+3.  **Divergence indicates constraint impact:** The differences between constrained and unconstrained means indicate how much the constraints are actively shaping the solution.
 
 ```{python}
 #| label: save-diagnostic-report
 #| output: false
 
 # Save HTML diagnostic report for interactive exploration
-_ = report.to_html('pcreg_gcv_diagnostic_report.html', X=X_train, y=y_train)
+_ = report.to_html('pcreg_diagnostic_report.html', X=X_train, y=y_train)
 ```
 
-A comprehensive diagnostic report with full model specifications and bootstrap distributions is provided in Appendix A. An interactive HTML version has also been saved to `pcreg_gcv_diagnostic_report.html` for detailed exploration.
+A comprehensive diagnostic report with full model specifications and bootstrap distributions is provided in Appendix A. An interactive HTML version has also been saved to `pcreg_diagnostic_report.html` for detailed exploration.
 
 \newpage
 
@@ -673,14 +685,15 @@ rate_effect_str = ', '.join([f'{re*100:.0f}%' for re in rate_effect_levels])
 We performed a Monte Carlo simulation study to evaluate PCReg and compare with traditional OLS.
 
 ## Siumulation Design
-Our simulation study specifies four factors and generates `{python} f'{n_scenarios:,}'` scenarios (`{python} n_combinations` factor combinations × `{python} n_replications` replications). 
 
-| Factor                    | Levels                       |
-|:--------------------------|:-----------------------------|
-| Number of Training Lots   | `{python} n_lots_str`        |
-| CV error                  | `{python} cv_error_str`      |
-| Learning rate             | `{python} learning_rate_str` |
-| Rate effect               | `{python} rate_effect_str`   |
+Our simulation study specifies four factors and generates `{python} f'{n_scenarios:,}'` scenarios (`{python} n_combinations` factor combinations × `{python} n_replications` replications).
+
+| Factor                  | Levels                       |
+|:------------------------|:-----------------------------|
+| Number of Training Lots | `{python} n_lots_str`        |
+| CV error                | `{python} cv_error_str`      |
+| Learning rate           | `{python} learning_rate_str` |
+| Rate effect             | `{python} rate_effect_str`   |
 
 : Simulation study factorial design {#tbl-design}
 
@@ -697,25 +710,25 @@ This approach ensures realistic lot structures (varying quantities, realistic ra
 
 The following tables describe the example scenario. @tbl-scenario-factors shows the simulation factor levels selected for this scenario from the factorial design (@tbl-design), and @tbl-scenario-derived shows the derived characteristics specific to this scenario.
 
-| Factor                |                            Value |
-|:----------------------|---------------------------------:|
-| Number of Training Lots |             `{python} n_train` |
-| CV Error              |         `{python} f'{cv_error}'` |
-| True Learning Rate    | `{python} f'{true_lr*100:.1f}'`% |
-| True Rate Effect      | `{python} f'{true_re*100:.1f}'`% |
+| Factor                  |                            Value |
+|:------------------------|---------------------------------:|
+| Number of Training Lots |               `{python} n_train` |
+| CV Error                |         `{python} f'{cv_error}'` |
+| True Learning Rate      | `{python} f'{true_lr*100:.1f}'`% |
+| True Rate Effect        | `{python} f'{true_re*100:.1f}'`% |
 
 : Example Scenario Simulation Factors {#tbl-scenario-factors}
 
-| Characteristic        |                            Value |
-|:----------------------|---------------------------------:|
-| Total lots (from SAR) |  `{python} n_train + n_test`     |
-| Test lots             |                `{python} n_test` |
-| True $T_1$            |      `{python} f'{true_T1:.0f}'` |
-| Predictor Correlation |         `{python} f'{corr:.2f}'` |
+| Characteristic        |                       Value |
+|:----------------------|----------------------------:|
+| Total lots (from SAR) | `{python} n_train + n_test` |
+| Test lots             |           `{python} n_test` |
+| True $T_1$            | `{python} f'{true_T1:.0f}'` |
+| Predictor Correlation |    `{python} f'{corr:.2f}'` |
 
 : Example Scenario Derived Characteristics {#tbl-scenario-derived}
 
-Below is the example scenario simulation dataset with training and test lots.  The training data matches the dataset shown earlier, but now we also see the test lots with their true underlying costs.
+Below is the example scenario simulation dataset with training and test lots. The training data matches the dataset shown earlier, but now we also see the test lots with their true underlying costs.
 
 ```{python}
 #| label: tbl-scenario-example-simulation
@@ -884,7 +897,7 @@ pc_resid_train = y_train - pc_pred_train
 pc_resid_true = y_test_true - pc_pred_test
 ```
 
-OLS achieves a *lower* Train R² OLS (`{python} f'{ols_r2_train:.3f}'`) than PCReg (`{python} f'{pc_r2_train:.3f}'`). This is expected, penalties and constraints add bias to the training fit. However, PCReg achieves a lower (better) Test MAPE, meaning its predictions are closer to the true underlying costs on out-of-sample data, as seen below. 
+OLS achieves a *lower* Train R² OLS (`{python} f'{ols_r2_train:.3f}'`) than PCReg (`{python} f'{pc_r2_train:.3f}'`). This is expected, penalties and constraints add bias to the training fit. However, PCReg achieves a lower (better) Test MAPE, meaning its predictions are closer to the true underlying costs on out-of-sample data, as seen below.
 
 | Metric | True | OLS | OLS-LearnOnly | PCReg |
 |:--------------|--------------:|--------------:|--------------:|--------------:|
@@ -1004,6 +1017,7 @@ When OLS produces unreasonable coefficients (n=`{python} f'{n_unreasonable:,}'`)
 ```{python}
 #| label: unreasonable-analysis
 #| output: asis
+#| caption: Performance comparison when OLS produces unreasonable coefficients {#tbl-unreasonable}
 
 # Filter to unreasonable scenarios
 unreasonable = comparison[comparison['ols_reasonable'] == False].copy()
@@ -1050,9 +1064,6 @@ for col in ['OLS Mean', 'PCReg Mean', 'OLS Median', 'PCReg Median']:
 print(tabulate(df_unreas_display, headers='keys', tablefmt='pipe', showindex=False))
 ```
 
-: Performance comparison when OLS produces unreasonable coefficients {#tbl-unreasonable}
-
-**Statistical Significance**: Wilcoxon signed-rank test confirms PCReg significantly outperforms OLS on Test MAPE (p \< `{python} f'{wilcox_mape_unreas.pvalue:.2e}'`).
 
 ## PCReg Performs Comparably When OLS Coefficients Are Reasonable
 
@@ -1448,6 +1459,72 @@ Our simulation study demonstrates that PCReg provides meaningful advantages in s
 \newpage
 \appendix
 
+# PCReg Mathematical Notation {#sec-pcreg-notation}
+
+## Complete Notation Table
+
+| Symbol | Definition | Example |
+|--------|------------|---------|
+| $X$ | Feature matrix (n × p) | Lot midpoint, quantity, complexity |
+| $X_i$ | i-th row of X | Predictor values for observation i |
+| $y_i$ | Observed response | Actual cost for observation i |
+| $\theta$ | Parameter vector (p × 1) | Coefficients being estimated |
+| $\hat{y}_i = f(X_i, \theta)$ | Predicted value | Model prediction |
+| $\lambda \geq 0$ | Regularization strength | Overall penalty weight |
+| $\alpha \in [0,1]$ | L1/L2 mixing parameter | 0=Ridge, 1=Lasso |
+| $L(y_i, \hat{y}_i)$ | Loss function | SSE, SSPE, MSE, etc. |
+
+: Complete mathematical notation for PCReg framework {#tbl-notation}
+
+## Prediction Function Forms
+
+**Linear Model (Default):**
+$$\hat{y}_i = \theta_0 + \theta_1 x_{i1} + \theta_2 x_{i2} + \cdots + \theta_p x_{ip} = X_i\theta + \theta_0$$
+
+For linear models, $\theta = [\beta_1, \ldots, \beta_p]$ represents regression coefficients (slopes), and $\theta_0$ is the intercept.
+
+**Nonlinear Model (Learning Curve Example):**
+$$\hat{y}_i = T_1 \cdot (\text{LotMidpoint}_i)^b \cdot (\text{LotQuantity}_i)^c$$
+
+Here $\theta = [T_1, b, c]$ with domain-specific meanings:
+
+- $T_1$ = Base cost parameter
+- $b$ = Learning curve slope exponent
+- $c$ = Rate effect slope exponent
+
+## Relationship to Standard Elastic Net
+
+PCReg generalizes the standard Elastic Net formulation from @zou2005elasticnet and scikit-learn:
+
+**Standard Elastic Net:**
+$$\min_{\beta} \frac{1}{2n}\|y - X\beta\|^2_2 + \lambda\left[\alpha\|\beta\|_1 + \frac{1-\alpha}{2}\|\beta\|^2_2\right]$$
+
+**PCReg Extensions:**
+
+1. **Coefficient bounds:** $\theta_{\text{lower}} \leq \theta \leq \theta_{\text{upper}}$ (domain constraints)
+2. **Flexible loss functions:** $L(y, \hat{y})$ beyond squared error (e.g., SSPE for cost data)
+3. **Nonlinear models:** $f(X,\theta)$ can be any differentiable function
+4. **Selective penalties:** Exclude specific parameters (e.g., intercepts, base costs) via `penalty_exclude`
+
+## Cost Estimating Terminology Mapping
+
+For the cost estimating community, PCReg notation maps to familiar CER concepts:
+
+| Math Notation | CER Terminology | Example |
+|---------------|-----------------|---------|
+| $X$ | Cost drivers | Lot size, quantity, weight |
+| $\theta$ | CER parameters | Slopes, intercepts, exponents |
+| $y$ | Historical costs | Actual program costs |
+| $\hat{y}$ | Cost estimates | CER predictions |
+| Bounds on $\theta$ | Domain constraints | LCS: 70-100%, b: -0.5 to 0 |
+| $\lambda$ | Regularization | Shrinkage for small datasets |
+
+: Mapping between mathematical and cost estimating terminology {#tbl-cer-mapping}
+
+PCReg addresses the typical CER challenge: small samples (5-30 points), correlated predictors, and physically-motivated bounds on parameters.
+
+\newpage
+
 # Simulation Details {#sec-appendix-simulation}
 
 ## Data Generation Process
@@ -1466,7 +1543,7 @@ For each of the 8,100 scenarios:
 |:--------------|:-----------------------------------|:-----------:|
 | OLS           | Standard log-log OLS               |     No      |
 | OLS_LearnOnly | OLS with learning variable only    |     No      |
-| PCReg     | GCV-selected penalty + constraints |     Yes     |
+| PCReg         | GCV-selected penalty + constraints |     Yes     |
 
 : Models compared in main paper {#tbl-models-main}
 
@@ -1502,9 +1579,9 @@ for model in summary_all.index:
 
 | Model               | Test MAPE | Test SSPE | b Error | c Error |    R2 |
 |:--------------------|----------:|----------:|--------:|--------:|------:|
-| PCReg_Tight     |    0.0561 |    0.0861 |  0.0200 |  0.0337 | 0.852 |
+| PCReg_Tight         |    0.0561 |    0.0861 |  0.0200 |  0.0337 | 0.852 |
 | PCReg_ConstrainOnly |    0.0764 |    0.2052 |  0.0354 |  0.0791 | 0.877 |
-| PCReg           |    0.0773 |    0.2074 |  0.0338 |  0.0827 | 0.871 |
+| PCReg               |    0.0773 |    0.2074 |  0.0338 |  0.0827 | 0.871 |
 | PCRegGCV_LogMSE     |    0.0778 |    0.2832 |  0.0341 |  0.0776 | 0.877 |
 | PCReg_CV            |    0.0794 |    0.2538 |  0.0353 |  0.0814 | 0.862 |
 | BayesianRidge       |    0.0801 |    0.4595 |  0.0360 |  0.0886 | 0.882 |
@@ -1706,7 +1783,7 @@ where $h_i$ is the leverage (diagonal element of the hat matrix). GCV replaces i
 ## Comparison and Recommendations
 
 | Criterion | K-Fold CV | GCV | Recommendation |
-|:----------------|:----------------|:----------------|:----------------------|
+|:-----------------|:-----------------|:-----------------|:------------------|
 | **Sample size n \< 10** | Poor | Good | **Use GCV** |
 | **Sample size 10 ≤ n \< 20** | Fair | Good | **Prefer GCV** |
 | **Sample size 20 ≤ n \< 50** | Good | Good | Either acceptable |
