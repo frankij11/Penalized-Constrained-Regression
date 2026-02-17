@@ -102,5 +102,6 @@ nul
 *.xlsx
 *.parquet
 *.csv
+!scripts/ICEAA/sar_raw_db/**/*.csv
 # Claude Code
 .claude/

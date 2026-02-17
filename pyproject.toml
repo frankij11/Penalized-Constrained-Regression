@@ -92,8 +92,10 @@ all = [
 "Bug Tracker" = "https://github.com/herrenassociates/penalized-constrained/issues"
 "Source" = "https://github.com/herrenassociates/penalized-constrained"
 
-[tool.setuptools]
-packages = ["penalized_constrained"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["penalized_constrained*"]
+namespaces = false
 
 [tool.setuptools.package-data]
 penalized_constrained = ["py.typed"]
