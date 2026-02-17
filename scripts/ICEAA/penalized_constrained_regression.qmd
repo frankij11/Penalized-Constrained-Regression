@@ -67,8 +67,10 @@ OUTPUT_DIR = Path('output_v2')
 # Run simulation if data doesn't exist
 if not (OUTPUT_DIR / 'simulation_results.parquet').exists():
     print("Simulation data not found. Running simulation...")
-    subprocess.run([sys.executable, 'run_simulation.py'], check=True)
-    subprocess.run([sys.executable, 'simulation_analysis.py'], check=True)
+    print("Note: Running simulation can take ~50 minutes on a typical computer")
+    print("Run:")
+    print("python run_simulation.py")
+    print("python simulation_analysis.py")
 
 # Load data
 df_example = pd.read_csv(OUTPUT_DIR / 'motivational_example_data.csv')
@@ -1680,21 +1682,27 @@ For users preferring Excel, download the [PCReg Template](https://github.com/fra
 #| echo: true
 #| eval: false
 
-import penalized_constrained as pcreg
 import numpy as np
+import penalized_constrained as pcreg
 
+# Generate sample data
+np.random.seed(42)
+X = np.random.randn(100, 2)
+y = X @ np.array([-0.15, -0.07]) + 4.5 + 0.1 * np.random.randn(100)
+
+# Fit with cross-validated hyperparameter selection
 model = pcreg.PenalizedConstrainedCV(
-    coef_names=['T1', 'b', 'c'],
-    bounds={
-        'T1': (0, None),      # T1 must be positive
-        'b': (-0.5, 0),       # LCS 70-100%
-        'c': (-0.5, 0)        # Rate effect 70-100%
-    },
-    prediction_fn=lambda X, p: p[0] * X[:,0]**p[1] * X[:,1]**p[2],
-    loss='sspe',
-    selection='gcv'
+    bounds=[(-1, 0), (-1, 0)],  # Both coefficients must be ≤ 0
+    loss='sspe',                 # Sum of Squared Percentage Error
+    cv=5
 )
-model.fit(X_train, y_train)
+model.fit(X, y)
+
+# Results
+print(f"Best alpha: {model.alpha_:.4f}")
+print(f"Best l1_ratio: {model.l1_ratio_:.2f}")
+print(f"Coefficients: {model.coef_}")
+print(f"Active constraints: {model.active_constraints_}")
 ```
 
 ## Citation
