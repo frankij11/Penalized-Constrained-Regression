@@ -1,16 +1,17 @@
 ---
-title: "Penalized-Constrained Regression"
-subtitle: "Combining Regularization and Constrained Optimization for Cost Estimation"
+title: "Small Data, Big Problems"
+subtitle: "Penalized-Constrained Regression for Cost Estimation"
 author:
   - name: Kevin Joy
     affiliations:
-    - id: herren
-      name: Herren Associates
+      - id: herren
+        name: Herren Associates
   - name: Max Watstein
     affiliations:
-     - ref: herren
+      - id: herren
+        name: Herren Associates
 
-date: today
+date: 2026-02-17
 format:
   pdf:
     toc: true
